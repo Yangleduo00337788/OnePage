@@ -1,0 +1,89 @@
+# =============================================================================
+# 网关 onepage-gateway（WebFlux）
+# 值全部来自进程环境变量（与上线一致）。本地由 IDEA 运行配置把 .env 注入成环境变量。
+# 浏览器只打这个端口。下游地址必须 lb://Nacos 服务名，不要写 127.0.0.1:808x。
+# =============================================================================
+
+server:
+  port: ${GATEWAY_PORT}
+  reactive:
+    session:
+      cookie:
+        name: ${SESSION_COOKIE_NAME}
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE}
+
+spring:
+  application:
+    name: onepage-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
+  session:
+    store-type: redis
+    timeout: ${SESSION_TIMEOUT}
+  cloud:
+    nacos:
+      server-addr: "${NACOS_SERVER_ADDR}"
+      username: ${NACOS_USERNAME}
+      password: "${NACOS_PASSWORD}"
+      discovery:
+        server-addr: "${NACOS_SERVER_ADDR}"
+        namespace: ${NACOS_NAMESPACE}
+        group: ${NACOS_GROUP}
+        context-path: nacos
+        username: ${NACOS_USERNAME}
+        password: "${NACOS_PASSWORD}"
+    loadbalancer:
+      nacos:
+        enabled: true
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      httpclient:
+        connect-timeout: ${GW_CONNECT_TIMEOUT_MS}
+        response-timeout: ${GW_RESPONSE_TIMEOUT}
+      default-filters:
+        - name: Retry
+          args:
+            retries: ${GW_RETRY_COUNT}
+            methods: GET
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: ${GW_RATE_REPLENISH}
+            redis-rate-limiter.burstCapacity: ${GW_RATE_BURST}
+            key-resolver: "#{@clientIpKeyResolver}"
+      routes:
+        - id: auth
+          uri: lb://onepage-auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: users
+          uri: lb://onepage-user-service
+          predicates:
+            - Path=/api/v1/users/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: uploads
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/uploads/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: media
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/media/**
+          metadata:
+            sensitiveHeaders: ""
+
+onepage:
+  cors-allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  rate-replenish: ${GW_RATE_REPLENISH}
+  rate-burst: ${GW_RATE_BURST}
