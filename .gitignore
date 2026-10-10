@@ -1,0 +1,31 @@
+# 机密
+**/.env
+**/.env.*
+!**/.env.example
+!**/env.example
+.agi-workspace.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 构建与依赖
+**/target/
+**/node_modules/
+**/dist/
+**/.vite/
+**/.output/
+*.tsbuildinfo
+*.log
+
+# 编辑器 / OS
+.idea/
+.cursor/
+.run/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 本机调试脚本
+tmp-*.ps1
+tmp-*.sh
