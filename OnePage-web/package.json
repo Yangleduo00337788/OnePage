@@ -1,0 +1,11 @@
+{
+  "name": "onepage-web",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @onepage/shell --filter @onepage/app-creator --parallel dev",
+    "dev:shell": "pnpm --filter @onepage/shell dev",
+    "dev:creator": "pnpm --filter @onepage/app-creator dev",
+    "build": "pnpm --filter @onepage/app-creator build && pnpm --filter @onepage/shell build"
+  }
+}
