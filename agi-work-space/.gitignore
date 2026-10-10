@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies and lock-adjacent cache
+node_modules
+.npm
+.pnpm-store
+*.tgz
+
+# Build / preview
+dist
+dist-ssr
+.output
+.vite
+coverage
+*.lcov
+
+# TypeScript incremental (also emitted under node_modules/.tmp)
+*.tsbuildinfo
+
+# Environment and local Vite files (keep .env.example if you add one)
+*.local
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Secrets / certs that should never be pushed
+*.pem
+*.key
+*.p12
+*.pfx
+.agi-workspace.local.json
+*.local.json

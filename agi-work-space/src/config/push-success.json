@@ -1,0 +1,26 @@
+{
+  "zh": {
+    "firstSuccess": "恭喜您完成首次推送",
+    "firstHint": "远程仓库已经记下这次文档。之后每次推送都会留下新的提交记录。",
+    "lines": [
+      "推送成功，远程仓库已更新。",
+      "提交已送达，团队可以拉到最新文档了。",
+      "这次同步很干净，继续保持。",
+      "文档已上车，远程分支状态良好。",
+      "又一次稳稳落地，谢谢你的提交。",
+      "变更已写入远程，可以去仓库确认。"
+    ]
+  },
+  "en": {
+    "firstSuccess": "Congratulations on your first push",
+    "firstHint": "The remote repository now has this snapshot. Later pushes will add new commits.",
+    "lines": [
+      "Pushed. The remote repository is up to date.",
+      "Commit landed. The team can pull the latest docs.",
+      "Clean sync. Keep going.",
+      "Docs are on the remote branch.",
+      "Another solid landing. Thanks for the commit.",
+      "Changes are on the remote. You can confirm in the repo."
+    ]
+  }
+}
