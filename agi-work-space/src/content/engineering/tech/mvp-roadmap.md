@@ -1,0 +1,94 @@
+---
+title: 架构与 MVP 路线图
+description: 技术总览：三个仓库、怎么拆服务、先做什么
+order: 2
+---
+
+ONEPAGE 的技术总览：三个仓库怎么分工、服务怎么拆、MVP 分几步交付。改范围先改本页再动代码。 **P0 已开工**（Gateway / auth / user / 上传 + shell 登录资料）。
+
+> [!NOTE]
+> 看图更直观：[架构图与时序图](/engineering/tech/diagrams)。  
+> 栈的明细表：[技术架构](/engineering/tech/architecture)。  
+> 功能细节：[产品需求 PRD](/product/spec/prd)。
+
+## 三个仓库各干什么
+
+| 仓库 | 一句话 |
+| --- | --- |
+| **agi-work-space**（你现在打开的） | 项目文档 + 本文工作空间 |
+| **OnePage-web** | 用户打开的 PC 网站（微前端） |
+| **OnePage-Server** | 后端微服务 |
+
+三个文件夹在同一父目录下（例如 `OnePage/`）。**业务功能不要写进 agi-work-space 的 Vue 里**。
+
+## 产品长什么样（技术视角）
+
+ONEPAGE = 笔记流（图/文/视频）+ 关注与互动 + **通知和私信分开** + AI + 基础直播。  
+PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 MVP）。
+
+## 技术怎么搭（记住这几条就够）
+
+1. **入口**：所有 API 走 Spring Cloud Gateway（`:8080`）。下游用 Nacos **`lb://服务名`**，服务自己注册，控制台不用手工点注册。  
+2. **登录态**：Session 放在 Redis；Cookie 名 **`ONEPAGE_SESSION`**。网关验 Cookie，内网只认 `X-User-Id`；服务间内部接口再带 `X-Internal-Token`。  
+3. **数据**：业务 **MySQL**（一服务一库）；文件 **MinIO**；搜索 **ES**（P3）；缓存和 Session **Redis**。  
+4. **异步**：只用 **RocketMQ**（P1 起）；发帖等用 **Outbox**。P0 还没有 MQ。  
+5. **前端**：pnpm 仓；P0 只有 **shell**（登录/注册/`/me`）。feed / 用户 / 私信 / 直播子应用尚未拆。
+
+版本号（Boot 3.4、Vue 3.5 等）见 [技术架构 · 版本锁定](/engineering/tech/architecture#版本锁定bom)。
+
+## Outbox 用一句话说清
+
+用户发帖时，**帖子和「待发送事件」在同一笔 MySQL 事务里提交**；后台任务再把事件推到 RocketMQ，搜索、通知等慢慢跟上来。需要立刻知道结果的（比如用户是否存在）才用 Feign **同步**调别的服务。
+
+## 后端有哪些服务
+
+| 服务 | 主要负责 |
+| --- | --- |
+| gateway | 统一入口、验 Session |
+| auth | 登录、注册、OAuth |
+| user | 资料、一页号、关注、个人页列表 |
+| content | 笔记、媒体 |
+| social | 赞、藏、评论、分享 |
+| message | 私信 |
+| notification | 评论/@/赞藏/关注等通知 |
+| search | 搜索、索引 |
+| ai | 润色、问答 |
+| moderation | 举报 |
+| live | 直播房间与播放地址 |
+
+早期可以把 content 和 social **部署在一起**，但代码包建议分开，以后好拆。
+
+## 前端有哪些子应用
+
+| 子应用 | 用户大概会在哪 |
+| --- | --- |
+| shell | 顶栏、登录、设置、通知铃铛 |
+| app-feed | 刷流、发帖、看笔记 |
+| app-user | 个人主页、粉丝/关注列表 |
+| app-im | 私信 |
+| app-live | 直播 |
+
+## MVP 做与不做
+
+**要做**：登录（短信/账密/GitHub/Google）、发帖、Feed、赞藏评、关注、主页与列表、通知+私信分开、分享、举报、AI 润色与问答、直播推流+HLS 观看。
+
+**先不做**：礼物、连麦、带货、复杂推荐、完整运营后台。
+
+## 分几步交付
+
+| 阶段 | 团队能演示什么 |
+| --- | --- |
+| P0 | 能登录、能传图、有用户资料、能设密/找回密码 |
+| P1 | 能发帖、能刷流、能赞藏评 |
+| P2 | 能关注、能收通知、能私信 |
+| P3 | 能搜索、能用 AI 助手 |
+| P4 | 能开播、能看直播 |
+| P5 | 能举报、能基本运维 |
+
+**当前**：P0 已能在本机 IDEA 跑通登录资料上传链路。本地**不用 Docker**。yml 只引用环境变量；本地 IDEA 把 `OnePage-Server/.env` 注入成进程环境变量（与上线一致）。短信 `SMS_MOCK` 验证码 `888888`。建库脚本见 [数据库脚本](/engineering/tech/sql)。发现流与笔记仍属 P1。
+
+## 往下翻
+
+- [技术架构](/engineering/tech/architecture) · [登录注册流程](/engineering/tech/auth-flows)  
+- [接口契约](/engineering/process/contracts) · [API 明细](/engineering/process/api-endpoints) · [数据库设计](/engineering/tech/database-schema) · [数据库脚本](/engineering/tech/sql)  
+- [领域设计](/engineering/tech/domain)
