@@ -1,0 +1,19 @@
+target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.log
+.DS_Store
+.mvn/wrapper/maven-wrapper.jar
+
+# 本地机密：提交 env.example，不提交 .env
+.env
+.env.*
+.env.local
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
