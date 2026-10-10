@@ -1,0 +1,413 @@
+<!--
+  「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。笔记 Tab 仍是空态（P1 才有帖）。
+  未登录会被拉去首页并打开登录弹窗，redirect 仍是 /me。
+-->
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { openCreatorSite } from '../creatorSite'
+import { api, ApiError } from '@onepage/api-client'
+import { useSession } from '../stores/session'
+import { useAuthModal } from '../stores/authModal'
+import Icon from '../components/Icon.vue'
+
+const GENDERS = [
+  { id: 0, label: '未设置' },
+  { id: 1, label: '男' },
+  { id: 2, label: '女' },
+] as const
+
+const ME_TABS = ['笔记', '收藏', '点赞', '历史'] as const
+const TAB_EMPTY: Record<
+  (typeof ME_TABS)[number],
+  { icon: string; title: string; desc: string; action: string; to: string }
+> = {
+  笔记: {
+    icon: 'sticky-note',
+    title: '还没有发布过笔记',
+    desc: '把生活里的一页记下来，发布后会出现在这里。',
+    action: '去发布',
+    to: '/create',
+  },
+  收藏: {
+    icon: 'bookmark',
+    title: '还没有收藏',
+    desc: '看到喜欢的笔记点一下收藏，以后都能在这里找到。',
+    action: '去首页逛逛',
+    to: '/',
+  },
+  点赞: {
+    icon: 'heart',
+    title: '还没有点过赞',
+    desc: '给打动你的内容点个赞，它们会安静地待在这里。',
+    action: '去发现',
+    to: '/',
+  },
+  历史: {
+    icon: 'clock',
+    title: '还没有浏览记录',
+    desc: '看过的笔记会留在这里，方便你随时再回来。',
+    action: '去首页看看',
+    to: '/',
+  },
+}
+
+const router = useRouter()
+const session = useSession()
+const auth = useAuthModal()
+const editing = ref(false)
+const nickname = ref('')
+const bio = ref('')
+const gender = ref(0)
+const message = ref('')
+const error = ref('')
+const toast = ref('')
+const copied = ref(false)
+const saving = ref(false)
+const uploading = ref<'avatar' | 'cover' | null>(null)
+const avatarInput = ref<HTMLInputElement | null>(null)
+const coverInput = ref<HTMLInputElement | null>(null)
+const listTab = ref<(typeof ME_TABS)[number]>('笔记')
+const tabDir = ref<'next' | 'prev'>('next')
+
+function selectTab(item: (typeof ME_TABS)[number]) {
+  const from = ME_TABS.indexOf(listTab.value)
+  const to = ME_TABS.indexOf(item)
+  if (from === to) return
+  tabDir.value = to > from ? 'next' : 'prev'
+  listTab.value = item
+}
+
+onMounted(async () => {
+  await session.refresh()
+  if (!session.me) {
+    auth.show('login', '/me')
+    await router.replace('/')
+  }
+})
+
+function openEdit() {
+  if (!session.me) return
+  nickname.value = session.me.nickname
+  bio.value = session.me.bio
+  gender.value = Number(session.me.gender) || 0
+  error.value = ''
+  message.value = ''
+  editing.value = true
+}
+
+function closeEdit() {
+  if (saving.value) return
+  editing.value = false
+}
+
+function setGender(id: number) {
+  gender.value = id
+}
+
+async function save() {
+  error.value = ''
+  message.value = ''
+  saving.value = true
+  try {
+    session.me = await api.patchMe({
+      nickname: nickname.value,
+      bio: bio.value,
+      gender: Number(gender.value),
+    })
+    editing.value = false
+    showToast('资料已保存')
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : '保存失败'
+  } finally {
+    saving.value = false
+  }
+}
+
+function showToast(text: string) {
+  toast.value = text
+  window.setTimeout(() => {
+    if (toast.value === text) toast.value = ''
+  }, 2200)
+}
+
+/**
+ * 三步上传：presign（Java 签 PUT 地址）→ 浏览器直传 MinIO → complete → PATCH 资料绑 mediaId。
+ * PUT 的 Content-Type 必须和申请预签名时一致，否则签名对不上。
+ */
+async function onFile(event: Event, purpose: 'avatar' | 'cover') {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  uploading.value = purpose
+  try {
+    const mimeType = file.type || 'image/jpeg'
+    const ticket = await api.presign(mimeType, file.size, purpose)
+    const put = await fetch(ticket.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': mimeType },
+    })
+    if (!put.ok) {
+      throw new Error('直传对象存储失败')
+    }
+    await api.completeUpload(ticket.mediaId)
+    session.me = await api.patchMe(
+      purpose === 'avatar' ? { avatarMediaId: ticket.mediaId } : { coverMediaId: ticket.mediaId },
+    )
+    showToast(purpose === 'avatar' ? '头像已更新' : '封面已更新')
+  } catch (e) {
+    showToast(e instanceof ApiError ? e.message : '上传失败')
+  } finally {
+    uploading.value = null
+  }
+}
+
+async function copyPageId() {
+  if (!session.me) return
+  try {
+    await navigator.clipboard.writeText(session.me.pageId)
+    copied.value = true
+    window.setTimeout(() => {
+      copied.value = false
+    }, 1600)
+  } catch {
+    showToast('复制失败')
+  }
+}
+
+async function logout() {
+  await session.logout()
+  await router.replace('/')
+}
+</script>
+
+<template>
+  <section v-if="session.me" class="-mx-8 -mt-1 pb-16">
+    <input
+      ref="coverInput"
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/gif"
+      class="hidden"
+      @change="onFile($event, 'cover')"
+    />
+    <input
+      ref="avatarInput"
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/gif"
+      class="hidden"
+      @change="onFile($event, 'avatar')"
+    />
+
+    <div class="relative">
+      <button
+        type="button"
+        class="group relative block h-[240px] w-full overflow-hidden bg-[#fafafa]"
+        :disabled="uploading === 'cover'"
+        @click="coverInput?.click()"
+      >
+        <img
+          v-if="session.me.coverUrl"
+          :src="session.me.coverUrl"
+          alt=""
+          class="h-full w-full object-cover"
+        />
+        <div v-else class="relative h-full w-full overflow-hidden bg-[#fafafa]">
+          <span class="pointer-events-none absolute -top-10 -left-8 h-48 w-48 rounded-full bg-[#ff2442]/[0.07]" />
+          <span class="pointer-events-none absolute right-[-24px] bottom-[-28px] h-44 w-44 rounded-full bg-[#ff2442]/[0.05]" />
+          <span class="flex h-full flex-col items-center justify-center text-[#c4c4c4]">
+            <Icon name="camera" :size="28" :stroke="1.6" />
+            <span class="mt-2 text-[13px]">点击添加封面</span>
+          </span>
+        </div>
+        <span
+          class="absolute inset-0 flex items-center justify-center bg-black/0 text-[13px] text-white opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100"
+        >
+          {{ uploading === 'cover' ? '封面上传中…' : '更换封面' }}
+        </span>
+      </button>
+    </div>
+
+    <div class="relative px-8">
+      <div class="absolute top-10 right-8 z-10 flex items-center gap-2">
+        <button type="button" class="me-action" @click="openEdit">
+          <Icon name="pencil" :size="14" :stroke="1.8" />
+          编辑
+        </button>
+        <button type="button" class="me-action text-[#8a8a8a]" @click="logout">退出登录</button>
+      </div>
+      <div class="flex justify-center">
+        <div class="relative -mt-12">
+          <button
+            type="button"
+            class="group h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white"
+            :disabled="uploading === 'avatar'"
+            @click="avatarInput?.click()"
+          >
+            <img
+              v-if="session.me.avatarUrl"
+              :src="session.me.avatarUrl"
+              class="h-full w-full object-cover"
+              alt=""
+            />
+            <span v-else class="flex h-full items-center justify-center text-[#c4c4c4]">
+              <Icon name="smile" :size="36" :stroke="1.5" />
+            </span>
+            <span
+              class="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] text-white opacity-0 transition group-hover:opacity-100"
+            >
+              {{ uploading === 'avatar' ? '上传中' : '换头像' }}
+            </span>
+          </button>
+          <button
+            type="button"
+            class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1f] shadow-sm ring-1 ring-[#eee]"
+            :disabled="uploading === 'avatar'"
+            aria-label="更换头像"
+            @click="avatarInput?.click()"
+          >
+            <Icon name="camera" :size="14" :stroke="1.8" />
+          </button>
+        </div>
+      </div>
+
+      <div class="mx-auto mt-4 max-w-[560px] text-center">
+        <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
+          <span class="truncate">{{ session.me.nickname }}</span>
+          <Icon
+            v-if="session.me.gender === 1"
+            name="mars"
+            :size="16"
+            :stroke="2"
+            class="shrink-0 text-[#4a90d9]"
+          />
+          <Icon
+            v-else-if="session.me.gender === 2"
+            name="venus"
+            :size="16"
+            :stroke="2"
+            class="shrink-0 text-[#ff2442]"
+          />
+        </h1>
+        <button
+          type="button"
+          class="mt-1 inline-flex items-center gap-1 text-[13px] text-[#8a8a8a] hover:text-[#1f1f1f]"
+          @click="copyPageId"
+        >
+          一页号：{{ session.me.pageId }}
+          <Icon name="copy" :size="13" :stroke="1.8" />
+          <span v-if="copied" class="text-[#ff2442]">已复制</span>
+        </button>
+        <p class="mt-3 text-[14px] leading-6 text-[#555]">
+          签名：{{ session.me.bio?.trim() ? session.me.bio : '暂无' }}
+        </p>
+        <p class="mt-4 text-[14px] text-[#8a8a8a]">
+          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followingCount }}</span>
+          关注
+          <span class="mx-3 text-[#eee]">|</span>
+          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followerCount }}</span>
+          粉丝
+          <span class="mx-3 text-[#eee]">|</span>
+          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{
+            (session.me.stats.likeReceivedCount ?? 0) + (session.me.stats.favoriteReceivedCount ?? 0)
+          }}</span>
+          获赞与收藏
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-8 border-t border-[#ececec]">
+      <div class="flex items-center justify-center gap-2 pt-5">
+        <button
+          v-for="item in ME_TABS"
+          :key="item"
+          type="button"
+          class="me-tab"
+          :class="{ 'is-on': listTab === item }"
+          @click="selectTab(item)"
+        >
+          {{ item }}
+        </button>
+      </div>
+      <div class="relative overflow-hidden px-8">
+        <Transition :name="tabDir === 'next' ? 'me-pane-next' : 'me-pane-prev'" mode="out-in">
+          <div :key="listTab" class="me-empty">
+            <span class="me-empty-ico">
+              <Icon :name="TAB_EMPTY[listTab].icon" :size="28" :stroke="1.6" />
+            </span>
+            <p class="mt-4 text-[16px] font-medium text-[#1f1f1f]">{{ TAB_EMPTY[listTab].title }}</p>
+            <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">
+              {{ TAB_EMPTY[listTab].desc }}
+            </p>
+            <button
+              v-if="listTab === '笔记'"
+              type="button"
+              class="me-empty-go is-primary"
+              @click="openCreatorSite"
+            >
+              {{ TAB_EMPTY[listTab].action }}
+            </button>
+            <RouterLink v-else :to="TAB_EMPTY[listTab].to" class="me-empty-go">
+              {{ TAB_EMPTY[listTab].action }}
+            </RouterLink>
+          </div>
+        </Transition>
+      </div>
+    </div>
+
+    <p
+      v-if="toast"
+      class="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#1f1f1f] px-4 py-2 text-[13px] text-white"
+    >
+      {{ toast }}
+    </p>
+
+    <Teleport to="body">
+      <div
+        v-if="editing"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4"
+        @click.self="closeEdit"
+      >
+        <div class="relative w-[440px] max-w-[calc(100vw-32px)] rounded-[20px] bg-white px-8 py-7 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
+          <button type="button" class="icon-btn absolute top-3 right-3" aria-label="关闭" @click="closeEdit">
+            <Icon name="x" :size="18" />
+          </button>
+          <h2 class="text-[18px] font-semibold">编辑资料</h2>
+          <form class="mt-6 space-y-4" @submit.prevent="save">
+            <label class="block">
+              <span class="mb-2 block text-[13px] text-[#8a8a8a]">昵称</span>
+              <input v-model="nickname" class="field-auth" placeholder="怎么称呼你" maxlength="64" />
+            </label>
+            <label class="block">
+              <span class="mb-2 block text-[13px] text-[#8a8a8a]">签名</span>
+              <textarea
+                v-model="bio"
+                class="field-auth resize-none"
+                placeholder="介绍一下自己"
+                maxlength="500"
+              />
+            </label>
+            <div>
+              <span class="mb-2 block text-[13px] text-[#8a8a8a]">性别</span>
+              <div class="flex gap-2">
+                <button
+                  v-for="item in GENDERS"
+                  :key="item.id"
+                  type="button"
+                  class="gender-pill"
+                  :class="{ 'is-on': Number(gender) === item.id }"
+                  @click.prevent="setGender(item.id)"
+                >
+                  {{ item.label }}
+                </button>
+              </div>
+            </div>
+            <p v-if="error" class="text-[13px] text-[#ff2442]">{{ error }}</p>
+            <button class="btn-auth mt-2" :disabled="saving">{{ saving ? '保存中…' : '保存' }}</button>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+  </section>
+</template>

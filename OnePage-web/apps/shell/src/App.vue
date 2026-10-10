@@ -1,0 +1,158 @@
+<!--
+  产品壳：左侧 260px 导航常驻，右侧 header + RouterView 换页。
+  <script setup>：组合式写法，顶层变量直接给模板用，不必 return。
+  onMounted：DOM 挂上后拉一次 /users/me 和主题。
+  watch 路由：换页关掉「更多」，避免面板留在错误位置。
+-->
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { useSession } from './stores/session'
+import { useAuthModal } from './stores/authModal'
+import { useMoreMenu } from './stores/moreMenu'
+import { useTheme } from './stores/theme'
+import { openCreatorSite } from './creatorSite'
+import Icon from './components/Icon.vue'
+import SearchBox from './components/SearchBox.vue'
+import AuthModal from './components/AuthModal.vue'
+import MoreMenu from './components/MoreMenu.vue'
+import NoteDetailModal from './components/NoteDetailModal.vue'
+
+const session = useSession()
+const auth = useAuthModal()
+const more = useMoreMenu()
+const theme = useTheme()
+const route = useRoute()
+onMounted(() => {
+  session.refresh()
+  theme.init()
+})
+
+watch(
+  () => route.fullPath,
+  () => more.hide(),
+)
+
+const nav = computed(() => [
+  { to: '/', label: '首页', icon: 'house-heart', match: ['/'] },
+  { to: '/yehyeh', label: '耶耶', icon: 'message-circle-heart', match: ['/yehyeh'], ai: true },
+  { to: '/video', label: '视频', icon: 'circle-play', match: ['/video'] },
+  { to: '/live', label: '直播', icon: 'tv-minimal-play', match: ['/live'] },
+  { to: '/create', label: '发布', icon: 'badge-plus', match: ['/create'], creator: true },
+  { to: '/notify', label: '通知', icon: 'bell-ring', match: ['/notify'] },
+  { to: '/messages', label: '消息', icon: 'message-circle-more', match: ['/messages'] },
+])
+
+const meNav = { to: '/me', label: '我的', icon: 'smile', match: ['/me'] }
+
+const about = { to: '/about', label: '关于我们', icon: 'info' }
+const moreBtn = ref<HTMLButtonElement | null>(null)
+
+function active(item: { match: string[] }) {
+  return item.match.includes(route.path)
+}
+
+function openLogin() {
+  auth.show('login', '/me')
+}
+
+function onNav(item: { creator?: boolean }) {
+  if (item.creator) openCreatorSite()
+}
+
+const yehShell = computed(() => route.path === '/yehyeh')
+const flushMain = computed(() => yehShell.value || route.path === '/messages')
+</script>
+
+<template>
+  <div class="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+    <aside class="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col items-center bg-[var(--sidebar-bg)] px-4 py-5">
+      <RouterLink to="/" class="relative mb-6 block h-[72px] w-[220px] overflow-hidden bg-[var(--sidebar-bg)]">
+        <img
+          src="/logo-light.png"
+          alt="ONEPAGE"
+          class="logo-mark absolute top-1/2 left-1/2 h-[300%] w-[300%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+        />
+      </RouterLink>
+
+      <nav class="flex w-full flex-col items-center space-y-1 text-[16px] font-medium text-[#1f1f1f]">
+        <RouterLink
+          v-for="item in nav"
+          :key="item.label"
+          :to="item.to"
+          class="flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
+          :class="active(item) ? 'bg-[#f2f2f2]' : ''"
+          @click="onNav(item)"
+        >
+          <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
+            <Icon :name="item.icon" :size="24" :stroke="1.75" class="shrink-0" />
+            <span class="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+              {{ item.label }}
+              <span
+                v-if="item.ai"
+                class="rounded-full bg-[#ff2442] px-1.5 py-0.5 text-[10px] font-medium leading-none text-white"
+              >
+                AI
+              </span>
+            </span>
+          </span>
+        </RouterLink>
+        <!-- 未登录显示红「登录」；已登录才是「我的」。loaded 防止刷新瞬间闪一下错误项。 -->
+        <button v-if="session.loaded && !session.me" type="button" class="nav-login" @click="openLogin">登录</button>
+        <RouterLink
+          v-else
+          :to="meNav.to"
+          class="flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
+          :class="active(meNav) ? 'bg-[#f2f2f2]' : ''"
+        >
+          <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
+            <Icon :name="meNav.icon" :size="24" :stroke="1.75" class="shrink-0" />
+            <span class="shrink-0 whitespace-nowrap">{{ meNav.label }}</span>
+          </span>
+        </RouterLink>
+      </nav>
+
+      <nav class="mt-auto flex w-full flex-col items-center space-y-1 pb-2 text-[16px] font-medium text-[#1f1f1f]">
+        <button
+          ref="moreBtn"
+          type="button"
+          class="nav-pill nav-more flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5"
+          :class="more.open ? 'is-on' : ''"
+          @click.stop="more.toggleFrom(moreBtn)"
+        >
+          <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
+            <Icon name="menu" :size="24" :stroke="1.75" class="shrink-0" />
+            <span class="shrink-0 whitespace-nowrap">更多</span>
+          </span>
+        </button>
+        <RouterLink
+          :to="about.to"
+          class="flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
+          :class="route.path === about.to ? 'bg-[#f2f2f2]' : ''"
+        >
+          <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
+            <Icon :name="about.icon" :size="24" :stroke="1.75" class="shrink-0" />
+            <span class="shrink-0 whitespace-nowrap">{{ about.label }}</span>
+          </span>
+        </RouterLink>
+      </nav>
+    </aside>
+
+    <div class="ml-[260px] min-h-screen bg-[var(--bg)]">
+      <header
+        v-if="!yehShell"
+        class="sticky top-0 z-10 flex h-[72px] items-center justify-center overflow-visible bg-[var(--bg)] px-8"
+      >
+        <SearchBox />
+      </header>
+
+      <main class="bg-[var(--bg)]" :class="flushMain ? 'p-0' : 'px-8 pb-16 pt-1'">
+        <!-- 当前路由对应的页面组件插在这里，侧栏不重绘。 -->
+        <RouterView />
+      </main>
+    </div>
+    <AuthModal />
+    <NoteDetailModal />
+    <MoreMenu />
+  </div>
+</template>
