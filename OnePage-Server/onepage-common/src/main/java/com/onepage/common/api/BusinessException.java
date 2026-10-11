@@ -31,6 +31,10 @@ public class BusinessException extends RuntimeException {
     return new BusinessException(ErrorCodes.UNAUTHORIZED, message, HttpStatus.UNAUTHORIZED);
   }
 
+  public static BusinessException forbidden(String message) {
+    return new BusinessException(ErrorCodes.FORBIDDEN, message, HttpStatus.FORBIDDEN);
+  }
+
   public static BusinessException notFound(String message) {
     return new BusinessException(ErrorCodes.NOT_FOUND, message, HttpStatus.NOT_FOUND);
   }

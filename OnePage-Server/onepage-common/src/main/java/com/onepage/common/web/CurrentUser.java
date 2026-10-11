@@ -14,14 +14,23 @@ public final class CurrentUser {
 
   /** 没有合法数字 id 就当未登录。网关本应拦掉，这里再防一手直连端口。 */
   public static long requireUserId(HttpServletRequest request) {
+    Long userId = tryUserId(request);
+    if (userId == null) {
+      throw BusinessException.unauthorized("未登录");
+    }
+    return userId;
+  }
+
+  /** 公开接口用：有登录头就带上，没有就返回 null，不要 401。 */
+  public static Long tryUserId(HttpServletRequest request) {
     String raw = request.getHeader(GatewayHeaders.USER_ID);
     if (raw == null || raw.isBlank()) {
-      throw BusinessException.unauthorized("未登录");
+      return null;
     }
     try {
       return Long.parseLong(raw);
     } catch (NumberFormatException ex) {
-      throw BusinessException.unauthorized("未登录");
+      return null;
     }
   }
 }

@@ -82,8 +82,33 @@ spring:
             - Path=/api/v1/media/**
           metadata:
             sensitiveHeaders: ""
+        - id: posts
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/posts/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: feeds
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/feeds/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: reactions
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/reactions/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: comments
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/comments/**
+          metadata:
+            sensitiveHeaders: ""
 
 onepage:
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  session-cookie-name: ${SESSION_COOKIE_NAME}
   rate-replenish: ${GW_RATE_REPLENISH}
   rate-burst: ${GW_RATE_BURST}

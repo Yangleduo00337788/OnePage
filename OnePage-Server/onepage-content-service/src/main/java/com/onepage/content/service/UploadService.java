@@ -113,6 +113,8 @@ public class UploadService {
       case "image/webp" -> ".webp";
       case "image/gif" -> ".gif";
       case "video/mp4" -> ".mp4";
+      case "video/quicktime" -> ".mov";
+      case "video/webm" -> ".webm";
       default -> "";
     };
   }

@@ -2,6 +2,7 @@ package com.onepage.gateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -21,9 +22,9 @@ import java.util.Map;
  * 登录态过滤器。{@code GlobalFilter}：对所有路由生效，不必在 YAML 里逐条挂。
  * {@code @Component}：让 Spring 扫描并注册这个 Filter。
  * <ul>
- *   <li>公开接口（登录/注册/OAuth/短信）直接放行，由 auth 自己处理。</li>
+ *   <li>公开接口（登录/注册/OAuth/短信、以及 GET Feed/笔记/评论）直接放行。</li>
  *   <li>其余请求必须能从 Redis Session 读到 {@code userId}，否则 401。</li>
- *   <li>通过后写入 {@code X-User-Id}，下游只信这个头。</li>
+ *   <li>通过后写入 {@code X-User-Id}，下游只信这个头。公开 GET 若已登录也会写入，便于 likedByMe。</li>
  * </ul>
  * Session 由 auth 登录成功时写入 Redis；Cookie 名必须与 auth 一致。
  */
@@ -31,9 +32,13 @@ import java.util.Map;
 public class SessionAuthFilter implements GlobalFilter, Ordered {
 
   private final ObjectMapper objectMapper;
+  private final String sessionCookieName;
 
-  public SessionAuthFilter(ObjectMapper objectMapper) {
+  public SessionAuthFilter(
+      ObjectMapper objectMapper,
+      @Value("${onepage.session-cookie-name}") String sessionCookieName) {
     this.objectMapper = objectMapper;
+    this.sessionCookieName = sessionCookieName;
   }
 
   /**
@@ -43,8 +48,21 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
   @Override
   public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
     String path = exchange.getRequest().getURI().getPath();
-    if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod()) || isPublic(path)) {
-      return chain.filter(exchange);
+    HttpMethod method = exchange.getRequest().getMethod();
+    if (HttpMethod.OPTIONS.equals(method) || isPublic(path, method)) {
+      if (exchange.getRequest().getCookies().getFirst(sessionCookieName) == null) {
+        return chain.filter(exchange);
+      }
+      return exchange.getSession().flatMap(session -> {
+        Object userId = session.getAttribute("userId");
+        if (userId == null || userId.toString().isBlank()) {
+          return chain.filter(exchange);
+        }
+        var mutated = exchange.getRequest().mutate()
+            .header("X-User-Id", userId.toString())
+            .build();
+        return chain.filter(exchange.mutate().request(mutated).build());
+      });
     }
     return exchange.getSession().flatMap(session -> {
       Object userId = session.getAttribute("userId");
@@ -66,14 +84,24 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
     });
   }
 
-  /** 仅登录/注册/发码/找回密码/OAuth 公开；设密、查账号、登出要 Session。 */
-  private boolean isPublic(String path) {
-    return path.equals("/api/v1/auth/sms/send")
+  /** 登录/注册/发码/找回密码/OAuth 公开；GET 发现流、笔记详情、评论列表公开。 */
+  private boolean isPublic(String path, HttpMethod method) {
+    if (path.equals("/api/v1/auth/sms/send")
         || path.equals("/api/v1/auth/sms/login")
         || path.equals("/api/v1/auth/register")
         || path.equals("/api/v1/auth/login")
         || path.equals("/api/v1/auth/password/reset")
-        || path.startsWith("/api/v1/auth/oauth/");
+        || path.startsWith("/api/v1/auth/oauth/")) {
+      return true;
+    }
+    if (!HttpMethod.GET.equals(method)) {
+      return false;
+    }
+    if (path.startsWith("/api/v1/feeds/")) {
+      return true;
+    }
+    return path.matches("/api/v1/posts/[^/]+")
+        || path.matches("/api/v1/posts/[^/]+/comments");
   }
 
   private Mono<Void> json(ServerHttpResponse response, HttpStatus status, Map<String, ?> body) {
