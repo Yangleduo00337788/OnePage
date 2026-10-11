@@ -18,13 +18,14 @@ const { logoLightSrc, logoDarkSrc } = useBranding()
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
+  <header class="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/80 pl-6 pr-4 backdrop-blur-md">
     <Button variant="ghost" size="icon-sm" class="md:hidden" :aria-label="t('menu')" @click="emit('menu')">
       <Menu class="size-4" />
     </Button>
-    <RouterLink to="/" class="flex shrink-0 items-center" :aria-label="t('product')">
+    <RouterLink to="/" class="flex shrink-0 items-center gap-2" :aria-label="t('product')">
       <img :src="logoLightSrc" :alt="t('product')" class="h-7 w-auto dark:hidden" />
       <img :src="logoDarkSrc" :alt="t('product')" class="hidden h-7 w-auto dark:block" />
+      <span class="text-[13px] font-medium tracking-wide text-muted-foreground">{{ t('workspaceMark') }}</span>
     </RouterLink>
     <DocBreadcrumb />
     <div class="ml-auto flex shrink-0 items-center gap-1.5">

@@ -20,7 +20,7 @@ RD / FE 维护。仅描述 **本仓库** `agi-work-space` 的纯前端写回；�
 | 能力 | 约定 |
 | --- | --- |
 | 前提 | Chrome / Edge；已授权含 `src/content` 的项目根目录 |
-| 保存文档 | 有角色权限才写 `src/content/**/*.md`；frontmatter 写入 `updated`（ISO 时间） |
+| 保存文档 | 有角色权限才写 `src/content/**/*.md`；frontmatter 写入 `updated`（ISO 时间）。Harness 叶子文档 `/space/harness/*` 打开即编辑 |
 | 重命名 / 移动 | 有写权限且非首页；目录页连同子文件一起搬 |
 | 草稿 | 编辑中自动写入 IndexedDB；离开页前提示未保存 |
 | 图片 | 写入该文档目录 `assets/` |

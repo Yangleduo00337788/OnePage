@@ -19,7 +19,7 @@ FE 维护。
 
 源码里有面向阅读的中文注释（文件角色、Vue/Pinia 关键字、为什么走 Cookie/代理/弹窗登录）。业务事实仍以本页和契约为准，不要把长文案只写在注释里。
 
-P0 **已有**：`apps/shell`（社区站，本机 **5174**），`apps/app-creator`（创作者独立站，本机 **5175**，地址栏 favicon 与社区相同），`packages/api-client`（`credentials: 'include'`，含 P1 发帖/Feed/赞藏评方法）。两边 Vite 都把 `/api` 代理到网关（`VITE_DEV_PROXY_TARGET`）。PC 壳：260px 左栏 + 顶搜 + 瀑布流笔记。首页推荐/关注接 `GET /feeds/explore` 与 `/feeds/following`（P1 同一数据）；旅行等 Tab 带 `category` 筛。自己的帖详情不显示关注。点卡片打开 `NoteDetailModal`，拉 `GET /posts/{id}`、评论与赞藏。底栏赞/藏/发评走 `/reactions` `/comments`；评论头像用 `author.avatarUrl`。视频页同接口只展示 `postType=video`。搜索页仍占位。文档工作空间占用 **5173**，不要和社区抢端口。
+P0 **已有**：`apps/shell`（社区站，本机 **5174**），`apps/app-creator`（创作者独立站，本机 **5175**，地址栏 favicon 与社区相同），`packages/api-client`（`credentials: 'include'`，含 P1 发帖/Feed/赞藏评方法）。两边 Vite 都把 `/api` 代理到网关（`VITE_DEV_PROXY_TARGET`）。PC 壳：260px 左栏 + 顶搜 + 瀑布流笔记。首页推荐/关注接 `GET /feeds/explore` 与 `/feeds/following`（P1 同一数据）；旅行等 Tab 带 `category` 筛。自己的帖详情不显示关注。点卡片打开 `NoteDetailModal`，拉 `GET /posts/{id}`、评论与赞藏。底栏赞/藏/发评走 `/reactions` `/comments`；评论头像用 `author.avatarUrl`。视频页同接口只展示 `postType=video`。搜索页仍占位。文档工作空间占用 **5173**，不要和社区抢端口。三站地址栏 favicon 同一套 Logo PNG（`favicon-32.png` / `favicon.png`）。
 
 规划中尚未建：`app-feed`、`app-user`、`app-im`、`app-live`、`packages/ui`。
 
@@ -88,9 +88,9 @@ packages/api-client/  fetch + Cookie
 | --- | --- |
 | `/` | 项目首页 |
 | `/settings` | 配置中心 |
-| `/{slug}` | Markdown 文档 |
+| `/{slug}` | Markdown 文档。`/space/harness` 为目录预览；`/space/harness/*` 叶子文档有角色时直接进编辑，不先预览 |
 
-组件与写回交互见历史模版段落；实现以 `src/views/*` 为准。
+组件与写回交互见历史模版段落；实现以 `src/views/*` 为准。入口 `index.html` 引用 `public/favicon-32.png` 等，与 `OnePage-web` 社区站相同。顶栏 Logo 右侧为 `Workspace` 标识（`AppHeader.vue`）。侧栏「文档目录」右侧显示篇数与加号：点加号可选新建文档或子目录（有角色权限时；默认建在当前可写目录，否则 `start`）。
 
 ## 无障碍与交互
 

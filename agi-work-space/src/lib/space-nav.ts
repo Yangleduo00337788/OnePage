@@ -18,3 +18,8 @@ export function activeSpaceItem(path: string): SpaceNavId | '' {
 export function isSpacePath(path: string) {
   return path === '/settings' || path.startsWith('/settings') || path.startsWith('/space/')
 }
+
+/** Harness 叶子文档（AGENTS、Java 规约等）。目录页 `space/harness` 不算。 */
+export function isHarnessLeafDoc(slug: string) {
+  return slug.startsWith('space/harness/')
+}

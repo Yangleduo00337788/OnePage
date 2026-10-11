@@ -26,6 +26,10 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-11 — 侧栏「文档目录」右侧显示「N 篇」与加号，可新建文档或目录
+- 2026-10-11 — 文档壳顶栏 Logo 右侧加 Workspace 文字标识；左侧内边距 24px
+- 2026-10-11 — 文档工作空间地址栏换成与社区/创作者相同的 Logo favicon
+- 2026-10-11 — Harness 叶子文档（AGENTS / Java 规约）打开即编辑，目录页仍预览
 - 2026-10-11 — Agent 约束改放 Git 内 `OnePage/AGENTS.md` + harness；去掉会换机丢失的 `.cursor/rules`
 - 2026-10-11 — Harness 增加 Java 规约 `space/harness/java-alibaba.md`；改 Server 前 Agent 必读（DEC-024）
 - 2026-10-11 — 核对 Server：P0 登录资料上传齐；P1 发帖/Feed/赞藏评/分享链接在 content。未实现：用户帖/赞藏/历史列表、关注、AI、通知私信。Outbox 只落库

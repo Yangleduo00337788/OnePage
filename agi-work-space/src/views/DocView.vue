@@ -21,6 +21,7 @@ import {
 } from '@/lib/content'
 import { canCreateIn, canEditSlug, canMoveDoc, createWorkspaceDoc, moveWorkspaceDoc, promoteDocToFolder } from '@/lib/doc-manage'
 import { pendingEditSlug, pendingMoveSlug } from '@/lib/doc-session'
+import { isHarnessLeafDoc } from '@/lib/space-nav'
 import { hydrateContentImages } from '@/lib/content-images'
 import { saveDocOverride, removeDocOverride, docOverrides } from '@/lib/doc-store'
 import { docDrafts, removeDocDraft, saveDocDraft } from '@/lib/doc-drafts'
@@ -405,6 +406,13 @@ function tryStartPendingEdit() {
   pendingEditSlug.value = null
 }
 
+function tryAutoEditHarnessDoc() {
+  if (editing.value) return
+  if (!isHarnessLeafDoc(slug.value)) return
+  if (!canEdit.value || !doc.value) return
+  startEdit()
+}
+
 function speakableFromArticle() {
   const root = articleRoot.value
   if (!root) return ''
@@ -474,6 +482,7 @@ watch(slug, () => {
   void load()
   queueMicrotask(() => {
     tryStartPendingEdit()
+    tryAutoEditHarnessDoc()
     tryStartPendingMove()
   })
 })
@@ -544,6 +553,7 @@ onMounted(() => {
   void load()
   queueMicrotask(() => {
     tryStartPendingEdit()
+    tryAutoEditHarnessDoc()
     tryStartPendingMove()
   })
 })

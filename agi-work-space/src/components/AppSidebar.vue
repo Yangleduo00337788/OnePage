@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { onClickOutside } from '@vueuse/core'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ChevronRight, FileText, Folder, FolderInput, FolderOpen, FolderPlus, Pencil, Plus } from 'lucide-vue-next'
-import { catalog, getDoc } from '@/lib/content'
+import { catalog, countWorkspaceDocs, docDir, getDoc, pageChildren, slugFromPath } from '@/lib/content'
 import { canCreateIn, canEditSlug, canMoveDoc, createWorkspaceDoc } from '@/lib/doc-manage'
 import { pendingEditSlug, pendingMoveSlug } from '@/lib/doc-session'
 import NavTree from '@/components/NavTree.vue'
@@ -40,6 +41,23 @@ const createOpen = computed({
 })
 const actionMessage = ref('')
 const anyRole = computed(() => selected.value.length > 0)
+const addMenuOpen = ref(false)
+const addMenuEl = ref<HTMLElement | null>(null)
+onClickOutside(addMenuEl, () => {
+  addMenuOpen.value = false
+})
+const docCount = computed(() => {
+  void catalog.revision
+  return countWorkspaceDocs().files
+})
+const harnessDocs = computed(() => {
+  void catalog.revision
+  return pageChildren('space/harness').docs
+})
+
+function isHarnessChildActive(slug: string | undefined) {
+  return Boolean(slug) && route.path === `/${slug}`
+}
 
 watch(
   onSpace,
@@ -72,6 +90,39 @@ function canMoveSpace(to: string) {
   const current = getDoc(spaceSlug(to))
   if (!current) return false
   return canMoveDoc(current, selected.value, ownedSlugs.value)
+}
+
+function defaultCreateParent() {
+  const slug = slugFromPath(route.path)
+  if (!slug || slug === 'settings' || slug === 'space' || slug.startsWith('space/')) {
+    return canCreateIn('start', selected.value, ownedSlugs.value) ? 'start' : ''
+  }
+  const current = getDoc(slug)
+  if (current?.isIndex && canCreateIn(current.slug, selected.value, ownedSlugs.value)) {
+    return current.slug
+  }
+  const parent = current ? docDir(current) : ''
+  if (parent && canCreateIn(parent, selected.value, ownedSlugs.value)) return parent
+  return canCreateIn('start', selected.value, ownedSlugs.value) ? 'start' : ''
+}
+
+function toggleAddMenu() {
+  actionMessage.value = ''
+  if (!anyRole.value) {
+    actionMessage.value = t.value('pickRoleFirst')
+    return
+  }
+  addMenuOpen.value = !addMenuOpen.value
+}
+
+function chooseAdd(asFolder: boolean) {
+  addMenuOpen.value = false
+  const parent = defaultCreateParent()
+  if (!parent) {
+    actionMessage.value = t.value('pickRoleFirst')
+    return
+  }
+  openCreate({ parentSlug: parent, asFolder })
 }
 
 function openCreate(payload: { parentSlug: string; asFolder: boolean } | string) {
@@ -109,6 +160,9 @@ async function onCreate(payload: {
     await createWorkspaceDoc(payload)
     creatingParent.value = ''
     creatingAsFolder.value = false
+    if (payload.slug && !payload.relPath.endsWith('/index.md')) {
+      pendingEditSlug.value = payload.slug
+    }
     await router.push(payload.slug ? `/${payload.slug}` : '/')
     emit('navigate')
   } catch (error) {
@@ -122,8 +176,49 @@ async function onCreate(payload: {
 
 <template>
   <aside class="flex h-full flex-col">
-    <div class="px-6 pb-3 pt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-      {{ title }}
+    <div class="flex items-center gap-1 px-6 pb-3 pt-3 pr-8">
+      <span class="min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {{ title }}
+      </span>
+      <span
+        class="shrink-0 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground"
+        :title="t('docsNavCountHint')"
+      >
+        {{ docCount }} {{ t('docStatsUnit') }}
+      </span>
+      <div ref="addMenuEl" class="relative shrink-0">
+        <button
+          type="button"
+          class="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          :title="t('docsNavAdd')"
+          :aria-label="t('docsNavAdd')"
+          :aria-expanded="addMenuOpen"
+          @click.stop="toggleAddMenu"
+        >
+          <Plus class="size-3.5" />
+        </button>
+        <div
+          v-if="addMenuOpen"
+          class="absolute right-0 z-40 mt-1 w-40 overflow-hidden rounded-md border bg-background py-1 shadow-md"
+        >
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-foreground hover:bg-accent"
+            @click="chooseAdd(false)"
+          >
+            <FileText class="size-3.5 text-muted-foreground" />
+            {{ t('newDoc') }}
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-foreground hover:bg-accent"
+            @click="chooseAdd(true)"
+          >
+            <FolderPlus class="size-3.5 text-muted-foreground" />
+            {{ t('newFolder') }}
+          </button>
+        </div>
+      </div>
     </div>
     <nav class="flex-1 overflow-y-auto px-6 pr-8 pb-8 scrollbar-thin">
       <NavTree
@@ -178,7 +273,7 @@ async function onCreate(payload: {
                   <div
                     class="group/nav ml-7 flex items-center rounded-md transition-colors"
                     :class="
-                      activeId === item.id
+                      activeId === item.id && (item.id !== 'harness' || route.path === item.to)
                         ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
                         : 'hover:bg-sidebar-accent/70'
                     "
@@ -245,6 +340,23 @@ async function onCreate(payload: {
                       </button>
                     </div>
                   </div>
+                  <ul v-if="item.id === 'harness' && harnessDocs.length" class="mt-0.5 flex flex-col gap-0.5" style="padding-left: 1.15rem">
+                    <li v-for="child in harnessDocs" :key="child.id">
+                      <button
+                        type="button"
+                        class="group/nav ml-7 flex w-[calc(100%-1.75rem)] items-center rounded-md px-2 py-1.5 text-left text-[13px] leading-5 transition-colors"
+                        :class="
+                          isHarnessChildActive(child.slug)
+                            ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
+                        "
+                        @click="child.slug ? openEdit(child.slug) : undefined"
+                      >
+                        <FileText class="mr-1.5 size-3.5 shrink-0 text-muted-foreground" />
+                        <span class="truncate">{{ child.title }}</span>
+                      </button>
+                    </li>
+                  </ul>
                 </li>
               </ul>
             </div>

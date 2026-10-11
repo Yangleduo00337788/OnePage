@@ -14,9 +14,9 @@ Harness 是给 **Agent 工具**用的约束层：规定可以改哪些文件、�
 
 ## 使用方式
 
-1. 在侧栏打开「空间配置 → Harness 管理」。
-2. 编辑 AGENTS.md：补上项目名称、仓库、禁止目录、必须走的检查。
-3. 授权本地工作目录后保存，`agi-work-space/AGENTS.md` 与本页 Harness 正文一致。回写表若有改，同步父目录 `OnePage/AGENTS.md`。
+1. 在侧栏打开「空间配置 → Harness 管理」（本页仍是目录预览）。
+2. 点下方 [AGENTS.md](/space/harness/AGENTS) 或 [Java 开发规约](/space/harness/java-alibaba) 会**直接进入编辑**，不再先预览。
+3. 授权本地工作目录后保存；Harness `AGENTS.md` 与 `agi-work-space/AGENTS.md` 正文一致。回写表若有改，同步父目录 `OnePage/AGENTS.md`。
 
 ## 还可以放什么
 

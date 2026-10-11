@@ -3,6 +3,7 @@ export type Locale = 'zh' | 'en'
 export const messages = {
   zh: {
     product: '一页',
+    workspaceMark: 'Workspace',
     search: '搜索',
     searchPlaceholder: '搜索文档…',
     searchHint: '输入关键词查找标题或正文',
@@ -29,6 +30,8 @@ export const messages = {
     copied: '已复制',
     home: '首页',
     docsNav: '文档目录',
+    docsNavAdd: '新建文档或目录',
+    docsNavCountHint: '文档目录里的 Markdown 篇数，不含空间配置',
     childrenTitle: '本组内容',
     childrenHint: '目录只负责展开，不是一篇文档。展开后带文档图标的才是可打开的 Markdown。',
     childrenFoldersOnly: '这一层只有子目录。请在左侧展开后，点下面的文档。',
@@ -194,6 +197,7 @@ export const messages = {
   },
   en: {
     product: 'ONEPAGE',
+    workspaceMark: 'Workspace',
     search: 'Search',
     searchPlaceholder: 'Search docs…',
     searchHint: 'Find by title or body text',
@@ -220,6 +224,8 @@ export const messages = {
     copied: 'Copied',
     home: 'Home',
     docsNav: 'Doc tree',
+    docsNavAdd: 'New document or folder',
+    docsNavCountHint: 'Markdown pages in the doc tree, excluding space config',
     childrenTitle: 'In this section',
     childrenHint: 'Folders only expand; they are not Markdown pages. File icons under them are documents you can open.',
     childrenFoldersOnly: 'This level only has subfolders. Expand them in the sidebar, then open a document.',
