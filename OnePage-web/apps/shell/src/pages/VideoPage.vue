@@ -1,70 +1,70 @@
 <!--
   视频页：与首页同一套 280×440 瀑布流，无分类 Tab。
-  卡片一律当视频（播放钮 + 时长），P0 仍用 picsum 占位。
+  数据来自 GET /feeds/explore，只展示 postType=video。
 -->
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import Icon from '../components/Icon.vue'
-import { NOTES, type NoteCard } from '../data/home'
-import { useNoteDetail } from '../stores/noteDetail'
-
-const noteDetail = useNoteDetail()
+import NoteFeedCard from '../components/NoteFeedCard.vue'
+import { noteFromPost, type NoteCard } from '../data/home'
+import { api } from '@onepage/api-client'
 
 const loading = ref(false)
 const loadingMore = ref(false)
+const notes = ref<NoteCard[]>([])
+const cursor = ref<string | null>(null)
+const hasMore = ref(true)
+const failed = ref('')
 const sentinel = ref<HTMLElement | null>(null)
-let loadTimer = 0
-let moreTimer = 0
-let page = 1
-let refreshSalt = 0
 let io: IntersectionObserver | null = null
+let seq = 0
 
-function shuffleFor(seed: string): NoteCard[] {
-  const copy = NOTES.map((n) => ({ ...n }))
-  let s = [...seed].reduce((a, c) => a + c.charCodeAt(0), 0) || 1
-  for (let i = copy.length - 1; i > 0; i--) {
-    s = (s * 9301 + 49297) % 233280
-    const j = s % (i + 1)
-    const t = copy[i]
-    copy[i] = copy[j]
-    copy[j] = t
+async function pullVideos() {
+  let guard = 0
+  const added: NoteCard[] = []
+  while (guard++ < 8) {
+    const page = await api.exploreFeed(cursor.value || undefined, 20)
+    added.push(...page.items.filter((p) => p.postType === 'video').map(noteFromPost))
+    cursor.value = page.nextCursor
+    hasMore.value = page.hasMore
+    if (added.length || !page.hasMore) break
   }
-  return copy
+  return added
 }
 
-function pack(salt: number, p: number): NoteCard[] {
-  return shuffleFor(`视频-${salt}-${p}`).map((n, i) => ({
-    ...n,
-    id: `video-${salt}-${p}-${n.id}-${i}`,
-    image: `https://picsum.photos/seed/op-video-${salt}-${p}-${n.id}/640/800`,
-    video: true,
-  }))
-}
-
-const notes = ref(pack(refreshSalt, 1))
-
-function refreshFeed() {
+async function refreshFeed() {
+  const token = ++seq
   loading.value = true
-  window.clearTimeout(loadTimer)
-  window.clearTimeout(moreTimer)
   loadingMore.value = false
-  loadTimer = window.setTimeout(() => {
-    refreshSalt += 1
-    page = 1
-    notes.value = pack(refreshSalt, 1)
-    loading.value = false
-  }, 520)
+  failed.value = ''
+  cursor.value = null
+  hasMore.value = true
+  try {
+    const added = await pullVideos()
+    if (token !== seq) return
+    notes.value = added
+  } catch {
+    if (token !== seq) return
+    notes.value = []
+    failed.value = '加载失败，点右下角刷新重试'
+  } finally {
+    if (token === seq) loading.value = false
+  }
 }
 
-function loadMore() {
-  if (loading.value || loadingMore.value) return
+async function loadMore() {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+  const token = seq
   loadingMore.value = true
-  window.clearTimeout(moreTimer)
-  moreTimer = window.setTimeout(() => {
-    page += 1
-    notes.value = notes.value.concat(pack(refreshSalt, page))
-    loadingMore.value = false
-  }, 360)
+  try {
+    const added = await pullVideos()
+    if (token !== seq) return
+    notes.value = notes.value.concat(added)
+  } catch {
+    if (token === seq) hasMore.value = false
+  } finally {
+    if (token === seq) loadingMore.value = false
+  }
 }
 
 function toTop() {
@@ -72,9 +72,10 @@ function toTop() {
 }
 
 onMounted(() => {
+  void refreshFeed()
   io = new IntersectionObserver(
     (entries) => {
-      if (entries.some((e) => e.isIntersecting)) loadMore()
+      if (entries.some((e) => e.isIntersecting)) void loadMore()
     },
     { root: null, rootMargin: '560px 0px' },
   )
@@ -84,8 +85,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.clearTimeout(loadTimer)
-  window.clearTimeout(moreTimer)
   io?.disconnect()
 })
 </script>
@@ -96,35 +95,11 @@ onUnmounted(() => {
       <span v-show="loading" class="feed-spinner" />
     </div>
 
-    <div class="feed-grid flex flex-wrap justify-center gap-4" :class="loading ? 'is-refreshing' : ''">
-      <article
-        v-for="note in notes"
-        :key="note.id"
-        :data-note-id="note.id"
-        class="flex h-[440px] w-[280px] cursor-pointer flex-col"
-        @click="noteDetail.show(note, $event.currentTarget)"
-      >
-        <div class="group relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-[#ececec]">
-          <img :src="note.image" :alt="note.title" class="h-full w-full object-cover" />
-          <span class="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/25" />
-          <span class="absolute top-2.5 right-2.5 z-[1] text-white drop-shadow">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
-              <path d="M8 5.5v13l11-6.5z" />
-            </svg>
-          </span>
-        </div>
-        <h2 class="mt-2 shrink-0 line-clamp-2 text-[14px] leading-5">{{ note.title }}</h2>
-        <div class="mt-2 flex shrink-0 items-center justify-between text-[12px] text-[#8a8a8a]">
-          <span class="flex min-w-0 items-center gap-1.5">
-            <span class="h-5 w-5 shrink-0 rounded-full bg-[#d9d9d9]" />
-            <span class="truncate">{{ note.author }}</span>
-          </span>
-          <span class="flex items-center gap-1">
-            <Icon name="heart" :size="13" />
-            {{ note.likes }}
-          </span>
-        </div>
-      </article>
+    <p v-if="!loading && failed" class="py-16 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
+    <p v-else-if="!loading && !notes.length" class="py-16 text-center text-[14px] text-[#8a8a8a]">还没有视频</p>
+
+    <div v-else class="feed-grid flex flex-wrap justify-center gap-4" :class="loading ? 'is-refreshing' : ''">
+      <NoteFeedCard v-for="note in notes" :key="note.id" :note="note" />
     </div>
     <div ref="sentinel" class="feed-more" aria-hidden="true">
       <span v-show="loadingMore" class="feed-spinner is-more" />
@@ -135,7 +110,7 @@ onUnmounted(() => {
         <Icon name="chevron-up" :size="20" />
         <span class="feed-tip">返回顶部</span>
       </button>
-      <button type="button" class="feed-fab" :class="loading ? 'is-spin' : ''" @click="refreshFeed">
+      <button type="button" class="feed-fab" :class="loading ? 'is-spin' : ''" @click="refreshFeed()">
         <Icon name="refresh" :size="18" />
         <span class="feed-tip">刷新</span>
       </button>

@@ -2,14 +2,46 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { api, ApiError, type PostDetail } from '@onepage/api-client'
 import { useNoteDetail } from '../stores/noteDetail'
+import { useAuthModal } from '../stores/authModal'
+import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
-import { NOTES, authorBioOf, authorGenderOf, authorStatsOf, pageIdOf, type NoteCard } from '../data/home'
+import {
+  NOTES,
+  authorBioOf,
+  authorGenderOf,
+  authorStatsOf,
+  formatCount,
+  pageIdOf,
+  type NoteCard,
+} from '../data/home'
 
-type Comment = { id: string; name: string; text: string; time: string }
+type Comment = { id: string; name: string; text: string; time: string; avatarUrl?: string }
+
+function isLivePost(id?: string): id is string {
+  return Boolean(id && /^\d{10,}$/.test(id))
+}
+
+function relativeTime(iso: string) {
+  const t = Date.parse(iso.includes('T') ? iso : iso.replace(' ', 'T'))
+  if (!Number.isFinite(t)) return iso.replace('T', ' ').slice(0, 16)
+  const d = Date.now() - t
+  if (d < 60_000) return '刚刚'
+  if (d < 3_600_000) return `${Math.floor(d / 60_000)} 分钟前`
+  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)} 小时前`
+  return iso.replace('T', ' ').slice(0, 16)
+}
 
 const router = useRouter()
+const auth = useAuthModal()
+const session = useSession()
 const detail = useNoteDetail()
+const full = ref<PostDetail | null>(null)
+const likeCount = ref(0)
+const favCount = ref(0)
+const commentTotal = ref(0)
+let loadSeq = 0
 const idx = ref(0)
 const followed = ref(false)
 const liked = ref(false)
@@ -64,6 +96,13 @@ const CITIES = ['上海', '杭州', '成都', '北京', '广州', '深圳', '南
 const gallery = computed(() => {
   const note = detail.note
   if (!note) return [] as string[]
+  if (full.value) {
+    const imgs = full.value.media.filter((m) => !m.mimeType.startsWith('video/')).map((m) => m.url)
+    if (imgs.length) return imgs
+    if (full.value.coverUrl) return [full.value.coverUrl]
+    if (note.image) return [note.image]
+    return []
+  }
   const extra = 2 + (hash(note.id) % 3)
   const list = [note.image]
   for (let i = 1; i <= extra; i++) {
@@ -74,8 +113,19 @@ const gallery = computed(() => {
 
 const total = computed(() => gallery.value.length)
 const pageText = computed(() => `${idx.value + 1}/${total.value || 1}`)
-const isVideo = computed(() => Boolean(detail.note?.video))
+const isVideo = computed(() => {
+  if (full.value) {
+    return (
+      full.value.postType === 'video' ||
+      full.value.media.some((m) => m.mimeType.startsWith('video/'))
+    )
+  }
+  return Boolean(detail.note?.video)
+})
 const videoSrc = computed(() => {
+  if (full.value) {
+    return full.value.media.find((m) => m.mimeType.startsWith('video/'))?.url || ''
+  }
   const id = detail.note?.id || ''
   return VIDEO_POOL[hash(id) % VIDEO_POOL.length]
 })
@@ -85,25 +135,47 @@ const speedLabel = computed(() => (rate.value === 1 ? '倍速' : `${rate.value}�
 const shellOpen = computed(() => Boolean(detail.open && detail.note) || keepPip.value)
 const progress = computed(() => (durationSec.value > 0 ? current.value / durationSec.value : 0))
 const avatar = computed(() => {
+  const url = full.value?.author.avatarUrl || detail.note?.avatarUrl
+  if (url) return url
   const name = detail.note?.author || 'a'
   return `https://picsum.photos/seed/op-av-${encodeURIComponent(name)}/80/80`
 })
 const ip = computed(() => CITIES[hash(detail.note?.id || '') % CITIES.length])
 const topics = computed(() => {
+  const text = `${detail.note?.title || ''} ${body.value}`
+  const tags = [...text.matchAll(/#[^\s#]+/g)].map((m) => m[0])
+  if (tags.length) return [...new Set(tags)].slice(0, 8)
   const title = detail.note?.title || ''
   if (title.includes('美食') || title.includes('拉面') || title.includes('碗')) return ['#美食', '#探店']
   if (title.includes('旅行') || title.includes('雪山') || title.includes('海边')) return ['#旅行', '#风景']
   if (title.includes('穿搭') || title.includes('时尚')) return ['#穿搭', '#日常']
-  return ['#生活', '#记录']
+  return full.value ? [] : ['#生活', '#记录']
 })
-const body = computed(
-  () => '随便记下这一天。光线刚好的时候就想拍下来，也不为发给谁看，就是想给自己留一页。',
-)
+const body = computed(() => {
+  if (full.value) return full.value.body || ''
+  return '随便记下这一天。光线刚好的时候就想拍下来，也不为发给谁看，就是想给自己留一页。'
+})
 const published = computed(() => {
+  if (full.value?.publishedAt) return relativeTime(full.value.publishedAt)
   const h = hash(detail.note?.id || 'x') % 20
   if (h < 4) return '刚刚'
   if (h < 10) return `${h + 1} 小时前`
   return '昨天 18:24'
+})
+const likeLabel = computed(() =>
+  full.value || isLivePost(detail.note?.id) ? formatCount(likeCount.value) : detail.note?.likes || '0',
+)
+const favLabel = computed(() =>
+  full.value || isLivePost(detail.note?.id) ? formatCount(favCount.value) : saved.value ? '1' : '0',
+)
+const commentLabel = computed(() =>
+  full.value || isLivePost(detail.note?.id) ? formatCount(commentTotal.value) : String(comments.value.length),
+)
+const mine = computed(() => {
+  const me = session.me
+  if (!me) return false
+  if (full.value?.author.userId && full.value.author.userId === me.userId) return true
+  return Boolean(detail.note?.pageId && detail.note.pageId === me.pageId)
 })
 const authorBio = computed(() => authorBioOf(detail.note?.author || ''))
 const authorGender = computed(() => authorGenderOf(detail.note?.author || ''))
@@ -111,6 +183,7 @@ const authorStats = computed(() => authorStatsOf(detail.note?.author || ''))
 const authorPosts = computed(() => {
   const note = detail.note
   if (!note) return [] as NoteCard[]
+  if (isLivePost(note.id)) return [] as NoteCard[]
   const same = NOTES.filter((item) => item.author === note.author && item.id !== note.id)
   const pool = same.length >= 3 ? same : NOTES.filter((item) => item.id !== note.id)
   return pool.slice(0, 3)
@@ -118,7 +191,7 @@ const authorPosts = computed(() => {
 
 watch(
   () => detail.note?.id,
-  () => {
+  (id) => {
     idx.value = 0
     followed.value = false
     liked.value = false
@@ -126,7 +199,11 @@ watch(
     moreOpen.value = false
     shareOpen.value = false
     draft.value = ''
-    comments.value = seedComments(detail.note)
+    comments.value = []
+    commentTotal.value = 0
+    likeCount.value = 0
+    favCount.value = 0
+    full.value = null
     current.value = 0
     durationSec.value = 0
     playing.value = false
@@ -139,6 +216,8 @@ watch(
     if (keepPip.value && document.pictureInPictureElement) void document.exitPictureInPicture()
     keepPip.value = false
     isPip.value = false
+    if (isLivePost(id)) void loadLive(id)
+    else comments.value = seedComments(detail.note)
   },
 )
 
@@ -283,7 +362,8 @@ function goAuthor() {
   closing.value = false
   grown.value = false
   detail.hide()
-  void router.push(`/u/${pageIdOf(name)}`)
+  const pid = full.value?.author.pageId || detail.note?.pageId || pageIdOf(name)
+  void router.push(`/u/${pid}`)
 }
 
 async function togglePip() {
@@ -473,8 +553,8 @@ watch(
   },
 )
 
-watch(grown, (ok) => {
-  if (ok && isVideo.value) nextTick().then(() => tryPlay())
+watch([grown, isVideo, videoSrc], () => {
+  if (grown.value && isVideo.value && videoSrc.value) nextTick().then(() => tryPlay())
 })
 
 onUnmounted(() => {
@@ -492,11 +572,99 @@ function flash(text: string) {
   }, 1600)
 }
 
-function sendComment() {
+function needLogin(e: unknown) {
+  if (e instanceof ApiError && e.status === 401) {
+    auth.show('login', '/')
+    flash('请先登录')
+    return true
+  }
+  return false
+}
+
+async function loadLive(id: string) {
+  const token = ++loadSeq
+  try {
+    const post = await api.post(id)
+    if (token !== loadSeq) return
+    full.value = post
+    liked.value = post.likedByMe
+    saved.value = post.favoritedByMe
+    likeCount.value = post.likeCount
+    favCount.value = post.favoriteCount
+    commentTotal.value = post.commentCount
+    void api.viewPost(id).catch(() => undefined)
+    const page = await api.comments(id, undefined, 0, 50)
+    if (token !== loadSeq) return
+    comments.value = page.items.map((c) => ({
+      id: c.commentId,
+      name: c.author.nickname,
+      avatarUrl: c.author.avatarUrl,
+      text: c.content,
+      time: relativeTime(c.createdAt),
+    }))
+    commentTotal.value = page.total
+  } catch {
+    if (token !== loadSeq) return
+    comments.value = []
+  }
+}
+
+async function toggleLike() {
+  const id = detail.note?.id
+  if (!isLivePost(id)) {
+    liked.value = !liked.value
+    return
+  }
+  try {
+    const r = liked.value ? await api.unlikePost(id) : await api.likePost(id)
+    liked.value = r.liked
+    likeCount.value = r.likeCount
+  } catch (e) {
+    if (!needLogin(e)) flash(e instanceof Error ? e.message : '操作失败')
+  }
+}
+
+async function toggleSave() {
+  const id = detail.note?.id
+  if (!isLivePost(id)) {
+    saved.value = !saved.value
+    return
+  }
+  try {
+    const r = saved.value ? await api.unfavoritePost(id) : await api.favoritePost(id)
+    saved.value = r.favorited
+    favCount.value = r.favoriteCount
+  } catch (e) {
+    if (!needLogin(e)) flash(e instanceof Error ? e.message : '操作失败')
+  }
+}
+
+async function sendComment() {
   const text = draft.value.trim()
   if (!text) return
-  comments.value = [{ id: String(Date.now()), name: '我', text, time: '刚刚' }, ...comments.value]
-  draft.value = ''
+  const id = detail.note?.id
+  if (!isLivePost(id)) {
+    comments.value = [{ id: String(Date.now()), name: '我', text, time: '刚刚' }, ...comments.value]
+    draft.value = ''
+    return
+  }
+  try {
+    const c = await api.createComment(id, { content: text })
+    comments.value = [
+      {
+        id: c.commentId,
+        name: c.author.nickname,
+        avatarUrl: c.author.avatarUrl,
+        text: c.content,
+        time: '刚刚',
+      },
+      ...comments.value,
+    ]
+    commentTotal.value += 1
+    draft.value = ''
+  } catch (e) {
+    if (!needLogin(e)) flash(e instanceof Error ? e.message : '评论失败')
+  }
 }
 
 function report() {
@@ -505,8 +673,21 @@ function report() {
 }
 
 async function copyLink() {
+  const id = detail.note?.id || ''
+  let url = `${location.origin}/?note=${id}`
+  if (isLivePost(id)) {
+    try {
+      const r = await api.shareLink(id)
+      if (r.shareUrl) url = r.shareUrl
+    } catch (e) {
+      if (needLogin(e)) {
+        shareOpen.value = false
+        return
+      }
+    }
+  }
   try {
-    await navigator.clipboard.writeText(`${location.origin}/?note=${detail.note?.id || ''}`)
+    await navigator.clipboard.writeText(url)
     flash('链接已复制')
   } catch {
     flash('复制失败')
@@ -547,7 +728,7 @@ watch(moreOpen, async (on) => {
           <div class="absolute inset-0 overflow-hidden rounded-l-[20px]">
           <video
             v-if="isVideo"
-            :key="detail.note.id"
+            :key="`${detail.note.id}-${videoSrc}`"
             ref="player"
             class="h-full w-full cursor-pointer object-cover"
             :src="videoSrc"
@@ -563,7 +744,15 @@ watch(moreOpen, async (on) => {
             @enterpictureinpicture="isPip = true; keepPip = true"
             @leavepictureinpicture="onLeavePip"
           />
-          <img v-else :src="gallery[idx]" :alt="detail.note.title" class="h-full w-full object-cover" />
+          <img
+            v-else-if="gallery[idx]"
+            :src="gallery[idx]"
+            :alt="detail.note.title"
+            class="h-full w-full object-cover"
+          />
+          <div v-else class="flex h-full w-full items-center justify-center bg-[#ececec] text-[13px] text-[#8a8a8a]">
+            纯文字笔记
+          </div>
           </div>
 
           <div v-if="isVideo" class="pointer-events-none absolute inset-0">
@@ -743,7 +932,7 @@ watch(moreOpen, async (on) => {
                       class="shrink-0 text-[#ff2442]"
                     />
                   </button>
-                  <button type="button" class="follow-btn" @click.stop="goAuthor">关注</button>
+                  <button v-if="!mine" type="button" class="follow-btn" @click.stop="goAuthor">关注</button>
                 </div>
                 <p class="mt-2.5 line-clamp-2 text-[13px] leading-5 text-[#555]">{{ authorBio }}</p>
                 <div class="mt-2.5 grid grid-cols-3 gap-2 text-center">
@@ -760,7 +949,7 @@ watch(moreOpen, async (on) => {
                     <p class="mt-0.5 text-[11px] text-[#8a8a8a]">获赞和收藏</p>
                   </button>
                 </div>
-                <div class="author-thumbs">
+                <div v-if="authorPosts.length" class="author-thumbs">
                   <button
                     v-for="item in authorPosts"
                     :key="item.id"
@@ -774,6 +963,7 @@ watch(moreOpen, async (on) => {
               </div>
             </div>
             <button
+              v-if="!mine"
               type="button"
               class="follow-btn"
               :class="followed ? 'is-on' : ''"
@@ -790,12 +980,12 @@ watch(moreOpen, async (on) => {
 
           <div class="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
             <h2 class="text-[16px] font-semibold leading-6">{{ detail.note.title }}</h2>
-            <p class="mt-2 text-[14px] leading-6 text-[#555]">{{ body }}</p>
-            <div class="mt-3 flex flex-wrap gap-2">
+            <p v-if="body" class="mt-2 text-[14px] leading-6 text-[#555]">{{ body }}</p>
+            <div v-if="topics.length" class="mt-3 flex flex-wrap gap-2">
               <span v-for="tag in topics" :key="tag" class="text-[13px] text-[#ff2442]">{{ tag }}</span>
             </div>
             <div class="relative mt-4 flex items-center justify-between text-[12px] text-[#8a8a8a]">
-              <span>{{ published }} · IP：{{ ip }}</span>
+              <span>{{ published }}<template v-if="!full"> · IP：{{ ip }}</template></span>
               <div ref="moreWrap" class="relative">
                 <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#f2f2f2]" aria-label="更多" @click.stop="moreOpen = !moreOpen">
                   <Icon name="ellipsis" :size="18" />
@@ -808,10 +998,19 @@ watch(moreOpen, async (on) => {
 
             <div class="my-4 h-px bg-[#f2f2f2]" />
 
-            <p class="mb-3 text-[13px] font-medium">评论 {{ comments.length }}</p>
+            <p class="mb-3 text-[13px] font-medium">评论 {{ commentLabel }}</p>
             <ul v-if="comments.length" class="space-y-3">
               <li v-for="item in comments" :key="item.id" class="flex gap-2.5">
-                <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[11px] text-[#8a8a8a]">
+                <img
+                  v-if="item.avatarUrl"
+                  :src="item.avatarUrl"
+                  alt=""
+                  class="mt-0.5 h-7 w-7 shrink-0 rounded-full object-cover"
+                />
+                <span
+                  v-else
+                  class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[11px] text-[#8a8a8a]"
+                >
                   {{ item.name.slice(0, 1) }}
                 </span>
                 <div class="min-w-0">
@@ -833,23 +1032,23 @@ watch(moreOpen, async (on) => {
                 @keydown.enter.prevent="sendComment"
               />
               <div class="acts">
-                <button type="button" class="act" :class="liked ? 'is-on' : ''" @click="liked = !liked">
+                <button type="button" class="act" :class="liked ? 'is-on' : ''" @click="toggleLike">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M12 20.5S4.5 15.6 3.2 11.6C2.2 8.6 3.8 5.5 6.8 5c1.9-.3 3.6.6 4.4 2.1C12.1 5.6 13.8 4.7 15.7 5c3 .5 4.6 3.6 3.6 6.6-1.3 4-8.3 8.9-7.3 8.9z" />
                   </svg>
-                  <span class="num">{{ detail.note.likes }}</span>
+                  <span class="num">{{ likeLabel }}</span>
                 </button>
-                <button type="button" class="act" :class="saved ? 'is-on' : ''" @click="saved = !saved">
+                <button type="button" class="act" :class="saved ? 'is-on' : ''" @click="toggleSave">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M7 3.8h10A1.7 1.7 0 0 1 18.7 5.5v15.2L12 16.4 5.3 20.7V5.5A1.7 1.7 0 0 1 7 3.8z" />
                   </svg>
-                  <span class="num">{{ saved ? '1' : '0' }}</span>
+                  <span class="num">{{ favLabel }}</span>
                 </button>
                 <button type="button" class="act" @click="commentBox?.focus()">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M6.2 4.5h11.6A2.2 2.2 0 0 1 20 6.7v8.4a2.2 2.2 0 0 1-2.2 2.2H9.4L4 21.2V6.7A2.2 2.2 0 0 1 6.2 4.5z" />
                   </svg>
-                  <span class="num">{{ comments.length }}</span>
+                  <span class="num">{{ commentLabel }}</span>
                 </button>
                 <button type="button" class="act" @click="shareOpen = true">
                   <svg class="act-ico" viewBox="0 0 24 24">

@@ -1,4 +1,4 @@
-/** 首页/搜索用的占位数据。P1 接 Feed API 后这里会淘汰。 */
+/** 瀑布流卡片。首页已接 Feed；搜索仍可能用下面占位 NOTES。 */
 export type NoteCard = {
   id: string
   title: string
@@ -7,6 +7,38 @@ export type NoteCard = {
   image: string
   video?: boolean
   duration?: string
+  pageId?: string
+  avatarUrl?: string
+  body?: string
+  postType?: string
+}
+
+export function formatCount(n: number) {
+  if (n >= 10000) return `${(n / 10000).toFixed(1).replace(/\.0$/, '')}w`
+  return String(n)
+}
+
+export function noteFromPost(p: {
+  postId: string
+  title: string
+  body?: string
+  coverUrl: string
+  postType: string
+  likeCount: number
+  author: { nickname: string; pageId: string; avatarUrl: string }
+}): NoteCard {
+  return {
+    id: p.postId,
+    title: p.title?.trim() || (p.postType === 'video' ? '视频笔记' : p.postType === 'text' ? '笔记' : '笔记'),
+    author: p.author.nickname,
+    likes: formatCount(p.likeCount),
+    image: p.coverUrl || '',
+    video: p.postType === 'video',
+    pageId: p.author.pageId,
+    avatarUrl: p.author.avatarUrl,
+    body: p.body || '',
+    postType: p.postType,
+  }
 }
 
 export const TABS = [

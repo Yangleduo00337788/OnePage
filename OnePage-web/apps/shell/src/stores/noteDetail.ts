@@ -13,7 +13,7 @@ export const useNoteDetail = defineStore('noteDetail', () => {
   function show(next: NoteCard, from?: EventTarget | null) {
     note.value = next
     if (from instanceof HTMLElement) {
-      const cover = from.querySelector('img')
+      const cover = from.querySelector('img, video')
       const r = (cover instanceof HTMLElement ? cover : from).getBoundingClientRect()
       origin.value = { x: r.left, y: r.top, w: r.width, h: r.height }
     } else {
