@@ -4,7 +4,7 @@ description: 前后端用什么、怎么连在一起
 order: 1
 ---
 
-前后端技术栈、仓库目录规划，以及请求与数据在系统里怎么流动。比 [路线图](/engineering/tech/mvp-roadmap) 更细；改选型时**先改路线图和本页**，再改代码。
+前后端技术栈、仓库目录规划，以及请求与数据在系统里怎么流动。看图用 [架构图与时序图](/engineering/tech/diagrams)。比 [路线图](/engineering/tech/mvp-roadmap) 更细；改选型时**先改路线图和本页**，再改代码。
 
 ## 先分清两个「前端」
 

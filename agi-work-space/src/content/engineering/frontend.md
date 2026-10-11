@@ -90,7 +90,7 @@ packages/api-client/  fetch + Cookie
 | `/settings` | 配置中心 |
 | `/{slug}` | Markdown 文档。`/space/harness` 为目录预览；`/space/harness/*` 叶子文档有角色时直接进编辑，不先预览 |
 
-组件与写回交互见历史模版段落；实现以 `src/views/*` 为准。入口 `index.html` 引用 `public/favicon-32.png` 等，与 `OnePage-web` 社区站相同。顶栏 Logo 右侧为 `Workspace` 标识（`AppHeader.vue`）。侧栏「文档目录」右侧显示篇数与加号：点加号可选新建文档或子目录（有角色权限时；默认建在当前可写目录，否则 `start`）。
+组件与写回交互见历史模版段落；实现以 `src/views/*` 为准。入口 `index.html` 引用 `public/favicon-32.png` 等，与 `OnePage-web` 社区站相同。顶栏 Logo 右侧为 `Workspace` 标识。侧栏「文档目录」右侧显示篇数与加号：点加号可选新建文档或子目录（有角色权限时；默认建在当前可写目录，否则 `start`）。
 
 ## 无障碍与交互
 

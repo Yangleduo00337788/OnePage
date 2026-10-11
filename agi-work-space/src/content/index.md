@@ -35,7 +35,7 @@ order: 0
 
 **研发（前后端 / 架构）**
 
-1. [架构与 MVP 路线图](/engineering/tech/mvp-roadmap)（总览，建议先读）  
+1. [架构与 MVP 路线图](/engineering/tech/mvp-roadmap)  
 2. [技术架构](/engineering/tech/architecture) → [架构图与时序图](/engineering/tech/diagrams) → [登录注册流程](/engineering/tech/auth-flows)  
 3. [接口契约](/engineering/process/contracts) → 需要查字段时打开 [API 明细](/engineering/process/api-endpoints)、[数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)
 

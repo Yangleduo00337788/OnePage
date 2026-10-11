@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-026 不做独立「整体架构」HTML
+
+- **日期：** 2026-10-11
+- **状态：** 已采纳
+- **背景：** 文档壳顶栏曾新开标签打开 `system-map.html`。多轮改画法后仍不满意，决定去掉该功能。
+- **决策：** 删除顶栏入口、Vite 对 `/system-map.html` 的托管、以及 `engineering/tech/system-map.html` / `system-map.md`。架构事实仍写在 [技术架构](/engineering/tech/architecture)、[路线图](/engineering/tech/mvp-roadmap)、[架构图与时序图](/engineering/tech/diagrams)（Mermaid）。
+- **替代：** 继续维护独立 HTML 总图（否决：成本高、难定稿）。
+- **影响：** Agent 回写表不再要求改 system-map.html。
+
 ## DEC-025 工作空间是项目长期事实源
 
 - **日期：** 2026-10-11

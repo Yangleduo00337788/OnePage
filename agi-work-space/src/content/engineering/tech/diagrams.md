@@ -4,7 +4,7 @@ description: 看图理解系统与关键流程
 order: 3
 ---
 
-用图说明系统边界、微服务拆分和关键流程（登录、发帖、上传、通知、AI、直播等）。文字细节见 [技术架构](/engineering/tech/architecture)、[路线图](/engineering/tech/mvp-roadmap)。  
+用图说明系统边界、微服务拆分和关键流程。下文部分图含规划中的 ES / RocketMQ / SRS，**未建的不要当成已上线**。文字细节见 [技术架构](/engineering/tech/architecture)、[路线图](/engineering/tech/mvp-roadmap)。  
 本工作空间 `npm run dev` 预览下 Mermaid 会自动渲染。建议顺序：**系统全景 → 微服务 → 登录 → 发帖**。  
 登录/注册/短信开户/设密/找回的完整架构、流程、时序见 **[登录注册流程](/engineering/tech/auth-flows)**（P0 实况）。
 

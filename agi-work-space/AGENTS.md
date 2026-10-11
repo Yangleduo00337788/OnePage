@@ -31,7 +31,7 @@
 | 改了什么 | 回写到 |
 | --- | --- |
 | 功能、范围、需求 | `product/spec/prd.md`；范围变了再改 `project/charter/` |
-| 架构、服务边界、分期 | `engineering/tech/architecture.md`、`mvp-roadmap.md`、`domain.md` |
+| 架构、服务边界、分期 | `engineering/tech/architecture.md`、`mvp-roadmap.md`、`domain.md`；流程用 `engineering/tech/diagrams.md` |
 | 流程 / 时序 | `engineering/tech/diagrams.md`、`auth-flows.md` |
 | 颜色、间距、导航、图标、搜索、卡片状态 | `design/system/specs.md`；交互补 `design/system/experience.md`；走查补 `design/handoff.md` |
 | 路由、壳组件、占位页 | `engineering/frontend.md` |
