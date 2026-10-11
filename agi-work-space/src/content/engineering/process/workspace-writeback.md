@@ -4,7 +4,7 @@ description: agi-work-space 文档壳的浏览器写回与 Git 推送（非业�
 order: 4
 ---
 
-RD / FE 维护。仅描述 **本仓库** `agi-work-space` 的纯前端写回；业务 REST 见 [接口契约](/engineering/process/contracts)。
+RD / FE 维护。仅描述 **本仓库** `agi-work-space` 的纯前端写回；业务 REST 见 [接口契约](/engineering/process/contracts)。Agent 改产品代码时的回写表写在 [AGENTS.md](/space/harness/AGENTS) 与父目录 `OnePage/AGENTS.md`，不写 `.cursor/rules`。
 
 ## 工程形态
 

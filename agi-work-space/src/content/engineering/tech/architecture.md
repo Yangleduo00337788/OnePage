@@ -35,19 +35,21 @@ packages/ui、api-client、types
 ## 后端（OnePage-Server）
 
 - **Java 21**，**Spring Boot 3.4.5** + **Spring Cloud 2024.0.1** + **Spring Cloud Alibaba 2023.0.3.2（Nacos 发现）**。  
-- **Gateway** 对外（8080）；服务之间马上要结果用 **Feign + lb**；可以晚一点的用 **RocketMQ**（P1 起）。  
+- **Gateway** 对外（8080）；服务之间马上要结果用 **Feign + lb**；可以晚一点的用 **RocketMQ**（P1 只写 Outbox，暂不消费）。  
 - **MyBatis-Plus** 访问 **MySQL**；DDL 手工脚本，**不用 Flyway**。完整 SQL 在工作空间 [数据库脚本](/engineering/tech/sql)，P0 执行入口在各服务 `db/sql/001_init.sql`。  
 - 登录：**Spring Session + Redis**，Cookie **`ONEPAGE_SESSION`**（见 [接口契约](/engineering/process/contracts)）。  
 - 文件 **MinIO** 预签名直传；搜索 **ES**、消息 **仅 RocketMQ**（尚未接到 P0）。
 
 本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动四个主类（user 8082 → auth 8081 → content 8083 → gateway 8080）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准，与四服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。
 
-已落地目录：
+已落地目录（仅四服务；message / notification / search / ai / moderation / live 未建模块）：
 
 ```text
 onepage-parent、onepage-common、onepage-gateway
 onepage-auth-service、onepage-user-service、onepage-content-service
 ```
+
+user 目前只有 `me` / 改资料 / 按一页号查资料。帖子列表、赞藏历史、关注接口未实现。content 已提供发帖、Feed、赞藏评、分享链接。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 

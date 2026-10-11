@@ -15,4 +15,5 @@ order: 20
 | [API 接口明细](/engineering/process/api-endpoints) | REST 路径与 JSON 字段 |
 | [工作空间写回约定](/engineering/process/workspace-writeback) | 本仓文档壳写回与 Git |
 | [工程规范](/engineering/process/conventions) | 目录、命名、提交、禁止事项 |
+| [Java 开发规约](/space/harness/java-alibaba) | 改 Server 必读；对齐阿里手册章节 |
 | [研发协作](/engineering/process/collab) | 分支、评审、联调约定 |

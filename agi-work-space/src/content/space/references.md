@@ -20,6 +20,7 @@ AGI-WorkSpace 是**项目工作空间模板**，不是独立业务系统。当�
 | [项目角色](/project/governance/roles) | 七个角色的对接人 |
 | [配置中心](/settings) | 本机目录、当前角色（`src/config/workspace-roles.json`）、工作空间标识、代码空间、推送文案 |
 | [Harness / AGENTS.md](/space/harness/AGENTS) | Agent 允许做什么、禁止做什么 |
+| [Harness / Java 规约](/space/harness/java-alibaba) | 改 OnePage-Server 必读 |
 
 ## 目录约定
 

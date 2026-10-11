@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-024 Java 规约放在 Harness，Agent 必读
+
+- **日期：** 2026-10-11
+- **状态：** 已采纳
+- **背景：** 希望 Agent 改后端时遵守阿里 Java 手册。官方手册全文受版权保护，不能贴进仓库。
+- **决策：** 在 `space/harness/java-alibaba.md` 写本项目 Java 约定（章节与手册对齐）。改 `OnePage-Server` 前必须读。可携带约束写进 Git 跟踪的 `OnePage/AGENTS.md` 与 harness `AGENTS.md`（含回写表）。**不**用 `.cursor/rules`（该目录 gitignore）。IDE 可用 P3C 插件做检查。
+- **替代：** 整本手册 Markdown 进仓（否决：版权）；只口头说「按阿里规范」（否决：Agent 读不到）；把规则放 `.mdc`（否决：换机丢失）。
+- **影响：** 与契约/表结构冲突时仍以契约和 DDL 为准。换电脑只要 clone/pull 即可读到约束。
+
 ## DEC-023 P1 赞藏评合进 content 库
 
 - **日期：** 2026-10-10

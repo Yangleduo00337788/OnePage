@@ -14,11 +14,28 @@
 | 产品代码仓 | `../OnePage-web`（FE）、`../OnePage-Server`（BE） |
 | 架构事实源 | `src/content/engineering/tech/mvp-roadmap.md` |
 | 文档事实来源 | `src/content/**/*.md` |
-| Agent 约束文件 | 根目录 `AGENTS.md`（与 `src/content/space/harness/AGENTS.md` 正文同步） |
+| Agent 约束文件 | 本文件与 `src/content/space/harness/AGENTS.md` 正文同步；Cursor 打开 `OnePage/` 时还读父目录 `../AGENTS.md`。**不要**把可携带规则写进 `.cursor/rules` |
 
 **你要做的：** 按用户请求改 **文档** 或 **文档壳** 代码，遵循 `src/content` 中的范围与 [接口契约](/engineering/process/contracts)（产品 API）及 [工作空间写回约定](/engineering/process/workspace-writeback)。写 MD 时遵守 [文档怎么写](/engineering/process/doc-style)（开头直接写作用，先短段再表格）。
 
 **你不要做的：** 在本仓实现 ONEPAGE 业务后端/发帖 API；不要把用户产品整站塞进本仓路由。
+
+## 1b. 可携带约束（换机）
+
+团队规则只放 Git 里的 Markdown：父目录 `OnePage/AGENTS.md`、本文件、`space/harness/java-alibaba.md`。`.cursor/` 已被 gitignore，换机不会出现，**禁止**把回写表或 Java 必读写进 `.mdc`。
+
+改 `OnePage-web` 或 `OnePage-Server` 时，**同一轮回复内**把结论写进 `src/content`。不要等用户再提醒。不要只改 Vue/Java。
+
+| 改了什么 | 回写到 |
+| --- | --- |
+| 颜色、间距、导航、图标、搜索、卡片状态 | `design/system/specs.md`；交互补 `design/system/experience.md`；走查补 `design/handoff.md` |
+| 路由、壳组件、占位页 | `engineering/frontend.md` |
+| API / 鉴权 | `engineering/process/contracts.md`、`engineering/process/api-endpoints.md` |
+| 表结构 | 先 `engineering/tech/database-schema.md` 与 `engineering/tech/sql/`，再 Server `db/sql/` |
+| 选型、走查拍板 | `records/decisions.md`（新 DEC 写在最上面） |
+| 阶段进展 | `project/governance/status.md` 近期变更 |
+
+静态原型只定分区。像素与文案以视觉规范为准。改 PC 壳先改规范再改（或同时改）`apps/shell`。
 
 ## 2. 动手前必读（按顺序）
 
@@ -30,6 +47,7 @@
 6. `src/content/project/governance/roles.md` — 七角色与可写目录
 7. 若改产品接口：`src/content/engineering/process/contracts.md`
 8. 若改文档壳：`src/content/engineering/process/workspace-writeback.md`、`src/content/engineering/frontend.md`
+9. 若改 `OnePage-Server`（Java / Mapper / 服务 yml）：先读完 `src/content/space/harness/java-alibaba.md`，按其中「必须」写代码
 
 用户指定了某一篇文档时，再打开对应 `src/content/...` 文件。不要在没读范围的情况下大范围重构。
 
@@ -53,7 +71,8 @@ AGI-WorkSpace/
 │   │       ├── references.md         ← 项目引用
 │   │       └── harness/
 │   │           ├── index.md          ← Harness 管理入口
-│   │           └── AGENTS.md          ← 本文件的带 frontmatter 版本
+│   │           ├── AGENTS.md          ← 本文件的带 frontmatter 版本
+│   │           └── java-alibaba.md    ← Java 规约（改 Server 必读）
 │   ├── lib/roles.ts                  ← 七角色 ID 与可写 slug，禁止删 ID
 │   ├── lib/content.ts                ← MD 加载；`catalog.docsNavTree` 排除 `space`
 │   ├── lib/git-sync.ts               ← 按 .gitignore 整仓 commit/push
@@ -74,7 +93,7 @@ AGI-WorkSpace/
 
 1. **配置中心** `/settings`：角色范围、工作空间标识（名称 / Logo / 口号）、本地工作目录、代码空间、推送成功文案
 2. **项目引用** `/space/references`
-3. **Harness 管理** `/space/harness` → 主要维护 `AGENTS.md`
+3. **Harness 管理** `/space/harness` → 维护 `AGENTS.md` 与 [Java 开发规约](/space/harness/java-alibaba)
 
 禁止把 `src/content/space/` 做进「文档目录」导航。`src/lib/content.ts` 里必须保持 `catalog.docsNavTree` 过滤 `id === 'space'`。授权本地工作目录后，导航以磁盘上的 Markdown 为准（窗口重新聚焦会再扫一遍），不要只依赖构建时打包的文件。
 
@@ -126,13 +145,14 @@ order: 10
 - 有角色权限且已授权目录时：可在应用内新建 / 删除 Markdown（根目录 `index.md` 不可删）。
 - 编辑器粘贴的图片写到该文档目录下的 `assets/`，用相对路径引用。
 
-保存 AGENTS.md（slug `space/harness/AGENTS`）时：必须同步仓库根目录 `AGENTS.md`（无 YAML frontmatter，仅正文）。应用内 `DocView` 已按此处理；若你用编辑器直接改，两份正文必须一致。
+保存 AGENTS.md（slug `space/harness/AGENTS`）时：必须同步本仓根目录 `AGENTS.md`（无 YAML frontmatter，仅正文）。应用内 `DocView` 已按此处理。回写表或「先读 Java 规约」若有改动，还要同步父目录 `OnePage/AGENTS.md`（Cursor 工作区入口）。
 
 ## 7. 代码约定
 
 - Vue 3 + Vite + TypeScript + Tailwind。用户可见壳子文案走 `src/i18n/messages.ts`。
 - 改布局、主题时沿用现有 token，不引入第二套颜色系统。
 - 文件与组件英文命名。
+- Java（`OnePage-Server`）：遵守 [Java 开发规约](/space/harness/java-alibaba)（章节对齐阿里手册，正文为本项目约定；禁止把官方手册全文贴进仓库）。
 - 本地 Git 推送走 isomorphic-git + 授权的工作目录；localhost 下 Git HTTP 走 Vite `/__git-remote/*` 代理。
 - 推送必须尊重 `.gitignore`，一次 commit、一次 push，禁止按文件循环打 Contents API。
 - 令牌只存在 `.agi-workspace.local.json`；推送时跳过 `*.local.json`。若该文件曾被误提交，应从索引中移除，不得再加入。
@@ -183,6 +203,7 @@ npm run build
 | --- | --- |
 | 改某篇项目文档 | 改对应 `src/content/**/*.md`，保留 frontmatter |
 | 改产品 UI / 接口 / 表 | 改 `../OnePage-web` 或 `../OnePage-Server`，**同一轮**回写上表对应 MD |
+| 改 Java 后端 | 先读 `space/harness/java-alibaba.md`，再改 `OnePage-Server` |
 | 换项目 | 改概述/目标/状态/角色对接人/本文件「当前值」表，不改壳子结构 |
 | 加一篇文档 | 优先在应用内按角色新建；或新 md + frontmatter；若新分类则加文件夹和 index.md |
 | 改侧栏空间配置 | `AppSidebar` + `space-nav.ts` + 对应 view/md |
@@ -201,7 +222,7 @@ npm run build
 - [ ] 产品设计 / 体验设计 / 研发设计 / 质量保障 / 交付运维 / 过程记录中的占位已替换或标明仍待填
 - [ ] 配置中心：工作目录已授权，工作空间名称与 Logo 已换成当前项目，代码空间已绑定当前仓库
 - [ ] 本文件「1. 身份与目标」表格已更新
-- [ ] 根目录 `AGENTS.md` 与 `src/content/space/harness/AGENTS.md` 正文一致
+- [ ] 本仓根目录 `AGENTS.md` 与 `src/content/space/harness/AGENTS.md` 正文一致；父目录 `OnePage/AGENTS.md` 仍含回写表与 Java 必读
 - [ ] `.gitignore` 仍排除令牌与构建产物
 - [ ] 未新增「一篇文档一个 Vue 页」
 - [ ] 七个角色 ID 仍在

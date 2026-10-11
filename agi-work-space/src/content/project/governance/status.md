@@ -18,6 +18,7 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 ## 正在做
 
 - 社区壳首页/视频页已接 Feed；详情弹窗接帖子/评论/赞藏。搜索与「我的」笔记列表仍占位
+- 后端 P1 主链路已通（gateway / auth / user / content）。P2 关注、通知、私信尚未建服务
 
 ## 阻塞
 
@@ -25,6 +26,9 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-11 — Agent 约束改放 Git 内 `OnePage/AGENTS.md` + harness；去掉会换机丢失的 `.cursor/rules`
+- 2026-10-11 — Harness 增加 Java 规约 `space/harness/java-alibaba.md`；改 Server 前 Agent 必读（DEC-024）
+- 2026-10-11 — 核对 Server：P0 登录资料上传齐；P1 发帖/Feed/赞藏评/分享链接在 content。未实现：用户帖/赞藏/历史列表、关注、AI、通知私信。Outbox 只落库
 - 2026-10-11 — 首页 FAB 补回 Icon；本机已执行 `003_category.sql`（缺列会导致推荐 500）
 - 2026-10-11 — 发布必选分类，首页 Tab 按 `category` 筛；自己的帖不显示关注
 - 2026-10-11 — 详情评论显示作者头像；底栏赞/藏/发评走真实接口
