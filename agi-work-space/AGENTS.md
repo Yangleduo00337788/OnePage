@@ -1,5 +1,7 @@
 # AGENTS.md
 
+若你从父目录 `OnePage/AGENTS.md` 链式读到本文：继续遵守本文；`java-alibaba.md` 应已并行读取。不要再重复读父目录 AGENTS.md。
+
 你正在 **ONEPAGE（一页）** 的 **agi-work-space** 仓库里工作。本仓 = **项目知识库 + 文档 Vue 壳**；用户产品代码在同级目录 `OnePage-web`、`OnePage-Server`。先读完本文件再改任何文件。
 
 不要改角色 ID、不要为每篇文档新建 Vue 页面。业务 API 与微服务在 Server 仓实现，不在本仓堆业务 Controller。

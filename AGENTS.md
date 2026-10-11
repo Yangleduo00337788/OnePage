@@ -4,15 +4,18 @@
 
 **可携带约束只写在 Git 跟踪的 Markdown。** 不要把团队规则放进 `.cursor/rules`（根 `.gitignore` 忽略 `.cursor/`，换机会丢）。Java 细则在 `agi-work-space/src/content/space/harness/java-alibaba.md`，改 Server 前必须 Read 该文件。文档壳细则在 `agi-work-space/AGENTS.md`（与 `agi-work-space/src/content/space/harness/AGENTS.md` 正文同步）。
 
-先读完本文件再改任何文件。
+本文件会被 Cursor **自动注入**。注入后、**回复用户或改任何文件之前**，必须再用 Read 打开下面两份（可并行；不要只凭记忆、不要跳过）：
 
-## 动手前
+1. `agi-work-space/src/content/space/harness/java-alibaba.md` — Java 规约（改 Server 按其中「必须」执行）
+2. `agi-work-space/src/content/space/harness/AGENTS.md` — 文档壳、角色、回写细则（与 `agi-work-space/AGENTS.md` 正文相同，**只读 Harness 这一份**）
 
-1. 本文件
-2. 改文档壳 / 角色 / 文档树时：再读 `agi-work-space/AGENTS.md`
-3. 改接口：`agi-work-space/src/content/engineering/process/contracts.md` 与 `api-endpoints.md`
-4. 改 Java / Mapper / 服务 yml：先读完 `agi-work-space/src/content/space/harness/java-alibaba.md`，按其中「必须」执行
-5. 角色勾选：`agi-work-space/src/config/workspace-roles.json`
+读完这两份，再按任务读契约 / 路线图等。不要再回头重复读本文件。
+
+## 动手前（链式读完之后）
+
+1. 角色勾选：`agi-work-space/src/config/workspace-roles.json`
+2. 改接口：`agi-work-space/src/content/engineering/process/contracts.md` 与 `api-endpoints.md`
+3. 改文档树 / 路线图：`agi-work-space/src/content/engineering/tech/mvp-roadmap.md`
 
 ## 开发必须回写工作空间
 

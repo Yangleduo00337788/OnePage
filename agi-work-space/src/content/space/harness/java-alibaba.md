@@ -4,7 +4,7 @@ description: Agent 改 OnePage-Server 必读；章节对齐阿里 Java 手册，
 order: 2
 ---
 
-改 `OnePage-Server` 的 Java / Mapper XML / 服务 yml **之前必须读完本文**，并按「必须」执行。官方《阿里巴巴 Java 开发手册》受版权保护，**禁止把 PDF/纸书全文粘进本仓**。本文覆盖同一套章节，写成 ONEPAGE 可执行约定。IDE 可用 [P3C](https://github.com/alibaba/p3c)（Apache-2.0）做静态检查，与本文冲突时以本文和 [接口契约](/engineering/process/contracts) 为准。
+由仓库根 `OnePage/AGENTS.md` **链式引用**：Agent 读完根 AGENTS 后必须再用 Read 打开本文。改 `OnePage-Server` 的 Java / Mapper XML / 服务 yml 按「必须」执行。官方《阿里巴巴 Java 开发手册》受版权保护，**禁止把 PDF/纸书全文粘进本仓**。本文覆盖同一套章节，写成 ONEPAGE 可执行约定。IDE 可用 [P3C](https://github.com/alibaba/p3c)（Apache-2.0）做静态检查，与本文冲突时以本文和 [接口契约](/engineering/process/contracts) 为准。
 
 > [!NOTE]
 > 事实源：本文（Java 写法）+ 契约/表结构 MD（产品事实）。不要只在代码注释里藏接口字段。
