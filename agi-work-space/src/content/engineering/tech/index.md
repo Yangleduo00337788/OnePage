@@ -16,4 +16,4 @@ order: 10
 | [架构与 MVP 路线图](/engineering/tech/mvp-roadmap) | 微服务、选型、分期（**事实源**） |
 | [领域设计](/engineering/tech/domain) | 限界上下文、核心对象 |
 | [数据库设计](/engineering/tech/database-schema) | MySQL 分库表与字段 |
-| [数据库脚本](/engineering/tech/sql) | 全库可执行 SQL（带注释） |
+| [数据库脚本](/engineering/tech/sql) | 与 Server 同名的 DDL 文档（001_init / 002_p1 / …） |

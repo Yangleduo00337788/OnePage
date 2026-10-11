@@ -26,7 +26,7 @@
 | 颜色、间距、导航、图标、搜索、卡片状态 | `design/system/specs.md`；交互补 `design/system/experience.md`；走查补 `design/handoff.md` |
 | 路由、壳组件、占位页 | `engineering/frontend.md` |
 | API / 鉴权 | `engineering/process/contracts.md`、`engineering/process/api-endpoints.md` |
-| 表结构 | 先 `engineering/tech/database-schema.md` 与 `engineering/tech/sql/`，再 Server `db/sql/` |
+| 表结构 | 先 `engineering/tech/database-schema.md` 与 `engineering/tech/sql/`（文档名必须与 Server `*.sql` 同名），再 Server `db/sql/` |
 | 选型、走查拍板 | `records/decisions.md`（新 DEC 写在最上面） |
 | 阶段进展 | `project/governance/status.md` 近期变更 |
 | Java 写法 / Agent 约束 | `space/harness/java-alibaba.md` 与本文件、`agi-work-space/AGENTS.md` |

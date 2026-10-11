@@ -184,7 +184,7 @@ ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约�
 
 | 级别 | 约定 |
 | --- | --- |
-| 必须 | 改表先改工作空间 [库表](/engineering/tech/database-schema) 与 [SQL](/engineering/tech/sql)，再改 `OnePage-Server/*/db/sql/` |
+| 必须 | 改表先改工作空间 [库表](/engineering/tech/database-schema) 与 [SQL](/engineering/tech/sql)（文档名必须与 Server `*.sql` 同名，禁止自编 `onepage_xxx.sql`），再改 `OnePage-Server/*/db/sql/` |
 | 必须 | DDL 带表注释、列注释 |
 | 必须 | 主键、索引有依据；UNIQUE 表达业务防重（赞、收藏） |
 | 必须 | 禁止 `SELECT *` 进热路径（Mapper 只查需要列） |

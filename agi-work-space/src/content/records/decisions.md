@@ -22,7 +22,7 @@ POM 维护。每条决策单独一节，新的写在上面。聊天结论当天�
 - **背景：** 字典里赞藏评属于 `onepage_social`。再开第五个进程和库会拖垮本机 IDEA 联调。
 - **决策：** P1 把 `post` / `post_media` / `outbox_event` / `post_like` / `post_favorite` / `comment` / `comment_like` / `post_view` 建在 `onepage_content`，由 content 服务提供 `/posts` `/feeds` `/reactions` `/comments`。关注流与发现流暂同一套「最新已发布」。Outbox 只落库，不接 RocketMQ 消费。GET 发现流/笔记/评论公开，已登录则网关注入 `X-User-Id` 以填 likedByMe。
 - **替代：** 立刻拆 social-service（否决：多一个端口/库/运行配置）。
-- **影响：** `onepage_social.sql` 仍是目标形态。P2 关注/通知若独立服务再迁表。
+- **影响：** 独立社交库尚无 Server 脚本，不要预编文件名。P2 关注/通知若独立服务，按该服务 `db/sql/001_init.sql` 再建文档。
 
 ## DEC-022 本地与上线都靠进程环境变量
 

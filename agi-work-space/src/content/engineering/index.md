@@ -10,7 +10,7 @@ order: 40
 
 | 目录 / 文档 | 写什么 | 维护 |
 | --- | --- | --- |
-| [技术方案](/engineering/tech) | 架构、路线图、[库表](/engineering/tech/database-schema)、[SQL](/engineering/tech/sql) | RD |
+| [技术方案](/engineering/tech) | 架构、路线图、[库表](/engineering/tech/database-schema)、[SQL 目录](/engineering/tech/sql) | RD |
 | [工程过程](/engineering/process) | [接口契约](/engineering/process/contracts)、[工程规范](/engineering/process/conventions)、[研发协作](/engineering/process/collab)；Java 写法见 Harness [Java 开发规约](/space/harness/java-alibaba) | RD |
 | [前端结构](/engineering/frontend) | 路由、状态、组件契约、无障碍 | FE |
 

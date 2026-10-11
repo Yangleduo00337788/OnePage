@@ -39,7 +39,7 @@ order: 1
 | 颜色、间距、导航、图标、搜索、卡片状态 | `design/system/specs.md`；交互补 `design/system/experience.md`；走查补 `design/handoff.md` |
 | 路由、壳组件、占位页 | `engineering/frontend.md` |
 | API / 鉴权 | `engineering/process/contracts.md`、`engineering/process/api-endpoints.md` |
-| 表结构 | 先 `engineering/tech/database-schema.md` 与 `engineering/tech/sql/`，再 Server `db/sql/` |
+| 表结构 | 先 `engineering/tech/database-schema.md` 与 `engineering/tech/sql/`（文档名必须与 Server `*.sql` 同名），再 Server `db/sql/` |
 | 选型、走查拍板 | `records/decisions.md`（新 DEC 写在最上面） |
 | 阶段进展 | `project/governance/status.md` 近期变更 |
 
@@ -147,7 +147,7 @@ order: 10
 - 业务上下文写在 Markdown，不要堆在 Vue 注释里。
 - 接口 / 领域 / 决策变更当天同步对应 MD。
 - **改 OnePage-web / OnePage-Server 的同一轮必须回写本仓文档**，禁止只改代码。视觉 → `design/system/specs.md`（交互/走查补 `experience.md`、`handoff.md`）；路由与壳 → `engineering/frontend.md`；接口 → 契约；表 → schema + `engineering/tech/sql/`；拍板 → `records/decisions.md`；进展 → `project/governance/status.md`。
-- 改表：先改 `src/content/engineering/tech/database-schema.md` 与 `src/content/engineering/tech/sql/`，再改 `OnePage-Server/*/db/sql/`。DDL 必须带表/列注释。
+- 改表：先改 `src/content/engineering/tech/database-schema.md` 与 `src/content/engineering/tech/sql/`（**文档文件名必须与 Server `*.sql` 同名**，禁止自编 `onepage_auth.sql`），再改 `OnePage-Server/*/db/sql/`。DDL 必须带表/列注释。
 - 改表：先改 `src/content/engineering/tech/database-schema.md` 与 `src/content/engineering/tech/sql/`，再改 `OnePage-Server/*/db/sql/`（脚本必须有表/列注释）。
 - **禁止**为单篇文档增加 `views/*.vue` 或新路由组件；一律走 `DocView` + `/:slug(.*)`。
 - 有角色权限且已授权目录时：可在应用内新建 / 删除 Markdown（根目录 `index.md` 不可删）。

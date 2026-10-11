@@ -1,5 +1,5 @@
 -- 可选 Docker 初始化：P0 + P1 content 表。字段注释与各服务 db/sql 保持一致。
--- 全量表结构以工作空间 sql/ 目录为准。
+-- 表结构以各服务 db/sql 与工作空间同名文档为准。
 
 USE onepage_auth;
 

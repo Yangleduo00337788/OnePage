@@ -4,7 +4,7 @@ description: 各服务 MySQL 表与字段（查字典用）
 order: 4
 ---
 
-各微服务 MySQL **表名与字段**字典；按服务名往下翻即可。可执行 DDL 在 [数据库脚本](/engineering/tech/sql)（须带列注释）。改表：**本页 + sql/ + Server `db/sql/`** 三处一起改。与 [API 明细](/engineering/process/api-endpoints)、[PRD](/product/spec/prd) 不一致时一并改。
+各微服务 MySQL **表名与字段**字典；按服务名往下翻即可。已落地 DDL 文档与 Server **同名**：见 [数据库脚本](/engineering/tech/sql)（如 `001_init.sql`、`002_p1.sql`）。改已有表：本页 + 对应同名 md + `OnePage-Server/*/db/sql/`。新脚本沿用服务内下一序号，禁止自编 `onepage_xxx.sql`。与 [API 明细](/engineering/process/api-endpoints)、[PRD](/product/spec/prd) 不一致时一并改。
 
 > [!NOTE]
 > 推荐 **一个微服务一个库**（如 `onepage_user`）。MVP 也可以先共用一个 MySQL 实例，但表名仍按服务归属理解。
