@@ -45,7 +45,6 @@ const mix = [
   { label: '图文', value: '0' },
   { label: '视频', value: '0' },
   { label: '长文', value: '0' },
-  { label: '播客', value: '0' },
 ]
 
 const fanCells = [

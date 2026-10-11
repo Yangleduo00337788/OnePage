@@ -55,7 +55,8 @@ const stats = computed(() => (dataTab.value === 'notes' ? noteStats : liveStats)
 
 const starters = [
   { id: 'image' as PublishKind, title: '发布图文笔记', hint: '支持常见图片格式 jpg、png、webp', tone: 'peach', icon: 'image' },
-  { id: 'video' as PublishKind, title: '发布视频笔记', hint: '支持常见视频格式 mp4、mov', tone: 'blue', icon: 'circle-play' },
+  { id: 'video' as PublishKind, title: '发布视频笔记', hint: '支持 mp4、mov，不超过 200MB', tone: 'blue', icon: 'circle-play' },
+  { id: 'article' as PublishKind, title: '写长文', hint: '以正文为主，可再配图', tone: 'mint', icon: 'pencil' },
 ]
 
 const topics = [
@@ -343,6 +344,16 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
 .blue {
   background: #e8f2ff;
   color: #2a6fdb;
+}
+
+.mint {
+  background: #e8f8f0;
+  color: #1a8a5a;
+}
+
+.mint {
+  background: #e8f6ee;
+  color: #1f8a54;
 }
 
 .pink {

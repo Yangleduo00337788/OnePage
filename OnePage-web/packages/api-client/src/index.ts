@@ -9,6 +9,56 @@ export type UserSummary = {
   avatarUrl: string
 }
 
+export type UserBrief = {
+  userId: string
+  pageId: string
+  nickname: string
+  avatarUrl: string
+}
+
+export const FEED_CATEGORIES = ['旅行', '美食', '时尚', '摄影', '生活', '运动', '游戏', '音乐'] as const
+
+export type FeedCategory = (typeof FEED_CATEGORIES)[number]
+
+export type PostBrief = {
+  postId: string
+  author: UserBrief
+  title: string
+  body: string
+  coverUrl: string
+  postType: string
+  category: string
+  likeCount: number
+  favoriteCount: number
+  commentCount: number
+  publishedAt: string
+}
+
+export type PostDetail = PostBrief & {
+  body: string
+  media: { mediaId: string; url: string; mimeType: string; role: string }[]
+  likedByMe: boolean
+  favoritedByMe: boolean
+}
+
+export type CursorPage<T> = {
+  items: T[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+export type CommentView = {
+  commentId: string
+  author: UserBrief
+  content: string
+  parentId: string | null
+  rootId: string
+  likeCount: number
+  likedByMe: boolean
+  replyCount: number
+  createdAt: string
+}
+
 export type UserProfile = UserSummary & {
   coverUrl: string
   bio: string
@@ -106,5 +156,73 @@ export const api = {
     request<{ mediaId: string; status: string }>('/api/v1/uploads/complete', {
       method: 'POST',
       body: JSON.stringify({ mediaId }),
+    }),
+  createPost: (body: {
+    title?: string
+    body: string
+    mediaIds?: string[]
+    postType: string
+    category: string
+  }) =>
+    request<{ postId: string; publishedAt: string }>('/api/v1/posts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  post: (postId: string) => request<PostDetail>(`/api/v1/posts/${postId}`),
+  deletePost: (postId: string) => request<void>(`/api/v1/posts/${postId}`, { method: 'DELETE' }),
+  viewPost: (postId: string) => request<void>(`/api/v1/posts/${postId}/view`, { method: 'POST' }),
+  shareLink: (postId: string) =>
+    request<{ shareUrl: string }>(`/api/v1/posts/${postId}/share/link`, { method: 'POST' }),
+  exploreFeed: (cursor?: string, limit?: number, category?: string) => {
+    const q = new URLSearchParams()
+    if (cursor) q.set('cursor', cursor)
+    if (limit) q.set('limit', String(limit))
+    if (category) q.set('category', category)
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<PostBrief>>(`/api/v1/feeds/explore${suffix}`)
+  },
+  followingFeed: (cursor?: string, limit?: number) => {
+    const q = new URLSearchParams()
+    if (cursor) q.set('cursor', cursor)
+    if (limit) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<PostBrief>>(`/api/v1/feeds/following${suffix}`)
+  },
+  likePost: (postId: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/posts/${postId}/like`, {
+      method: 'POST',
+    }),
+  unlikePost: (postId: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/posts/${postId}/like`, {
+      method: 'DELETE',
+    }),
+  favoritePost: (postId: string) =>
+    request<{ favorited: boolean; favoriteCount: number }>(
+      `/api/v1/reactions/posts/${postId}/favorite`,
+      { method: 'POST' },
+    ),
+  unfavoritePost: (postId: string) =>
+    request<{ favorited: boolean; favoriteCount: number }>(
+      `/api/v1/reactions/posts/${postId}/favorite`,
+      { method: 'DELETE' },
+    ),
+  comments: (postId: string, rootId?: string, offset?: number, limit?: number) => {
+    const q = new URLSearchParams()
+    if (rootId) q.set('rootId', rootId)
+    if (offset != null) q.set('offset', String(offset))
+    if (limit != null) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<{ items: CommentView[]; total: number }>(`/api/v1/posts/${postId}/comments${suffix}`)
+  },
+  createComment: (postId: string, body: { content: string; parentId?: string }) =>
+    request<CommentView>(`/api/v1/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteComment: (commentId: string) =>
+    request<void>(`/api/v1/comments/${commentId}`, { method: 'DELETE' }),
+  likeComment: (commentId: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/comments/${commentId}/like`, {
+      method: 'POST',
     }),
 }

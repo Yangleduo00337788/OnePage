@@ -1,9 +1,11 @@
-<!-- 发布工作台：顶栏体裁 Tab、中间大上传区、底三列规格。对照创作服务平台布局。 -->
+<!-- 发布落地页：只提示规格和上传。点上传 / 开始写作后进入编辑页。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Icon from './Icon.vue'
+import PublishEditor from './PublishEditor.vue'
+import type { LocalFile, PublishKind } from './publishTypes'
 
-export type PublishKind = 'image' | 'video' | 'article' | 'podcast'
+export type { PublishKind }
 
 const props = defineProps<{ kind: PublishKind }>()
 const emit = defineEmits<{ 'update:kind': [PublishKind] }>()
@@ -12,55 +14,34 @@ const kinds: { id: PublishKind; label: string }[] = [
   { id: 'video', label: '上传视频' },
   { id: 'image', label: '上传图文' },
   { id: 'article', label: '写长文' },
-  { id: 'podcast', label: '发播客' },
 ]
 
-const files = ref<{ name: string; url: string }[]>([])
-const posted = ref('')
-const title = ref('')
-const body = ref('')
-const topicInput = ref('')
-const topics = ref<string[]>([])
-const visibility = ref<'public' | 'self' | 'friend'>('public')
+const files = ref<LocalFile[]>([])
+const phase = ref<'landing' | 'editor'>('landing')
 const dragging = ref(false)
 const drafts = computed(() => files.value.length)
+const maxFiles = computed(() => (props.kind === 'video' ? 1 : 9))
 
-const visOpts = [
-  { id: 'public' as const, label: '公开' },
-  { id: 'friend' as const, label: '好友可见' },
-  { id: 'self' as const, label: '仅自己可见' },
-]
-
-function addTopic() {
-  const tag = topicInput.value.trim().replace(/^#/, '')
-  if (!tag || topics.value.includes(tag) || topics.value.length >= 10) return
-  topics.value.push(tag)
-  topicInput.value = ''
-}
-
-function removeTopic(tag: string) {
-  topics.value = topics.value.filter((item) => item !== tag)
-}
+watch(
+  () => props.kind,
+  () => {
+    phase.value = 'landing'
+  },
+)
 
 const cta = computed(() => {
   if (props.kind === 'image') return '上传图文'
   if (props.kind === 'article') return '开始写作'
-  if (props.kind === 'podcast') return '上传音频'
   return '上传视频'
 })
 
 const hint = computed(() => {
-  if (props.kind === 'image') return '拖拽图片到此处或点击上传'
-  if (props.kind === 'article') return '在下方写正文，也可拖入配图'
-  if (props.kind === 'podcast') return '拖拽音频到此处或点击上传'
-  return '拖拽视频到此处或点击上传'
+  if (props.kind === 'image') return '拖拽图片到此处或点击上传，进入图文编辑'
+  if (props.kind === 'article') return '点击开始写作进入长文编辑，也可稍后配图'
+  return '拖拽视频到此处或点击上传，进入视频编辑（mp4 / mov，不超过 200MB）'
 })
 
-const accept = computed(() => {
-  if (props.kind === 'video') return 'video/*'
-  if (props.kind === 'podcast') return 'audio/*'
-  return 'image/*'
-})
+const accept = computed(() => (props.kind === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'))
 
 const specs = computed(() => {
   if (props.kind === 'image') {
@@ -77,36 +58,49 @@ const specs = computed(() => {
       { t: '版权', d: '内容须为原创或已获授权。' },
     ]
   }
-  if (props.kind === 'podcast') {
-    return [
-      { t: '音频大小', d: '单集建议不超过 200MB。' },
-      { t: '音频格式', d: '支持 mp3、m4a、wav。' },
-      { t: '时长', d: '建议 3～60 分钟，人声清晰。' },
-    ]
-  }
   return [
-    { t: '视频大小', d: '支持时长 1 秒以上，最大 20GB 视频文件。' },
-    { t: '视频格式', d: '支持常见视频格式，推荐 mp4、mov。' },
+    { t: '视频大小', d: '单文件不超过 200MB。' },
+    { t: '视频格式', d: '支持 mp4、mov、webm。' },
     { t: '视频分辨率', d: '接近 1080P 的视频在网页端上传画质更清晰。' },
   ]
 })
 
+function allowed(file: File) {
+  if (file.size > 200 * 1024 * 1024) return false
+  if (props.kind === 'video') {
+    return file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name)
+  }
+  return file.type.startsWith('image/') || file.type === '' || /\.(jpe?g|png|webp|gif)$/i.test(file.name)
+}
+
 function addList(list: FileList | File[]) {
   for (const file of Array.from(list)) {
-    files.value.push({ name: file.name, url: URL.createObjectURL(file) })
+    if (!allowed(file)) continue
+    if (files.value.length >= maxFiles.value) break
+    files.value.push({ name: file.name, url: URL.createObjectURL(file), file })
   }
 }
 
 function pickFiles(e: Event) {
   const list = (e.target as HTMLInputElement).files
-  if (list) addList(list)
+  if (list?.length) addList(list)
   ;(e.target as HTMLInputElement).value = ''
+  if (files.value.length || props.kind === 'article') enterEditor()
+}
+
+function startArticle() {
+  enterEditor()
 }
 
 function onDrop(e: DragEvent) {
   dragging.value = false
   const list = e.dataTransfer?.files
   if (list?.length) addList(list)
+  if (files.value.length) enterEditor()
+}
+
+function enterEditor() {
+  phase.value = 'editor'
 }
 
 function removeFile(i: number) {
@@ -114,17 +108,31 @@ function removeFile(i: number) {
   files.value.splice(i, 1)
 }
 
-function submit() {
-  if (!title.value.trim()) {
-    posted.value = '请先填写标题'
-    return
-  }
-  posted.value = '已保存为草稿（P0 占位，未真正发布）'
+function reset() {
+  for (const item of files.value) URL.revokeObjectURL(item.url)
+  files.value = []
+  phase.value = 'landing'
+}
+
+function switchKind(id: PublishKind) {
+  if (id === props.kind) return
+  reset()
+  emit('update:kind', id)
 }
 </script>
 
 <template>
-  <div class="pub-page">
+  <PublishEditor
+    v-if="phase === 'editor'"
+    :kind="props.kind"
+    :files="files"
+    @leave="phase = 'landing'"
+    @done="reset"
+    @add-files="addList"
+    @remove-file="removeFile"
+  />
+
+  <div v-else class="pub-page">
     <div class="top">
       <div class="tabs">
         <button
@@ -133,7 +141,7 @@ function submit() {
           type="button"
           class="tab"
           :class="{ 'is-on': props.kind === item.id }"
-          @click="emit('update:kind', item.id)"
+          @click="switchKind(item.id)"
         >
           {{ item.label }}
         </button>
@@ -148,63 +156,23 @@ function submit() {
       @dragleave="dragging = false"
       @drop.prevent="onDrop"
     >
-      <div v-if="files.length" class="thumbs">
-        <div v-for="(item, i) in files" :key="item.url" class="thumb">
-          <video v-if="props.kind === 'video' || props.kind === 'podcast'" :src="item.url" muted />
-          <img v-else :src="item.url" alt="" />
-          <button type="button" class="thumb-x" @click="removeFile(i)">×</button>
-        </div>
-      </div>
-      <div v-else class="empty">
+      <div class="empty">
         <Icon name="cloud-upload" :size="56" class="cloud" />
         <p>{{ hint }}</p>
-        <label class="cta">
+        <button v-if="files.length" type="button" class="cta" @click="enterEditor">继续编辑</button>
+        <button v-else-if="props.kind === 'article'" type="button" class="cta" @click="startArticle">
           {{ cta }}
-          <input type="file" class="hidden" :accept="accept" multiple @change="pickFiles" />
-        </label>
-      </div>
-      <label v-if="files.length" class="cta cta-more">
-        继续上传
-        <input type="file" class="hidden" :accept="accept" multiple @change="pickFiles" />
-      </label>
-    </div>
-
-    <div class="meta">
-      <input v-model="title" class="title" maxlength="40" placeholder="标题（必填）" />
-      <textarea
-        v-model="body"
-        class="body"
-        :rows="props.kind === 'article' ? 8 : 4"
-        :placeholder="props.kind === 'article' ? '写正文' : '写一段说明，让别人更想点进来'"
-      />
-      <div class="topics">
-        <span v-for="tag in topics" :key="tag" class="chip">
-          #{{ tag }}
-          <button type="button" @click="removeTopic(tag)">×</button>
-        </span>
-        <input
-          v-model="topicInput"
-          class="topic-in"
-          maxlength="16"
-          placeholder="加话题，回车确认"
-          @keydown.enter.prevent="addTopic"
-        />
-      </div>
-      <div class="vis">
-        <span>谁可以看</span>
-        <button
-          v-for="item in visOpts"
-          :key="item.id"
-          type="button"
-          :class="{ 'is-on': visibility === item.id }"
-          @click="visibility = item.id"
-        >
-          {{ item.label }}
         </button>
-      </div>
-      <div class="actions">
-        <span v-if="posted">{{ posted }}</span>
-        <button type="button" class="post" @click="submit">发布笔记</button>
+        <label v-else class="cta">
+          {{ cta }}
+          <input
+            type="file"
+            class="hidden"
+            :accept="accept"
+            :multiple="props.kind !== 'video'"
+            @change="pickFiles"
+          />
+        </label>
       </div>
     </div>
 
@@ -275,7 +243,7 @@ function submit() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 420px;
+  min-height: 360px;
   margin-top: 12px;
   border-radius: 16px;
   background: rgb(248, 248, 248);
@@ -319,158 +287,8 @@ function submit() {
   background: #e61e3a;
 }
 
-.cta-more {
-  margin: 16px 0 24px;
-}
-
 .hidden {
   display: none;
-}
-
-.thumbs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  padding: 24px;
-}
-
-.thumb {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  overflow: hidden;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.thumb img,
-.thumb video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumb-x {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
-  border-radius: 11px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-}
-
-.meta {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.title,
-.body,
-.topic-in {
-  width: 100%;
-  box-sizing: border-box;
-  border: 0;
-  border-radius: 12px;
-  background: rgb(248, 248, 248);
-  color: #1f1f1f;
-  font: inherit;
-}
-
-.title {
-  height: 44px;
-  padding: 0 14px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.body {
-  padding: 12px 14px;
-  resize: vertical;
-}
-
-.topics {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: rgb(248, 248, 248);
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 14px;
-  background: #fff;
-  color: #ff2442;
-  font-size: 13px;
-}
-
-.chip button {
-  color: #bbb;
-}
-
-.topic-in {
-  width: auto;
-  min-width: 140px;
-  flex: 1;
-  height: 32px;
-  padding: 0 6px;
-  background: transparent;
-}
-
-.vis {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #8a8a8a;
-  font-size: 13px;
-}
-
-.vis button {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 16px;
-  color: #555;
-}
-
-.vis button.is-on {
-  color: #1f1f1f;
-  font-weight: 600;
-  background: rgb(248, 248, 248);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  color: #8a8a8a;
-  font-size: 13px;
-}
-
-.post {
-  height: 36px;
-  padding: 0 22px;
-  border-radius: 18px;
-  background: #ff2442;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.post:hover {
-  background: #e61e3a;
 }
 
 .specs {

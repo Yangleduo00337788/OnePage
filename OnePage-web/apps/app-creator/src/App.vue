@@ -84,7 +84,6 @@ const publishKinds = [
   { id: 'video' as PublishKind, label: '上传视频', icon: 'circle-play' },
   { id: 'image' as PublishKind, label: '上传图文', icon: 'image' },
   { id: 'article' as PublishKind, label: '写长文', icon: 'pencil' },
-  { id: 'podcast' as PublishKind, label: '发播客', icon: 'headphones' },
 ]
 
 function goPublish(kind: PublishKind = 'image') {
@@ -471,6 +470,7 @@ button {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: rgb(248, 248, 248);
 }
 
