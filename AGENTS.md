@@ -11,6 +11,10 @@
 
 读完这两份，再按任务读契约 / 路线图等。不要再回头重复读本文件。
 
+## 知识空间（长期事实源）
+
+`agi-work-space/src/content` 是项目的知识空间。用 Agent 开发产品时，**架构、功能、接口、表、视觉、决策、阶段**都要在同一轮沉淀进这里，不能只改代码或只留在聊天里。若干年后打开仓库：人或 Agent **先读工作空间**（再按需下钻代码）就应能掌握项目全貌。密钥与 `.env` 除外，禁止写入文档。
+
 ## 动手前（链式读完之后）
 
 1. 角色勾选：`agi-work-space/src/config/workspace-roles.json`
@@ -19,10 +23,13 @@
 
 ## 开发必须回写工作空间
 
-改 `OnePage-web` 或 `OnePage-Server` 时，**同一轮回复内**把结论写进 `agi-work-space/src/content`。不要等用户再提醒。不要只改 Vue/Java。
+改 `OnePage-web` 或 `OnePage-Server`（以及改架构/功能约定）时，**同一轮回复内**把结论写进 `agi-work-space/src/content`。不要等用户再提醒。不要只改 Vue/Java。表里没有对上的类型：补最接近的专文，并在 `status.md` 记一行。
 
 | 改了什么 | 回写到（均在 `agi-work-space/src/content/` 下） |
 | --- | --- |
+| 功能、范围、需求 | `product/spec/prd.md`；范围变了再改 `project/charter/` |
+| 架构、服务边界、分期 | `engineering/tech/architecture.md`、`mvp-roadmap.md`、`domain.md` |
+| 流程 / 时序 | `engineering/tech/diagrams.md`、`auth-flows.md` |
 | 颜色、间距、导航、图标、搜索、卡片状态 | `design/system/specs.md`；交互补 `design/system/experience.md`；走查补 `design/handoff.md` |
 | 路由、壳组件、占位页 | `engineering/frontend.md` |
 | API / 鉴权 | `engineering/process/contracts.md`、`engineering/process/api-endpoints.md` |

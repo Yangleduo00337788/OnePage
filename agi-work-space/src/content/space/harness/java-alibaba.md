@@ -14,7 +14,7 @@ order: 2
 1. 动手前打开本文件；不要凭记忆发明第二套命名或分层。
 2. 新增类放对包：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` Bean。
 3. 内网身份只用网关 `X-User-Id`，业务服务不解析 Cookie。
-4. 改接口或表同一轮回写工作空间，见 `OnePage/AGENTS.md` 与 harness `AGENTS.md` 里的回写表。
+4. 改接口、表、服务边界同一轮回写工作空间知识空间，见 `OnePage/AGENTS.md` 与 harness `AGENTS.md` 里的回写表。禁止只改 Java。
 
 ---
 
@@ -260,4 +260,4 @@ ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` �
 - [ ] 无魔法值、无 `Executors` 无界池、无 `SELECT *`、无拼接 SQL
 - [ ] 写接口校验 `X-User-Id`；内部接口校验内部 token
 - [ ] 日志无密钥；异常进统一错误体
-- [ ] 改表/改 API 已回写 MD
+- [ ] 改表/改 API/改服务边界已回写 MD（知识空间为长期事实源）

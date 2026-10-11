@@ -18,13 +18,13 @@ order: 1
 | --- | --- |
 | 工作空间 | ONEPAGE（一页） |
 | 一句话 | 记录生活每一页。 / Every Day, A New Page |
-| 本仓形态 | 文档壳 + `src/content` 知识库（`npm run dev` 预览文档） |
+| 本仓形态 | 文档壳 + `src/content` 知识空间（长期事实源；`npm run dev` 预览） |
 | 产品代码仓 | `../OnePage-web`（FE）、`../OnePage-Server`（BE） |
 | 架构事实源 | `src/content/engineering/tech/mvp-roadmap.md` |
 | 文档事实来源 | `src/content/**/*.md` |
 | Agent 约束文件 | 本文件与 `src/content/space/harness/AGENTS.md` 正文同步；Cursor 打开 `OnePage/` 时还读父目录 `../AGENTS.md`。**不要**把可携带规则写进 `.cursor/rules` |
 
-**你要做的：** 按用户请求改 **文档** 或 **文档壳** 代码，遵循 `src/content` 中的范围与 [接口契约](/engineering/process/contracts)（产品 API）及 [工作空间写回约定](/engineering/process/workspace-writeback)。写 MD 时遵守 [文档怎么写](/engineering/process/doc-style)（开头直接写作用，先短段再表格）。
+**你要做的：** 按用户请求改 **文档** 或 **文档壳** 代码，遵循 `src/content` 中的范围与 [接口契约](/engineering/process/contracts)（产品 API）及 [工作空间写回约定](/engineering/process/workspace-writeback)。写 MD 时遵守 [文档怎么写](/engineering/process/doc-style)（开头直接写作用，先短段再表格）。**知识空间目标：** 用 Agent 开发产品时，架构 / 功能 / 接口 / 表 / 视觉 / 决策 / 阶段必须同一轮沉淀进 `src/content`。若干年后人或 Agent 先读工作空间即可掌握项目全貌；聊天不是事实源。
 
 **你不要做的：** 在本仓实现 ONEPAGE 业务后端/发帖 API；不要把用户产品整站塞进本仓路由。
 
@@ -32,10 +32,13 @@ order: 1
 
 团队规则只放 Git 里的 Markdown：父目录 `OnePage/AGENTS.md`、本文件、`space/harness/java-alibaba.md`。`.cursor/` 已被 gitignore，换机不会出现，**禁止**把回写表或 Java 必读写进 `.mdc`。
 
-改 `OnePage-web` 或 `OnePage-Server` 时，**同一轮回复内**把结论写进 `src/content`。不要等用户再提醒。不要只改 Vue/Java。
+改 `OnePage-web` 或 `OnePage-Server`（以及改架构/功能约定）时，**同一轮回复内**把结论写进 `src/content`。不要等用户再提醒。不要只改 Vue/Java。表里没有对上的类型：补最接近的专文，并在 `status.md` 记一行。
 
 | 改了什么 | 回写到 |
 | --- | --- |
+| 功能、范围、需求 | `product/spec/prd.md`；范围变了再改 `project/charter/` |
+| 架构、服务边界、分期 | `engineering/tech/architecture.md`、`mvp-roadmap.md`、`domain.md` |
+| 流程 / 时序 | `engineering/tech/diagrams.md`、`auth-flows.md` |
 | 颜色、间距、导航、图标、搜索、卡片状态 | `design/system/specs.md`；交互补 `design/system/experience.md`；走查补 `design/handoff.md` |
 | 路由、壳组件、占位页 | `engineering/frontend.md` |
 | API / 鉴权 | `engineering/process/contracts.md`、`engineering/process/api-endpoints.md` |
@@ -146,7 +149,7 @@ order: 10
 - 用户可见中文正文；占位写成「换成当前项目」，不要留英文 lorem。
 - 业务上下文写在 Markdown，不要堆在 Vue 注释里。
 - 接口 / 领域 / 决策变更当天同步对应 MD。
-- **改 OnePage-web / OnePage-Server 的同一轮必须回写本仓文档**，禁止只改代码。视觉 → `design/system/specs.md`（交互/走查补 `experience.md`、`handoff.md`）；路由与壳 → `engineering/frontend.md`；接口 → 契约；表 → schema + `engineering/tech/sql/`；拍板 → `records/decisions.md`；进展 → `project/governance/status.md`。
+- **改 OnePage-web / OnePage-Server 的同一轮必须回写本仓文档**，禁止只改代码。功能 → PRD；架构/分期 → architecture / mvp-roadmap / domain；流程 → diagrams；视觉 → `design/system/specs.md`（交互/走查补 `experience.md`、`handoff.md`）；路由与壳 → `engineering/frontend.md`；接口 → 契约；表 → schema + `engineering/tech/sql/`；拍板 → `records/decisions.md`；进展 → `project/governance/status.md`。
 - 改表：先改 `src/content/engineering/tech/database-schema.md` 与 `src/content/engineering/tech/sql/`（**文档文件名必须与 Server `*.sql` 同名**，禁止自编 `onepage_auth.sql`），再改 `OnePage-Server/*/db/sql/`。DDL 必须带表/列注释。
 - 改表：先改 `src/content/engineering/tech/database-schema.md` 与 `src/content/engineering/tech/sql/`，再改 `OnePage-Server/*/db/sql/`（脚本必须有表/列注释）。
 - **禁止**为单篇文档增加 `views/*.vue` 或新路由组件；一律走 `DocView` + `/:slug(.*)`。
@@ -210,7 +213,7 @@ npm run build
 | 用户意图 | 正确做法 |
 | --- | --- |
 | 改某篇项目文档 | 改对应 `src/content/**/*.md`，保留 frontmatter |
-| 改产品 UI / 接口 / 表 | 改 `../OnePage-web` 或 `../OnePage-Server`，**同一轮**回写上表对应 MD |
+| 改产品 UI / 接口 / 表 / 架构 / 功能 | 改 `../OnePage-web` 或 `../OnePage-Server`，**同一轮**回写上表对应 MD（知识空间为长期事实源） |
 | 改 Java 后端 | 先读 `space/harness/java-alibaba.md`，再改 `OnePage-Server` |
 | 换项目 | 改概述/目标/状态/角色对接人/本文件「当前值」表，不改壳子结构 |
 | 加一篇文档 | 优先在应用内按角色新建；或新 md + frontmatter；若新分类则加文件夹和 index.md |

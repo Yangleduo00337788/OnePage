@@ -4,7 +4,7 @@ description: 约束 Agent 使用本工作空间模板时的规则与入口
 order: 92
 ---
 
-Harness 是给 **Agent 工具**用的约束层：规定可以改哪些文件、必须先读什么、禁止做什么。换项目时优先改 [AGENTS.md](/space/harness/AGENTS)，不要改站点结构。
+Harness 是给 **Agent 工具**用的约束层：规定可以改哪些文件、必须先读什么、禁止做什么。换项目时优先改 [AGENTS.md](/space/harness/AGENTS)，不要改站点结构。`src/content` 是项目知识空间（DEC-025）：开发产品时把架构、功能、接口等沉淀进来，若干年后先读这里。
 
 ## 当前项目入口
 

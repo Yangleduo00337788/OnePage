@@ -42,7 +42,7 @@ npm run build
 ## 文档同步检查
 
 - [ ] 写回 / Git 推送约定变了 → [工作空间写回约定](/engineering/process/workspace-writeback)
-- [ ] 改了产品 UI / 接口 / 表却没改工作空间对应 MD → 同一轮补齐，见 `OnePage/AGENTS.md` 与 [Harness AGENTS](/space/harness/AGENTS) 回写表
+- [ ] 改了产品 UI / 接口 / 表 / 架构 / 功能却没改工作空间对应 MD → 同一轮补齐（知识空间为长期事实源），见 `OnePage/AGENTS.md` 与 [Harness AGENTS](/space/harness/AGENTS) 回写表
 - [ ] 业务 API 变了 → [接口契约](/engineering/process/contracts) · [API 明细](/engineering/process/api-endpoints)
 - [ ] 表变了 → [数据库设计](/engineering/tech/database-schema) · [数据库脚本](/engineering/tech/sql) · Server `db/sql`
 - [ ] 领域变了 → [领域设计](/engineering/tech/domain)
