@@ -1,7 +1,6 @@
 -- =============================================================================
 -- 库：onepage_content
--- 落地：P0 仅 media_asset
--- 待建：post、post_media、outbox（P1 发帖）
+-- 落地：P0 media_asset；P1 post / post_media / outbox / 赞藏评 / post_view（社交表暂合本库，DEC-023）
 -- 执行：USE onepage_content;
 -- =============================================================================
 
@@ -25,13 +24,15 @@ CREATE TABLE IF NOT EXISTS post (
   title VARCHAR(200) NULL COMMENT '标题，可空',
   body TEXT NOT NULL COMMENT '正文',
   post_type VARCHAR(16) NOT NULL COMMENT 'text / image / video / mixed',
+  category VARCHAR(16) NOT NULL DEFAULT '' COMMENT '首页分类 旅行/美食/时尚/摄影/生活/运动/游戏/音乐',
   status VARCHAR(16) NOT NULL COMMENT 'draft / published / deleted',
   visibility TINYINT NOT NULL DEFAULT 0 COMMENT '0 公开（MVP 仅公开）',
   published_at DATETIME(3) NULL COMMENT '首次公开时间',
   created_at DATETIME(3) NOT NULL COMMENT '创建时间',
   updated_at DATETIME(3) NOT NULL COMMENT '更新时间',
   deleted_at DATETIME(3) NULL COMMENT '软删时间',
-  KEY idx_author_published (author_id, published_at)
+  KEY idx_author_published (author_id, published_at),
+  KEY idx_category_published (category, status, published_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='笔记';
 
 CREATE TABLE IF NOT EXISTS post_media (
@@ -54,3 +55,49 @@ CREATE TABLE IF NOT EXISTS outbox_event (
   sent_at DATETIME(3) NULL COMMENT '发送成功时间',
   KEY idx_status_created (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Outbox';
+
+-- P1 赞藏评暂放 content（与 Server 002_p1.sql 一致）。独立 onepage_social 库仍保留脚本，P2 再拆服务。
+CREATE TABLE IF NOT EXISTS post_like (
+  user_id BIGINT NOT NULL COMMENT '点赞人',
+  post_id BIGINT NOT NULL COMMENT '笔记 ID',
+  created_at DATETIME(3) NOT NULL COMMENT '点赞时间',
+  PRIMARY KEY (user_id, post_id),
+  KEY idx_post (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赞笔记';
+
+CREATE TABLE IF NOT EXISTS post_favorite (
+  user_id BIGINT NOT NULL COMMENT '收藏人',
+  post_id BIGINT NOT NULL COMMENT '笔记 ID',
+  created_at DATETIME(3) NOT NULL COMMENT '收藏时间',
+  PRIMARY KEY (user_id, post_id),
+  KEY idx_post (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='藏笔记';
+
+CREATE TABLE IF NOT EXISTS comment (
+  id BIGINT PRIMARY KEY COMMENT '评论 ID',
+  post_id BIGINT NOT NULL COMMENT '笔记 ID',
+  user_id BIGINT NOT NULL COMMENT '评论人',
+  root_id BIGINT NOT NULL COMMENT '一级评论 id；一级时等于自身 id',
+  parent_id BIGINT NULL COMMENT '直接父评论；一级为空',
+  content VARCHAR(2000) NOT NULL COMMENT '正文',
+  like_count INT NOT NULL DEFAULT 0 COMMENT '获赞冗余',
+  status TINYINT NOT NULL DEFAULT 0 COMMENT '0 正常 1 删除',
+  created_at DATETIME(3) NOT NULL COMMENT '创建时间',
+  KEY idx_post_root (post_id, root_id),
+  KEY idx_post_parent (post_id, parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论';
+
+CREATE TABLE IF NOT EXISTS comment_like (
+  user_id BIGINT NOT NULL COMMENT '点赞人',
+  comment_id BIGINT NOT NULL COMMENT '评论 ID',
+  created_at DATETIME(3) NOT NULL COMMENT '点赞时间',
+  PRIMARY KEY (user_id, comment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赞评论';
+
+CREATE TABLE IF NOT EXISTS post_view (
+  user_id BIGINT NOT NULL COMMENT '浏览人',
+  post_id BIGINT NOT NULL COMMENT '笔记 ID',
+  viewed_at DATETIME(3) NOT NULL COMMENT '最近浏览时间',
+  PRIMARY KEY (user_id, post_id),
+  KEY idx_user_viewed (user_id, viewed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='浏览历史（P1 暂放 content）';

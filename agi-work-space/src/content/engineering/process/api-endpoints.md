@@ -6,7 +6,7 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、Uploads presign/complete。OAuth 未配 client 时返回配置缺失。关注/列表等仍是契约，代码未做。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、Uploads presign/complete。P1 已实现：发帖、Feed（following=explore）、详情、软删、浏览、赞/藏、评论、分享链接；评论点赞 POST 切换；收藏另有 DELETE 取消。OAuth 未配 client 时返回配置缺失。关注关系仍待 P2。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -41,8 +41,10 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 | postId | string | |
 | author | UserBrief | |
 | title | string | 可空 |
-| coverUrl | string | 可空 |
+| body | string | 摘要，最长约 400 字；纯文字卡片用 |
+| coverUrl | string | 可空；视频帖可能是视频 URL，前端用 `<video>` 出首帧 |
 | postType | string | text / image / video / mixed |
+| category | string | 旅行/美食/时尚/摄影/生活/运动/游戏/音乐；旧帖可空 |
 | likeCount | number | |
 | favoriteCount | number | |
 | commentCount | number | |
@@ -197,6 +199,7 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`
 | body | string | 是 |
 | mediaIds | string[] | 否 |
 | postType | string | 是 |
+| category | string | 是，须为首页 Tab 之一 |
 
 **Response 201**：`{ "postId", "publishedAt" }`
 
@@ -206,7 +209,7 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`
 
 ### GET `/api/v1/feeds/following` | `/feeds/explore`
 
-Query：`cursor`, `limit` → `CursorPage<PostBrief>`
+Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。P1 **following 与 explore 同一数据**（尚无关注图）。GET 公开；已登录时带 `likedByMe` 等字段（详情接口）。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部；分类 Tab 只出对应 `post.category`。
 
 ### DELETE `/api/v1/posts/{postId}`
 
@@ -244,6 +247,8 @@ Header 可选 `Idempotency-Key`
 ### POST `/api/v1/reactions/posts/{postId}/favorite`
 
 **Response 200** `{ "favorited", "favoriteCount" }`
+
+### DELETE 同上 → 取消收藏
 
 ### POST `/api/v1/reactions/comments/{commentId}/like`
 

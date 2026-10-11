@@ -16,7 +16,7 @@ order: 3
 | --- | --- |
 | 地址前缀 | `/api/v1` |
 | 格式 | JSON；生产走 HTTPS |
-| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；未登录 401 |
+| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；写接口未登录 401。GET Feed/笔记详情/评论列表公开，有 Cookie 时仍注入 `X-User-Id` |
 | 密码 | 注册 8～32 位，须同时包含字母和数字；BCrypt 存储 |
 | 登出 | `POST /api/v1/auth/logout` 由**网关** invalidate WebSession，返回 200 |
 | 设密 | 已登录 `POST /auth/password`；未登录找回 `POST /auth/password/reset` + `sms scene=reset` |
@@ -30,7 +30,7 @@ order: 3
 ## 上传文件（三步）
 
 1. `POST /api/v1/uploads/presign` — 拿到临时上传地址  
-2. 浏览器 **直传 MinIO**（`PUT`，`Content-Type` 必须与 presign 时的 `mimeType` 一致）。本机 MinIO 请设 `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:5173,http://127.0.0.1:5173`（这版 PutBucketCors 常不可用）  
+2. 浏览器 **直传 MinIO**（`PUT`，`Content-Type` 必须与 presign 时的 `mimeType` 一致）。本机 MinIO 请设 `MINIO_API_CORS_ALLOW_ORIGIN`，包含 5173/5174/5175（及 127.0.0.1 对应端口）。这版 PutBucketCors 常不可用。创作者站 :5175 直传缺 5175 会被浏览器拦 CORS。  
 3. `POST /api/v1/uploads/complete` — 确认可用，拿到 `mediaId` 再去发帖或绑头像/封面
 
 ## 请求分到哪个服务（Gateway 路由）
@@ -40,8 +40,8 @@ order: 3
 | `/auth/**` | 登录注册 |
 | `/users/**` | 用户资料、关注、列表 |
 | `/uploads/**`、`/media/**` | 上传与媒体（content，P0） |
-| `/posts/**`、`/feeds/**` | 笔记 |
-| `/comments/**`、`/reactions/**` | 评论、赞藏 |
+| `/posts/**`、`/feeds/**` | 笔记（content，P1） |
+| `/comments/**`、`/reactions/**` | 评论、赞藏（P1 合在 content，DEC-023） |
 | `/conversations/**`、`/ws/im` | 私信 |
 | `/notifications/**` | 通知 |
 | `/search/**` | 搜索 |

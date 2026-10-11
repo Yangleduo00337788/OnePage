@@ -72,15 +72,15 @@ Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`enti
 | --- | --- | --- |
 | Nacos | **3.2.4 Standalone（Java 17）** | 控制台默认账号 `nacos`/`nacos`；命名空间 `public`。四个服务 `server-addr` 必须写 **`"[::1]:8848"`**，不要写 `127.0.0.1`：本机 IPv4 `:8848` 常被 Windows svchost 占用，HTTP 只在 IPv6 `::1`；旁路 `8849` 不是 Discovery 地址 |
 | Redis | **8.0** | Session + 验证码；P0 已用 |
-| MinIO | **RELEASE.2025-02-07T23-21-09Z** | 桶 `onepage-media`。content 启动写公开读；PutBucketCors 在这版常报 NotImplemented，不挡启动。浏览器直传靠 MinIO 环境变量 `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:5173,http://127.0.0.1:5173` |
+| MinIO | **RELEASE.2025-02-07T23-21-09Z** | 桶 `onepage-media`。content 启动写公开读；PutBucketCors 在这版常报 NotImplemented，不挡启动。浏览器直传靠 MinIO 环境变量 `MINIO_API_CORS_ALLOW_ORIGIN`（须含 5173 文档、5174 社区、5175 创作者） |
 | Elasticsearch | **9.5.4** | P3 搜索再用；不要用 8.x 客户端硬连 |
-| RocketMQ | **5.5.0** | P1 Outbox 再用 |
+| RocketMQ | **5.5.0** | P1 只写 Outbox，暂不消费 |
 
 ## 数据怎么走（四条线）
 
 1. **浏览 / 读**：浏览器 → 产品前端 → Gateway → 服务 → MySQL 或 ES。  
-2. **发帖**：content 写 MySQL + Outbox → MQ → search 更新 ES。  
-3. **点赞等**：social 写库 + Outbox → notification 收通知。  
+2. **发帖**：content 写 MySQL + Outbox（P1 不发 MQ）。  
+3. **点赞等**：P1 由 content 写同一库；通知消费留 P2。  
 4. **传图/视频**：先要上传凭证 → 浏览器直传 MinIO → 再绑定到笔记。
 
 图示：[架构图与时序图](/engineering/tech/diagrams)。

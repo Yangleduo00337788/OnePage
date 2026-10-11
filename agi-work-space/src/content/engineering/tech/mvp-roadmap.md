@@ -85,7 +85,7 @@ PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 M
 | P4 | 能开播、能看直播 |
 | P5 | 能举报、能基本运维 |
 
-**当前**：P0 已能在本机 IDEA 跑通登录资料上传链路。本地**不用 Docker**。yml 只引用环境变量；本地 IDEA 把 `OnePage-Server/.env` 注入成进程环境变量（与上线一致）。短信 `SMS_MOCK` 验证码 `888888`。建库脚本见 [数据库脚本](/engineering/tech/sql)。发现流与笔记仍属 P1。
+**当前**：P1 后端已能发帖、刷发现流、赞藏评（社交表暂合 `onepage_content`）。本地**不用 Docker**。yml 只引用环境变量；本地 IDEA 把 `OnePage-Server/.env` 注入成进程环境变量。短信 `SMS_MOCK` 验证码 `888888`。content 需执行 `002_p1.sql`。社区壳瀑布流仍占位，待接 `api-client`。
 
 ## 往下翻
 

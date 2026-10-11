@@ -24,8 +24,8 @@ order: 4
 | --- | --- |
 | onepage_auth | 账号、OAuth 绑定 |
 | onepage_user | 资料、关注、浏览历史 |
-| onepage_content | 笔记、媒体文件记录 |
-| onepage_social | 赞藏、评论、分享记录 |
+| onepage_content | 笔记、媒体；P1 暂含赞藏评与浏览（DEC-023） |
+| onepage_social | 目标库；P1 未单独建库 |
 | onepage_message | 私信 |
 | onepage_notification | 通知收件箱 |
 | onepage_moderation | 举报 |
@@ -127,6 +127,7 @@ order: 4
 | title | VARCHAR(200) 可空 | |
 | body | TEXT | 正文 |
 | post_type | VARCHAR(16) | `text` / `image` / `video` / `mixed` |
+| category | VARCHAR(16) | 首页 Tab：旅行/美食/时尚/摄影/生活/运动/游戏/音乐；旧帖可空 |
 | status | VARCHAR(16) | `draft` / `published` / `deleted` |
 | visibility | TINYINT | 0 公开（MVP 仅公开） |
 | published_at | DATETIME(3) 可空 | |
@@ -144,7 +145,17 @@ order: 4
 | sort_order | INT | 多图顺序 |
 | role | VARCHAR(16) | `cover` / `gallery` / `video` |
 
+### post_view（P1 暂放本库）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| user_id | BIGINT | PK 之一 |
+| post_id | BIGINT | PK 之一 |
+| viewed_at | DATETIME(3) | 最近浏览 |
+
 ## onepage_social
+
+> P1 下列表实际建在 `onepage_content`，由 content 服务读写。本节目的是字段字典与拆库后对齐。
 
 ### post_like
 
