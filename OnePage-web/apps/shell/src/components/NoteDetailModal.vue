@@ -106,6 +106,24 @@ const isVideo = computed(() => {
   }
   return Boolean(detail.note?.video)
 })
+const mediaRatio = ref(0)
+
+function onImgLoad(e: Event) {
+  const el = e.target as HTMLImageElement
+  if (el.naturalWidth > 0 && el.naturalHeight > 0) {
+    mediaRatio.value = el.naturalWidth / el.naturalHeight
+  }
+}
+
+const dialogWidth = computed(() => {
+  if (isVideo.value || !mediaRatio.value) return ''
+  const maxH = Math.min(780, window.innerHeight - 48)
+  const maxCard = Math.min(1080, window.innerWidth - 48)
+  const right = 400
+  const maxStage = Math.max(240, maxCard - right)
+  const stageW = Math.min(maxStage, maxH * mediaRatio.value)
+  return `${Math.round(stageW + right)}px`
+})
 const videoSrc = computed(() => {
   if (full.value) {
     return full.value.media.find((m) => m.mimeType.startsWith('video/'))?.url || ''
@@ -172,6 +190,7 @@ watch(
   () => detail.note?.id,
   (id) => {
     idx.value = 0
+    mediaRatio.value = 0
     liked.value = false
     saved.value = false
     moreOpen.value = false
@@ -682,8 +701,11 @@ watch(moreOpen, async (on) => {
     >
       <div
         ref="cardEl"
-        class="relative flex h-[min(780px,calc(100vh-48px))] w-[min(1080px,calc(100vw-48px))] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
-        style="transform-origin: center center"
+        class="relative flex h-[min(780px,calc(100vh-48px))] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
+        :style="{
+          transformOrigin: 'center center',
+          width: dialogWidth || 'min(1080px, calc(100vw - 48px))',
+        }"
       >
         <div ref="stageEl" class="stage group relative min-w-0 flex-1 overflow-visible bg-black">
           <div class="absolute inset-0 overflow-hidden rounded-l-[20px]">
@@ -691,7 +713,7 @@ watch(moreOpen, async (on) => {
             v-if="isVideo"
             :key="`${detail.note.id}-${videoSrc}`"
             ref="player"
-            class="h-full w-full cursor-pointer object-cover"
+            class="h-full w-full cursor-pointer object-contain"
             :src="videoSrc"
             :poster="detail.note.image"
             playsinline
@@ -707,9 +729,11 @@ watch(moreOpen, async (on) => {
           />
           <img
             v-else-if="gallery[idx]"
+            :key="gallery[idx]"
             :src="gallery[idx]"
             :alt="detail.note.title"
-            class="h-full w-full object-cover"
+            class="h-full w-full object-contain"
+            @load="onImgLoad"
           />
           <TextNoteCover
             v-else

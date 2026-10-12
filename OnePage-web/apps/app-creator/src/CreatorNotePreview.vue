@@ -31,8 +31,33 @@ const videoUrl = computed(() => {
   return ''
 })
 
+const mediaRatio = ref(0)
+
 watch(images, () => {
   imgIndex.value = 0
+  mediaRatio.value = 0
+})
+
+watch(
+  () => props.detail?.postId,
+  () => {
+    mediaRatio.value = 0
+  },
+)
+
+function onImgLoad(e: Event) {
+  const el = e.target as HTMLImageElement
+  if (el.naturalWidth > 0 && el.naturalHeight > 0) {
+    mediaRatio.value = el.naturalWidth / el.naturalHeight
+  }
+}
+
+const stageWidth = computed(() => {
+  if (videoUrl.value || !mediaRatio.value) return ''
+  const maxH = Math.min(780, window.innerHeight - 48)
+  const maxSheet = Math.min(920, window.innerWidth - 48)
+  const copyMin = 280
+  return `${Math.round(Math.min(maxSheet - copyMin, maxH * mediaRatio.value))}px`
 })
 
 const chips = computed(() => {
@@ -65,7 +90,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <p v-if="loading" class="hint">加载中…</p>
         <p v-else-if="error" class="hint">{{ error }}</p>
         <template v-else-if="detail">
-          <div class="stage">
+          <div class="stage" :style="stageWidth ? { width: stageWidth, flex: 'none' } : undefined">
             <video
               v-if="videoUrl"
               :src="videoUrl"
@@ -74,7 +99,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
               playsinline
             />
             <div v-else-if="images.length" class="gallery">
-              <img :src="images[imgIndex]" :alt="detail.title" class="media" />
+              <img
+                :key="images[imgIndex]"
+                :src="images[imgIndex]"
+                :alt="detail.title"
+                class="media"
+                @load="onImgLoad"
+              />
               <button
                 v-if="images.length > 1 && imgIndex > 0"
                 type="button"
@@ -179,7 +210,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   width: 100%;
   height: 100%;
   min-height: 420px;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .nav {
