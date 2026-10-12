@@ -31,7 +31,7 @@ const isText = computed(() => !props.note.video && !props.note.image)
       <video
         v-if="note.video && note.image"
         :src="videoSrc"
-        class="pointer-events-none h-full w-full object-cover"
+        class="pointer-events-none h-full w-full object-contain"
         muted
         playsinline
         preload="metadata"
@@ -40,7 +40,7 @@ const isText = computed(() => !props.note.video && !props.note.image)
         v-else-if="note.image && !note.video"
         :src="note.image"
         :alt="note.title"
-        class="pointer-events-none h-full w-full object-cover"
+        class="pointer-events-none h-full w-full object-contain"
       />
       <TextNoteCover v-else size="feed" :title="note.title" :body="note.body" />
       <span

@@ -454,7 +454,7 @@ onMounted(() => {
   display: block;
   width: 100%;
   height: 160px;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .play {
