@@ -1,7 +1,9 @@
 <!-- 创作者首页：20px 白卡片工作台，P0 数据占位。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { UserProfile } from '@onepage/api-client'
+import { computed, onMounted, ref, watch } from 'vue'
+import { api, type UserProfile } from '@onepage/api-client'
+import TextNoteCover from './TextNoteCover.vue'
+import { coverVideoSrc, isTextNote, isVideoNote, noteFromMine, type Note } from './notes'
 import type { PublishKind } from './PublishComposer.vue'
 import { EVENTS } from './events'
 import Icon from './Icon.vue'
@@ -70,11 +72,31 @@ const notices = [
   { title: '一页公约', desc: '真诚分享，友好互动' },
 ]
 
-const recent = [
-  { id: 'w1', title: '周末市集手帐', status: '已发布', views: '3.2万', tint: '#f4d4c4' },
-  { id: 'w3', title: '第一次露营', status: '审核中', views: '—', tint: '#e8dcc8' },
-  { id: 'w5', title: '城市骑行路线', status: '草稿', views: '—', tint: '#dce8dc' },
-]
+const recent = ref<Note[]>([])
+
+async function loadRecent() {
+  if (!props.me) {
+    recent.value = []
+    return
+  }
+  try {
+    const page = await api.myPosts(undefined, 5)
+    recent.value = page.items.map(noteFromMine)
+  } catch {
+    recent.value = []
+  }
+}
+
+onMounted(() => {
+  void loadRecent()
+})
+
+watch(
+  () => props.me?.userId,
+  () => {
+    void loadRecent()
+  },
+)
 
 function goLive() {
   window.open(`${community}/live`, '_blank', 'noopener,noreferrer')
@@ -160,11 +182,11 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
         <div class="todo">
           <button type="button" @click="emit('publish', 'image')">
             草稿
-            <b>1</b>
+            <b>0</b>
           </button>
           <button type="button" @click="emit('open-notes')">
             审核中
-            <b>1</b>
+            <b>0</b>
           </button>
         </div>
       </article>
@@ -173,15 +195,26 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
           <h3>最近笔记</h3>
           <button type="button" class="link" @click="emit('open-notes')">全部</button>
         </div>
-        <ul class="acts">
+        <ul v-if="recent.length" class="acts">
           <li v-for="item in recent" :key="item.id">
-            <span class="thumb" :style="{ background: item.tint }" />
+            <span class="thumb">
+              <video
+                v-if="item.cover && isVideoNote(item)"
+                :src="coverVideoSrc(item.cover)"
+                muted
+                playsinline
+                preload="metadata"
+              />
+              <img v-else-if="item.cover && !isTextNote(item)" :src="item.cover" alt="" />
+              <TextNoteCover v-else size="thumb" :title="item.title" />
+            </span>
             <div>
               <strong>{{ item.title }}</strong>
               <p>{{ item.status }} · 浏览 {{ item.views }}</p>
             </div>
           </li>
         </ul>
+        <p v-else class="empty-recent">还没有已发布的笔记</p>
       </article>
       <article class="card">
         <h3>平台公告</h3>
@@ -551,10 +584,18 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
   background: #eee;
 }
 
-.thumb img {
+.thumb img,
+.thumb video,
+.thumb :deep(.tnc) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.empty-recent {
+  margin: 8px 0 0;
+  color: #8a8a8a;
+  font-size: 13px;
 }
 
 @media (max-width: 1100px) {

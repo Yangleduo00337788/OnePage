@@ -100,6 +100,9 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
     if (path.startsWith("/api/v1/feeds/")) {
       return true;
     }
+    if ("/api/v1/posts/mine".equals(path)) {
+      return false;
+    }
     return path.matches("/api/v1/posts/[^/]+")
         || path.matches("/api/v1/posts/[^/]+/comments");
   }

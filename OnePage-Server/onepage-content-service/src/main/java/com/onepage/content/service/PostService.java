@@ -1,5 +1,6 @@
 package com.onepage.content.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -204,6 +206,48 @@ public class PostService {
     writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
   }
 
+  public FeedDtos.CursorPage listMine(long userId, String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
+        .eq(Post::getAuthorId, userId)
+        .eq(Post::getStatus, "published")
+        .isNull(Post::getDeletedAt);
+    applyCursor(query, cursor);
+    query.orderByDesc(Post::getPublishedAt)
+        .orderByDesc(Post::getId)
+        .last("LIMIT " + (size + 1));
+    List<Post> rows = postMapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<FeedDtos.PostBrief> items = new ArrayList<>();
+    for (Post post : rows) {
+      items.add(toBrief(post, postViewMapper.countByPostId(post.getId())));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty()) {
+      Post last = rows.getLast();
+      next = epochMilli(last.getPublishedAt()) + "_" + last.getId();
+    }
+    return new FeedDtos.CursorPage(items, next, hasMore);
+  }
+
+  @Transactional
+  public FeedDtos.PostBrief setVisibility(long userId, long postId, String visibility) {
+    Post post = postMapper.selectById(postId);
+    if (post == null || post.getDeletedAt() != null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (post.getAuthorId() == null || post.getAuthorId() != userId) {
+      throw BusinessException.forbidden("只能修改自己的笔记");
+    }
+    post.setVisibility(parseVisibility(visibility));
+    post.setUpdatedAt(LocalDateTime.now());
+    postMapper.updateById(post);
+    return toBrief(post, postViewMapper.countByPostId(post.getId()));
+  }
+
   public void recordView(long userId, long postId) {
     requireVisible(postId, userId);
     postViewMapper.upsert(userId, postId, LocalDateTime.now());
@@ -233,6 +277,10 @@ public class PostService {
   }
 
   public FeedDtos.PostBrief toBrief(Post post) {
+    return toBrief(post, 0L);
+  }
+
+  public FeedDtos.PostBrief toBrief(Post post, long viewCount) {
     String cover = firstCoverUrl(post.getId());
     long likes = likeMapper.selectCount(Wrappers.<PostLike>lambdaQuery().eq(PostLike::getPostId, post.getId()));
     long favs = favoriteMapper.selectCount(Wrappers.<PostFavorite>lambdaQuery().eq(PostFavorite::getPostId, post.getId()));
@@ -255,7 +303,29 @@ public class PostService {
         likes,
         favs,
         comments,
+        viewCount,
         iso(post.getPublishedAt()));
+  }
+
+  private void applyCursor(LambdaQueryWrapper<Post> query, String cursor) {
+    if (!StringUtils.hasText(cursor)) {
+      return;
+    }
+    String[] parts = cursor.split("_", 2);
+    if (parts.length != 2) {
+      throw BusinessException.validation("cursor 不合法");
+    }
+    long millis;
+    long id;
+    try {
+      millis = Long.parseLong(parts[0]);
+      id = Long.parseLong(parts[1]);
+    } catch (NumberFormatException ex) {
+      throw BusinessException.validation("cursor 不合法");
+    }
+    LocalDateTime at = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
+    query.and(w -> w.lt(Post::getPublishedAt, at)
+        .or(inner -> inner.eq(Post::getPublishedAt, at).lt(Post::getId, id)));
   }
 
   private static boolean originalOf(Post post) {

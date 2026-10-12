@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed（following=explore）、详情、软删、浏览、赞/藏、评论、分享链接；评论点赞 POST 切换；收藏另有 DELETE 取消。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed（following=explore）、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、改可见 `PATCH /posts/{id}/visibility`；评论点赞 POST 切换；收藏另有 DELETE 取消。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** `/users/{pageId}/posts`、本人 `/favorites` `/likes` `/history`、获赞/被收藏列表、关注（P2）、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** `/users/{pageId}/posts`（他人主页笔记）、本人 `/favorites` `/likes` `/history`、获赞/被收藏列表、关注（P2）、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -55,6 +55,7 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 | likeCount | number | |
 | favoriteCount | number | |
 | commentCount | number | |
+| viewCount | number | 浏览人数（`post_view`）；发现流暂为 0 |
 | publishedAt | string | ISO-8601 |
 
 ### CursorPage
@@ -215,6 +216,14 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`
 **Response 201**：`{ "postId", "publishedAt" }`
 
 Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。
+
+### GET `/api/v1/posts/mine`
+
+登录作者自己的已发布笔记（含仅自己可见）。Query：`cursor`, `limit` → `CursorPage<PostBrief>`（含 `viewCount`）。审核中/未通过尚未接入。
+
+### PATCH `/api/v1/posts/{postId}/visibility`
+
+作者改可见范围。**Body**：`{ "visibility": "public" | "self" }`。**Response 200**：`PostBrief`。`friend` 校验失败。
 
 ### GET `/api/v1/posts/{postId}`
 

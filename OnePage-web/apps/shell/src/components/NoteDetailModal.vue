@@ -7,6 +7,7 @@ import { useNoteDetail } from '../stores/noteDetail'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
+import TextNoteCover from './TextNoteCover.vue'
 import { formatCount } from '../data/home'
 
 type Comment = { id: string; name: string; text: string; time: string; avatarUrl?: string }
@@ -710,9 +711,12 @@ watch(moreOpen, async (on) => {
             :alt="detail.note.title"
             class="h-full w-full object-cover"
           />
-          <div v-else class="flex h-full w-full items-center justify-center bg-[#ececec] text-[13px] text-[#8a8a8a]">
-            纯文字笔记
-          </div>
+          <TextNoteCover
+            v-else
+            size="feed"
+            :title="detail.note?.title || ''"
+            :body="body"
+          />
           </div>
 
           <div v-if="isVideo" class="pointer-events-none absolute inset-0">

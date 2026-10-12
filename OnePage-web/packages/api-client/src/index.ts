@@ -36,6 +36,7 @@ export type PostBrief = {
   likeCount: number
   favoriteCount: number
   commentCount: number
+  viewCount: number
   publishedAt: string
 }
 
@@ -180,6 +181,18 @@ export const api = {
     }),
   post: (postId: string) => request<PostDetail>(`/api/v1/posts/${postId}`),
   deletePost: (postId: string) => request<void>(`/api/v1/posts/${postId}`, { method: 'DELETE' }),
+  myPosts: (cursor?: string, limit?: number) => {
+    const q = new URLSearchParams()
+    if (cursor) q.set('cursor', cursor)
+    if (limit) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<PostBrief>>(`/api/v1/posts/mine${suffix}`)
+  },
+  patchPostVisibility: (postId: string, visibility: string) =>
+    request<PostBrief>(`/api/v1/posts/${postId}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibility }),
+    }),
   viewPost: (postId: string) => request<void>(`/api/v1/posts/${postId}/view`, { method: 'POST' }),
   shareLink: (postId: string) =>
     request<{ shareUrl: string }>(`/api/v1/posts/${postId}/share/link`, { method: 'POST' }),

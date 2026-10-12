@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from './Icon.vue'
+import TextNoteCover from './TextNoteCover.vue'
 import { useNoteDetail } from '../stores/noteDetail'
 import type { NoteCard } from '../data/home'
 
@@ -41,15 +42,7 @@ const isText = computed(() => !props.note.video && !props.note.image)
         :alt="note.title"
         class="pointer-events-none h-full w-full object-cover"
       />
-      <div v-else class="flex h-full flex-col overflow-hidden bg-[#f7f7f7] px-4 py-5">
-        <p class="line-clamp-4 text-[16px] font-semibold leading-6 text-[#1f1f1f]">{{ note.title }}</p>
-        <p
-          v-if="note.body && note.body !== note.title"
-          class="mt-2 line-clamp-8 text-[13px] leading-5 whitespace-pre-wrap text-[#555]"
-        >
-          {{ note.body }}
-        </p>
-      </div>
+      <TextNoteCover v-else size="feed" :title="note.title" :body="note.body" />
       <span
         v-if="!isText"
         class="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/25"

@@ -1,8 +1,10 @@
-<!-- 笔记管理：卡片/列表、筛选、批量。P0 用占位数据。 -->
+<!-- 笔记管理：卡片/列表、筛选、批量。列表走 GET /posts/mine。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { api, ApiError } from '@onepage/api-client'
 import Icon from './Icon.vue'
-import { NOTES, type Note, type NoteStatus } from './notes'
+import TextNoteCover from './TextNoteCover.vue'
+import { coverVideoSrc, isTextNote, isVideoNote, noteFromMine, type Note, type NoteStatus } from './notes'
 
 type TabId = 'all' | NoteStatus
 type View = 'card' | 'list'
@@ -11,8 +13,11 @@ const tab = ref<TabId>('all')
 const query = ref('')
 const view = ref<View>('card')
 const selected = ref<string[]>([])
-const notes = ref<Note[]>(NOTES.map((item) => ({ ...item })))
+const notes = ref<Note[]>([])
 const toast = ref('')
+const loading = ref(false)
+const failed = ref('')
+const busy = ref(false)
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -56,19 +61,79 @@ function flash(text: string) {
   }, 1800)
 }
 
-function batchDelete() {
-  if (!selected.value.length) return
-  const ids = new Set(selected.value)
-  notes.value = notes.value.filter((item) => !ids.has(item.id))
-  selected.value = []
-  flash('已删除所选笔记')
+function chipsOf(item: Note) {
+  const chips: string[] = []
+  if (item.original) chips.push('原创')
+  if (item.category) chips.push(item.category)
+  if (item.contentKind) chips.push(item.contentKind)
+  if (item.eventTitle) chips.push(item.eventTitle)
+  if (item.visibility === 'self') chips.push('仅自己可见')
+  return chips
 }
 
-function batchHide() {
-  if (!selected.value.length) return
+async function loadMine() {
+  loading.value = true
+  failed.value = ''
+  notes.value = []
   selected.value = []
-  flash('已对所选设为仅自己可见')
+  try {
+    const collected: Note[] = []
+    let cursor: string | undefined
+    for (let i = 0; i < 20; i++) {
+      const page = await api.myPosts(cursor, 50)
+      collected.push(...page.items.map(noteFromMine))
+      if (!page.hasMore || !page.nextCursor) break
+      cursor = page.nextCursor
+    }
+    notes.value = collected
+  } catch (e) {
+    failed.value = e instanceof ApiError ? e.message : '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
+
+async function batchDelete() {
+  if (!selected.value.length || busy.value) return
+  busy.value = true
+  try {
+    const ids = [...selected.value]
+    for (const id of ids) {
+      await api.deletePost(id)
+    }
+    const gone = new Set(ids)
+    notes.value = notes.value.filter((item) => !gone.has(item.id))
+    selected.value = []
+    flash('已删除所选笔记')
+  } catch (e) {
+    flash(e instanceof ApiError ? e.message : '删除失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function batchHide() {
+  if (!selected.value.length || busy.value) return
+  busy.value = true
+  try {
+    const ids = [...selected.value]
+    for (const id of ids) {
+      const brief = await api.patchPostVisibility(id, 'self')
+      const next = noteFromMine(brief)
+      notes.value = notes.value.map((item) => (item.id === id ? next : item))
+    }
+    selected.value = []
+    flash('已对所选设为仅自己可见')
+  } catch (e) {
+    flash(e instanceof ApiError ? e.message : '设置失败')
+  } finally {
+    busy.value = false
+  }
+}
+
+onMounted(() => {
+  void loadMine()
+})
 </script>
 
 <template>
@@ -106,19 +171,36 @@ function batchHide() {
         全选本页
       </label>
       <span>已选 {{ selected.length }}</span>
-      <button type="button" class="ghost" :disabled="!selected.length" @click="batchHide">设为私密</button>
-      <button type="button" class="ghost danger" :disabled="!selected.length" @click="batchDelete">删除</button>
+      <button type="button" class="ghost" :disabled="!selected.length || busy" @click="batchHide">设为私密</button>
+      <button type="button" class="ghost danger" :disabled="!selected.length || busy" @click="batchDelete">删除</button>
       <span v-if="toast" class="toast">{{ toast }}</span>
     </div>
 
-    <div v-if="filtered.length && view === 'card'" class="cards">
+    <p v-if="loading" class="hint">加载中…</p>
+    <p v-else-if="failed" class="hint">{{ failed }}</p>
+
+    <div v-else-if="filtered.length && view === 'card'" class="cards">
       <article v-for="item in filtered" :key="item.id" class="card" :class="{ 'is-pick': selected.includes(item.id) }">
         <label class="pick">
           <input type="checkbox" :checked="selected.includes(item.id)" @change="toggleOne(item.id)" />
         </label>
-        <img :src="item.cover" alt="" />
+        <div class="cover">
+          <video
+            v-if="item.cover && isVideoNote(item)"
+            :src="coverVideoSrc(item.cover)"
+            muted
+            playsinline
+            preload="metadata"
+          />
+          <img v-else-if="item.cover && !isTextNote(item)" :src="item.cover" alt="" />
+          <TextNoteCover v-else size="card" :title="item.title" :body="item.body" />
+          <span v-if="isVideoNote(item)" class="play" aria-hidden="true">▶</span>
+        </div>
         <div class="meta">
           <p class="name">{{ item.title }}</p>
+          <p v-if="chipsOf(item).length" class="chips">
+            <span v-for="chip in chipsOf(item)" :key="chip">{{ chip }}</span>
+          </p>
           <p class="sub">
             <span :class="['st', item.status === '已发布' ? 'ok' : item.status === '审核中' ? 'wait' : 'no']">{{ item.status }}</span>
             浏览 {{ item.views }}
@@ -132,8 +214,23 @@ function batchHide() {
         <label class="pick">
           <input type="checkbox" :checked="selected.includes(item.id)" @change="toggleOne(item.id)" />
         </label>
-        <img :src="item.cover" alt="" />
-        <p class="name">{{ item.title }}</p>
+        <div class="thumb">
+          <video
+            v-if="item.cover && isVideoNote(item)"
+            :src="coverVideoSrc(item.cover)"
+            muted
+            playsinline
+            preload="metadata"
+          />
+          <img v-else-if="item.cover && !isTextNote(item)" :src="item.cover" alt="" />
+          <TextNoteCover v-else size="thumb" :title="item.title" />
+        </div>
+        <div class="row-body">
+          <p class="name">{{ item.title }}</p>
+          <p v-if="chipsOf(item).length" class="chips">
+            <span v-for="chip in chipsOf(item)" :key="chip">{{ chip }}</span>
+          </p>
+        </div>
         <span :class="['st', item.status === '已发布' ? 'ok' : item.status === '审核中' ? 'wait' : 'no']">{{ item.status }}</span>
         <span class="views">浏览 {{ item.views }}</span>
       </article>
@@ -144,7 +241,8 @@ function batchHide() {
         <span class="sheet"><i /><i /><i /></span>
         <span class="lens" />
       </div>
-      <p>没有找到相关笔记</p>
+      <p v-if="tab === '审核中' || tab === '未通过'">审核尚未接入</p>
+      <p v-else>没有找到相关笔记</p>
     </div>
   </div>
 </template>
@@ -287,11 +385,72 @@ function batchHide() {
   outline-offset: -2px;
 }
 
-.card img {
+.hint {
+  margin: 20px 0 0;
+  color: #8a8a8a;
+  font-size: 14px;
+}
+
+.cover {
+  position: relative;
+  height: 160px;
+  background: #ececec;
+}
+
+.cover img,
+.cover video,
+.cover :deep(.tnc) {
   display: block;
   width: 100%;
   height: 160px;
   object-fit: cover;
+}
+
+.play {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.thumb {
+  overflow: hidden;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #ececec;
+}
+
+.thumb img,
+.thumb video,
+.thumb :deep(.tnc) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.chips span {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgb(248, 248, 248);
+  color: #555;
+  font-size: 12px;
+}
+
+.row-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .meta {
@@ -351,13 +510,6 @@ function batchHide() {
 .row {
   padding: 10px 4px;
   border-bottom: 1px solid #f2f2f2;
-}
-
-.row img {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  object-fit: cover;
 }
 
 .row .name {

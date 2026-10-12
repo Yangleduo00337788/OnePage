@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,6 +47,25 @@ public class PostController {
             body.eventId(),
             body.visibility()));
     return ResponseEntity.status(HttpStatus.CREATED).body(result);
+  }
+
+  @GetMapping("/mine")
+  public FeedDtos.CursorPage mine(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return postService.listMine(CurrentUser.requireUserId(request), cursor, limit);
+  }
+
+  @PatchMapping("/{postId}/visibility")
+  public FeedDtos.PostBrief visibility(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId,
+      @RequestBody VisibilityRequest body) {
+    return postService.setVisibility(
+        CurrentUser.requireUserId(request),
+        postId,
+        body == null ? null : body.visibility());
   }
 
   @GetMapping("/{postId}")
@@ -105,4 +125,6 @@ public class PostController {
   public record CreateCommentRequest(@NotBlank String content, String parentId, List<String> mentionPageIds) {}
 
   public record ShareLinkResult(String shareUrl) {}
+
+  public record VisibilityRequest(String visibility) {}
 }

@@ -26,6 +26,7 @@ public final class FeedDtos {
       long likeCount,
       long favoriteCount,
       long commentCount,
+      long viewCount,
       String publishedAt) {}
 
   public record CursorPage(List<PostBrief> items, String nextCursor, boolean hasMore) {}
