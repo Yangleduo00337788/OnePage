@@ -1,5 +1,5 @@
 <!--
-  他人个人主页。资料走 GET /users/{pageId}；笔记列表接口未建，展示空态。
+  他人个人主页。资料走 GET /users/{pageId}；笔记走 GET /users/{pageId}/posts。
   自己的资料仍走 /me。
 -->
 <script setup lang="ts">
@@ -7,6 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import ProfileNoteList from '../components/ProfileNoteList.vue'
 import { formatCount } from '../data/home'
 import { useSession } from '../stores/session'
 
@@ -199,13 +200,15 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       <div class="flex items-center justify-center gap-2 pt-5">
         <button type="button" class="me-tab is-on">笔记</button>
       </div>
-      <div class="me-empty">
-        <span class="me-empty-ico">
+      <ProfileNoteList
+        :page-id="profile.pageId"
+        empty-title="还没有公开笔记"
+        empty-desc="这里会展示已公开的笔记。"
+      >
+        <template #icon>
           <Icon name="sticky-note" :size="28" :stroke="1.6" />
-        </span>
-        <p class="mt-4 text-[16px] font-medium text-[#1f1f1f]">还没有公开笔记</p>
-        <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">个人笔记列表尚未接入。</p>
-      </div>
+        </template>
+      </ProfileNoteList>
     </div>
 
     <p

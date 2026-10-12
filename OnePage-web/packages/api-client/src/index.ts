@@ -152,6 +152,13 @@ export const api = {
     }),
   me: () => request<UserProfile>('/api/v1/users/me'),
   userByPageId: (pageId: string) => request<UserProfile>(`/api/v1/users/${encodeURIComponent(pageId)}`),
+  userPosts: (pageId: string, cursor?: string, limit?: number) => {
+    const q = new URLSearchParams()
+    if (cursor) q.set('cursor', cursor)
+    if (limit) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<PostBrief>>(`/api/v1/users/${encodeURIComponent(pageId)}/posts${suffix}`)
+  },
   patchMe: (body: { nickname?: string; bio?: string; gender?: number; avatarMediaId?: string; coverMediaId?: string }) =>
     request<UserProfile>('/api/v1/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
   presign: (mimeType: string, sizeBytes: number, purpose: string) =>

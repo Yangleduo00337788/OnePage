@@ -5,6 +5,7 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.user.client.ContentClient;
+import com.onepage.user.dto.PostCursorPage;
 import com.onepage.user.dto.UserProfileView;
 import com.onepage.user.entity.UserProfile;
 import com.onepage.user.entity.UserStat;
@@ -79,12 +80,12 @@ public class UserService {
   }
 
   public UserProfileView byPageId(String pageId) {
-    UserProfile profile = profileMapper.selectOne(
-        Wrappers.<UserProfile>lambdaQuery().eq(UserProfile::getPageId, pageId));
-    if (profile == null) {
-      throw BusinessException.notFound("用户不存在");
-    }
-    return toView(profile);
+    return toView(requireProfileByPageId(pageId));
+  }
+
+  public PostCursorPage postsByPageId(String pageId, Long viewerId, String cursor, Integer limit) {
+    UserProfile profile = requireProfileByPageId(pageId);
+    return contentClient.listAuthorPosts(internalToken, profile.getUserId(), cursor, limit, viewerId);
   }
 
   public UserProfileView updateMe(Long userId, String nickname, String bio, Integer gender,
@@ -116,6 +117,15 @@ public class UserService {
       throw BusinessException.validation("媒体不可用");
     }
     return info.objectKey();
+  }
+
+  private UserProfile requireProfileByPageId(String pageId) {
+    UserProfile profile = profileMapper.selectOne(
+        Wrappers.<UserProfile>lambdaQuery().eq(UserProfile::getPageId, pageId));
+    if (profile == null) {
+      throw BusinessException.notFound("用户不存在");
+    }
+    return profile;
   }
 
   private UserProfile requireProfileByUserId(Long userId) {

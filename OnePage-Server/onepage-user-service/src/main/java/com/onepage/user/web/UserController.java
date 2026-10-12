@@ -1,6 +1,7 @@
 package com.onepage.user.web;
 
 import com.onepage.common.web.CurrentUser;
+import com.onepage.user.dto.PostCursorPage;
 import com.onepage.user.dto.UserProfileView;
 import com.onepage.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,10 +10,12 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 对浏览器的资料接口。当前用户一律 {@link CurrentUser#requireUserId}，不要自己读 Session。
+ * 对浏览器的资料接口。{@code /me} 一律 {@link CurrentUser#requireUserId}，不要自己读 Session。
+ * {@code GET /{pageId}} 与 {@code GET /{pageId}/posts} 公开；已登录时带 {@code X-User-Id} 才能看到自己的仅自己可见笔记。
  * {@code PATCH /me}：局部更新，body 里没传的字段保持原值。
  */
 @RestController
@@ -44,6 +47,15 @@ public class UserController {
   @GetMapping("/{pageId}")
   public UserProfileView byPageId(@PathVariable("pageId") String pageId) {
     return userService.byPageId(pageId);
+  }
+
+  @GetMapping("/{pageId}/posts")
+  public PostCursorPage posts(
+      HttpServletRequest request,
+      @PathVariable("pageId") String pageId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return userService.postsByPageId(pageId, CurrentUser.tryUserId(request), cursor, limit);
   }
 
   public record PatchMeRequest(

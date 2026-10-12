@@ -1,5 +1,5 @@
 <!--
-  「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。笔记/赞藏/历史无列表接口，保持空态。
+  「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。笔记 Tab 走 GET /users/{pageId}/posts；收藏/点赞/历史仍空态。
   未登录会被拉去首页并打开登录弹窗，redirect 仍是 /me。
 -->
 <script setup lang="ts">
@@ -10,6 +10,7 @@ import { api, ApiError } from '@onepage/api-client'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
 import Icon from '../components/Icon.vue'
+import ProfileNoteList from '../components/ProfileNoteList.vue'
 
 const GENDERS = [
   { id: 0, label: '未设置' },
@@ -332,7 +333,20 @@ async function logout() {
       </div>
       <div class="relative overflow-hidden px-8">
         <Transition :name="tabDir === 'next' ? 'me-pane-next' : 'me-pane-prev'" mode="out-in">
-          <div :key="listTab" class="me-empty">
+          <ProfileNoteList
+            v-if="listTab === '笔记'"
+            key="笔记"
+            :page-id="session.me.pageId"
+            :empty-title="TAB_EMPTY.笔记.title"
+            :empty-desc="TAB_EMPTY.笔记.desc"
+            @empty-action="openCreatorSite"
+          >
+            <template #icon>
+              <Icon name="sticky-note" :size="28" :stroke="1.6" />
+            </template>
+            <template #action>{{ TAB_EMPTY.笔记.action }}</template>
+          </ProfileNoteList>
+          <div v-else :key="listTab" class="me-empty">
             <span class="me-empty-ico">
               <Icon :name="TAB_EMPTY[listTab].icon" :size="28" :stroke="1.6" />
             </span>
@@ -340,15 +354,7 @@ async function logout() {
             <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">
               {{ TAB_EMPTY[listTab].desc }}
             </p>
-            <button
-              v-if="listTab === '笔记'"
-              type="button"
-              class="me-empty-go is-primary"
-              @click="openCreatorSite"
-            >
-              {{ TAB_EMPTY[listTab].action }}
-            </button>
-            <RouterLink v-else :to="TAB_EMPTY[listTab].to" class="me-empty-go">
+            <RouterLink :to="TAB_EMPTY[listTab].to" class="me-empty-go">
               {{ TAB_EMPTY[listTab].action }}
             </RouterLink>
           </div>

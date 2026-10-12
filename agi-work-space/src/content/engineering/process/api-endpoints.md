@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed（following=explore）、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed（following=explore）、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** `/users/{pageId}/posts`（他人主页笔记）、本人 `/favorites` `/likes` `/history`、获赞/被收藏列表、关注（P2）、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** 本人 `/favorites` `/likes` `/history`、获赞/被收藏列表、关注（P2）、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -153,11 +153,11 @@ OAuth 回调 → 建号/绑定 → Cookie → 302 到前端首页
 
 ### GET `/api/v1/users/{pageId}`
 
-他人主页（公开字段 + stats）
+他人主页（公开字段 + stats）。GET 公开。
 
 ### GET `/api/v1/users/{pageId}/posts`
 
-Query：`cursor`, `limit` → `CursorPage<PostBrief>`
+Query：`cursor`, `limit` → `CursorPage<PostBrief>`。GET 公开。非作者只出 `visibility=public`；作者看自己（Cookie 对上）含仅自己可见。网关走 user-service，内部 Feign content `GET /internal/authors/{authorId}/posts`。
 
 ### GET `/api/v1/users/me/favorites` | `/likes` | `/history`
 

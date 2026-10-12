@@ -263,11 +263,19 @@ public class PostService {
   }
 
   public FeedDtos.CursorPage listMine(long userId, String cursor, Integer limit) {
+    return listByAuthor(userId, userId, cursor, limit);
+  }
+
+  public FeedDtos.CursorPage listByAuthor(long authorId, Long viewerId, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    boolean self = viewerId != null && viewerId == authorId;
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
-        .eq(Post::getAuthorId, userId)
+        .eq(Post::getAuthorId, authorId)
         .eq(Post::getStatus, "published")
         .isNull(Post::getDeletedAt);
+    if (!self) {
+      query.eq(Post::getVisibility, 0);
+    }
     applyCursor(query, cursor);
     query.orderByDesc(Post::getPublishedAt)
         .orderByDesc(Post::getId)
