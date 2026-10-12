@@ -34,7 +34,7 @@ const sheetTitle: Record<Sheet, string> = {
   creator: '创作者中心',
 }
 
-const legalKind = computed(() => (sheet.value === 'privacy' ? 'privacy' : 'terms') as const)
+const legalKind = computed((): 'privacy' | 'terms' => (sheet.value === 'privacy' ? 'privacy' : 'terms'))
 const legalDoc = computed(() => LEGAL[legalKind.value])
 
 const content = ref('')

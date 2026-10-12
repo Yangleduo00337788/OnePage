@@ -40,7 +40,7 @@ public class ReactionService {
   }
 
   public FeedDtos.LikeResult likePost(long userId, long postId) {
-    postService.requirePublished(postId);
+    postService.requireVisible(postId, userId);
     if (!liked(userId, postId)) {
       PostLike row = new PostLike();
       row.setUserId(userId);
@@ -56,7 +56,7 @@ public class ReactionService {
   }
 
   public FeedDtos.LikeResult unlikePost(long userId, long postId) {
-    postService.requirePublished(postId);
+    postService.requireVisible(postId, userId);
     likeMapper.delete(Wrappers.<PostLike>lambdaQuery()
         .eq(PostLike::getUserId, userId)
         .eq(PostLike::getPostId, postId));
@@ -64,7 +64,7 @@ public class ReactionService {
   }
 
   public FeedDtos.FavoriteResult favoritePost(long userId, long postId) {
-    postService.requirePublished(postId);
+    postService.requireVisible(postId, userId);
     if (!favorited(userId, postId)) {
       PostFavorite row = new PostFavorite();
       row.setUserId(userId);
@@ -80,7 +80,7 @@ public class ReactionService {
   }
 
   public FeedDtos.FavoriteResult unfavoritePost(long userId, long postId) {
-    postService.requirePublished(postId);
+    postService.requireVisible(postId, userId);
     favoriteMapper.delete(Wrappers.<PostFavorite>lambdaQuery()
         .eq(PostFavorite::getUserId, userId)
         .eq(PostFavorite::getPostId, postId));

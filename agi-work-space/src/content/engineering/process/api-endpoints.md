@@ -47,6 +47,11 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 | coverUrl | string | 可空；视频帖可能是视频 URL，前端用 `<video>` 出首帧 |
 | postType | string | text / image / video / mixed |
 | category | string | 旅行/美食/时尚/摄影/生活/运动/游戏/音乐；旧帖可空 |
+| original | boolean | 是否原创 |
+| contentKind | string | 空 / 虚构创作 / 个人观点 / 专业内容 |
+| eventId | string | 可空；活动目录 id（现 e1/e2） |
+| eventTitle | string | 可空；发布时服务端快照 |
+| visibility | string | `public` 公开 / `self` 仅自己 |
 | likeCount | number | |
 | favoriteCount | number | |
 | commentCount | number | |
@@ -202,8 +207,14 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`
 | mediaIds | string[] | 否 |
 | postType | string | 是 |
 | category | string | 是，须为首页 Tab 之一 |
+| original | boolean | 否，默认 false |
+| contentKind | string | 否；空或「不声明」表示不声明 |
+| eventId | string | 否；须为服务端活动目录已有 id |
+| visibility | string | 否；`public`（默认）或 `self`；`friend` 返回校验失败 |
 
 **Response 201**：`{ "postId", "publishedAt" }`
+
+Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。
 
 ### GET `/api/v1/posts/{postId}`
 

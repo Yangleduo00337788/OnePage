@@ -41,6 +41,8 @@ public class PostService {
   private static final Set<String> POST_TYPES = Set.of("text", "image", "video", "mixed");
   private static final Set<String> CATEGORIES =
       Set.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐");
+  private static final Set<String> CONTENT_KINDS =
+      Set.of("", "不声明", "虚构创作", "个人观点", "专业内容");
   private final PostMapper postMapper;
   private final PostMediaMapper postMediaMapper;
   private final MediaAssetMapper mediaAssetMapper;
@@ -82,20 +84,19 @@ public class PostService {
   }
 
   @Transactional
-  public FeedDtos.CreateResult publish(
-      long userId, String title, String body, List<String> mediaIds, String postType, String category) {
-    if (!StringUtils.hasText(body)) {
+  public FeedDtos.CreateResult publish(long userId, FeedDtos.PublishSpec spec) {
+    if (!StringUtils.hasText(spec.body())) {
       throw BusinessException.validation("正文不能为空");
     }
-    String type = postType == null ? "" : postType.trim().toLowerCase();
+    String type = spec.postType() == null ? "" : spec.postType().trim().toLowerCase();
     if (!POST_TYPES.contains(type)) {
       throw BusinessException.validation("postType 不支持");
     }
-    String cat = category == null ? "" : category.trim();
+    String cat = spec.category() == null ? "" : spec.category().trim();
     if (!CATEGORIES.contains(cat)) {
       throw BusinessException.validation("请选择笔记分类");
     }
-    List<MediaAsset> assets = loadOwnedReadyMedia(userId, mediaIds);
+    List<MediaAsset> assets = loadOwnedReadyMedia(userId, spec.mediaIds());
     if ("text".equals(type) && !assets.isEmpty()) {
       throw BusinessException.validation("纯文本笔记不能带媒体");
     }
@@ -107,12 +108,15 @@ public class PostService {
     Post post = new Post();
     post.setId(postId);
     post.setAuthorId(userId);
-    post.setTitle(title == null ? "" : title.trim());
-    post.setBody(body.trim());
+    post.setTitle(spec.title() == null ? "" : spec.title().trim());
+    post.setBody(spec.body().trim());
     post.setPostType(type);
     post.setCategory(cat);
+    post.setOriginal(Boolean.TRUE.equals(spec.original()) ? 1 : 0);
+    post.setContentKind(normalizeKind(spec.contentKind()));
+    applyCampaign(post, spec.eventId());
     post.setStatus("published");
-    post.setVisibility(0);
+    post.setVisibility(parseVisibility(spec.visibility()));
     post.setPublishedAt(now);
     post.setCreatedAt(now);
     post.setUpdatedAt(now);
@@ -136,7 +140,7 @@ public class PostService {
   }
 
   public FeedDtos.PostDetail detail(Long viewerId, long postId) {
-    Post post = requirePublished(postId);
+    Post post = requireVisible(postId, viewerId);
     List<PostMedia> links = postMediaMapper.selectList(
         Wrappers.<PostMedia>lambdaQuery().eq(PostMedia::getPostId, postId).orderByAsc(PostMedia::getSortOrder));
     List<FeedDtos.MediaItem> media = new ArrayList<>();
@@ -169,6 +173,11 @@ public class PostService {
         cover,
         post.getPostType(),
         post.getCategory() == null ? "" : post.getCategory(),
+        originalOf(post),
+        blankToEmpty(post.getContentKind()),
+        blankToEmpty(post.getEventId()),
+        blankToEmpty(post.getEventTitle()),
+        visLabel(post.getVisibility()),
         media,
         likes,
         favs,
@@ -196,12 +205,12 @@ public class PostService {
   }
 
   public void recordView(long userId, long postId) {
-    requirePublished(postId);
+    requireVisible(postId, userId);
     postViewMapper.upsert(userId, postId, LocalDateTime.now());
   }
 
-  public String shareLink(long postId) {
-    requirePublished(postId);
+  public String shareLink(long postId, Long viewerId) {
+    requireVisible(postId, viewerId);
     return frontendUrl + "/?post=" + postId;
   }
 
@@ -209,6 +218,16 @@ public class PostService {
     Post post = postMapper.selectById(postId);
     if (post == null || post.getDeletedAt() != null || !"published".equals(post.getStatus())) {
       throw BusinessException.notFound("笔记不存在");
+    }
+    return post;
+  }
+
+  public Post requireVisible(long postId, Long viewerId) {
+    Post post = requirePublished(postId);
+    if (Integer.valueOf(1).equals(post.getVisibility())) {
+      if (viewerId == null || !viewerId.equals(post.getAuthorId())) {
+        throw BusinessException.notFound("笔记不存在");
+      }
     }
     return post;
   }
@@ -228,10 +247,66 @@ public class PostService {
         cover,
         post.getPostType(),
         post.getCategory() == null ? "" : post.getCategory(),
+        originalOf(post),
+        blankToEmpty(post.getContentKind()),
+        blankToEmpty(post.getEventId()),
+        blankToEmpty(post.getEventTitle()),
+        visLabel(post.getVisibility()),
         likes,
         favs,
         comments,
         iso(post.getPublishedAt()));
+  }
+
+  private static boolean originalOf(Post post) {
+    return Integer.valueOf(1).equals(post.getOriginal());
+  }
+
+  private static String visLabel(Integer visibility) {
+    return visibility != null && visibility == 1 ? "self" : "public";
+  }
+
+  private static String blankToEmpty(String value) {
+    return value == null ? "" : value;
+  }
+
+  private static String normalizeKind(String raw) {
+    String kind = raw == null ? "" : raw.trim();
+    if ("不声明".equals(kind)) {
+      return "";
+    }
+    if (!CONTENT_KINDS.contains(kind)) {
+      throw BusinessException.validation("内容类型不支持");
+    }
+    return kind;
+  }
+
+  private static int parseVisibility(String raw) {
+    if (raw == null || raw.isBlank() || "public".equals(raw)) {
+      return 0;
+    }
+    if ("self".equals(raw)) {
+      return 1;
+    }
+    if ("friend".equals(raw)) {
+      throw BusinessException.validation("好友可见尚未接入");
+    }
+    throw BusinessException.validation("可见范围不支持");
+  }
+
+  private static void applyCampaign(Post post, String eventId) {
+    if (!StringUtils.hasText(eventId)) {
+      post.setEventId("");
+      post.setEventTitle("");
+      return;
+    }
+    String id = eventId.trim();
+    String title = CampaignCatalog.TITLES.get(id);
+    if (title == null) {
+      throw BusinessException.validation("活动不存在或未开始");
+    }
+    post.setEventId(id);
+    post.setEventTitle(title);
   }
 
   private String firstCoverUrl(long postId) {

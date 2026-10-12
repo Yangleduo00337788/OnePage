@@ -1,11 +1,13 @@
 <!--
   通知中心。三个居中 Tab：评论和@ / 点赞和收藏 / 新增关注。
-  P0 占位列表，未接 notification-service。
+  通知服务未建，列表为空，不再用假数据演示。
 -->
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NOTICES, NOTIFY_TABS, type NotifyTab } from '../data/notify'
+
+const NOTIFY_TABS = ['评论和@', '点赞和收藏', '新增关注'] as const
+type NotifyTab = (typeof NOTIFY_TABS)[number]
 
 const route = useRoute()
 const router = useRouter()
@@ -20,8 +22,6 @@ const tab = computed({
     router.replace({ query: value === '评论和@' ? {} : { tab: value } })
   },
 })
-
-const list = computed(() => NOTICES.filter((n) => n.tab === tab.value))
 </script>
 
 <template>
@@ -38,24 +38,6 @@ const list = computed(() => NOTICES.filter((n) => n.tab === tab.value))
         {{ item }}
       </button>
     </div>
-
-    <ul class="divide-y divide-[#f2f2f2]">
-      <li v-for="item in list" :key="item.id" class="notify-row">
-        <span class="notify-avatar">
-          <img :src="item.avatar" :alt="item.name" />
-          <span v-if="item.unread" class="notify-unread" />
-        </span>
-        <div class="min-w-0 flex-1">
-          <p class="text-[14px] leading-6 text-[#1f1f1f]">
-            <span class="font-medium">{{ item.name }}</span>
-            <span class="text-[#555]"> {{ item.action }}</span>
-          </p>
-          <p v-if="item.snippet" class="mt-0.5 truncate text-[13px] text-[#8a8a8a]">{{ item.snippet }}</p>
-          <p class="mt-1 text-[12px] text-[#bbb]">{{ item.time }}</p>
-        </div>
-        <img v-if="item.thumb" :src="item.thumb" alt="" class="notify-thumb" />
-      </li>
-    </ul>
-    <p v-if="!list.length" class="py-20 text-center text-[13px] text-[#8a8a8a]">暂时还没有这类通知</p>
+    <p class="py-20 text-center text-[13px] text-[#8a8a8a]">暂时还没有这类通知</p>
   </section>
 </template>

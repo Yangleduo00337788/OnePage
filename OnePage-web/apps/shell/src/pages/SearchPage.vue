@@ -1,15 +1,10 @@
 <!--
-  搜索结果占位页。q/tab 都在 query，筛选只在前端过滤假数据。
-  「问耶耶」把当前 q 带到 /yehyeh。
+  搜索结果。筛选 UI 保留；笔记/用户/话题/直播尚无搜索服务，空态不再灌假数据。
 -->
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '../components/Icon.vue'
-import { LIVES, NOTES, SEARCH_USERS, TOPICS } from '../data/home'
-import { useNoteDetail } from '../stores/noteDetail'
-
-const noteDetail = useNoteDetail()
 
 const route = useRoute()
 const router = useRouter()
@@ -50,23 +45,11 @@ const tab = computed({
 
 const TABS = ['笔记', '用户', '话题', '直播'] as const
 
-const notes = computed(() => {
-  let list = NOTES
-  if (q.value) {
-    const k = q.value.replace(/^#/, '').toLowerCase()
-    const hit = NOTES.filter((n) => n.title.includes(k) || n.author.includes(k))
-    list = hit.length ? hit : NOTES.slice(0, 8)
-  }
-  if (filters.types.length === 1) {
-    const wantVideo = filters.types[0] === '视频'
-    list = list.filter((n) => Boolean(n.video) === wantVideo)
-  }
-  return list
-})
-
-const followUps = computed(() => {
-  const k = q.value || '生活'
-  return [`${k} 怎么入门`, `和 ${k} 相关的穿搭`, `附近有哪些 ${k}`]
+const emptyHint = computed(() => {
+  if (tab.value === '用户') return '还没有匹配的用户'
+  if (tab.value === '话题') return '还没有热门话题'
+  if (tab.value === '直播') return '还没有直播'
+  return q.value ? `没有找到与「${q.value}」相关的笔记` : '输入关键词开始搜索'
 })
 
 function openYehyeh(topic = q.value) {
@@ -187,68 +170,7 @@ function closeFilter() {
 
     <div class="flex items-start gap-8">
       <div class="min-w-0 flex-1">
-        <div v-if="tab === '笔记'" class="grid grid-cols-3 gap-4 xl:grid-cols-4">
-          <article
-            v-for="note in notes"
-            :key="note.id"
-            :data-note-id="note.id"
-            class="cursor-pointer"
-            @click="noteDetail.show(note, $event.currentTarget)"
-          >
-            <div class="group relative overflow-hidden rounded-xl bg-[#ececec]">
-              <img :src="note.image" :alt="note.title" class="aspect-[3/4] w-full object-cover" />
-              <span class="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/25" />
-              <span
-                v-if="note.video"
-                class="absolute top-2.5 right-2.5 z-[1] text-white drop-shadow"
-              >
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
-                  <path d="M8 5.5v13l11-6.5z" />
-                </svg>
-              </span>
-            </div>
-            <h3 class="mt-2 line-clamp-2 text-[15px] leading-5">{{ note.title }}</h3>
-            <p class="mt-1.5 text-[13px] text-[#8a8a8a]">{{ note.author }} · {{ note.likes }}</p>
-          </article>
-        </div>
-
-        <ul v-else-if="tab === '用户'" class="divide-y divide-[#f2f2f2] rounded-2xl ring-1 ring-[#f2f2f2]">
-          <li v-for="user in SEARCH_USERS" :key="user.id" class="flex items-center gap-3 px-4 py-3">
-            <span class="h-12 w-12 shrink-0 rounded-full bg-[#ececec]" />
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-[16px] font-medium">{{ user.name }}</p>
-              <p class="truncate text-[13px] text-[#8a8a8a]">@{{ user.pageId }} · {{ user.bio }}</p>
-            </div>
-            <span class="text-[13px] text-[#bbb]">{{ user.fans }} 粉丝</span>
-            <button type="button" class="rounded-[20px] bg-[#f7f7f7] px-4 py-1.5 text-[13px]">关注</button>
-          </li>
-        </ul>
-
-        <ol v-else-if="tab === '话题'" class="space-y-3">
-          <li
-            v-for="item in TOPICS"
-            :key="item.rank"
-            class="flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 hover:bg-[#fafafa]"
-            @click="router.push({ path: '/search', query: { q: item.name, tab: '话题' } })"
-          >
-            <span class="w-5 font-semibold" :class="item.rank <= 3 ? 'text-[#ff6a00]' : 'text-[#bbb]'">{{ item.rank }}</span>
-            <span class="flex-1">{{ item.name }}</span>
-            <span class="text-[12px] text-[#b0b0b0]">{{ item.heat }}</span>
-          </li>
-        </ol>
-
-        <ul v-else class="space-y-3">
-          <li v-for="item in LIVES" :key="item.title" class="flex gap-3 rounded-2xl p-2 hover:bg-[#fafafa]">
-            <div class="relative h-16 w-16 overflow-hidden rounded-xl bg-[#eee]">
-              <img :src="item.image" alt="" class="h-full w-full object-cover" />
-              <span class="absolute top-1 left-1 rounded px-1 text-[9px] text-white" style="background:#ff4d4f">LIVE</span>
-            </div>
-            <div>
-              <p class="text-[14px] font-medium">{{ item.title }}</p>
-              <p class="mt-1 text-[12px] text-[#8a8a8a]">{{ item.author }} · {{ item.viewers }} 人在线</p>
-            </div>
-          </li>
-        </ul>
+        <p class="py-20 text-center text-[14px] text-[#8a8a8a]">{{ emptyHint }}</p>
       </div>
 
       <aside class="sticky top-[84px] hidden h-[calc(100vh-108px)] w-[400px] shrink-0 flex-col lg:flex">
@@ -260,25 +182,9 @@ function closeFilter() {
             <span class="text-[15px] font-semibold">耶耶</span>
             <span class="rounded-full bg-white px-2 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">AI</span>
           </div>
-          <p class="mt-3 text-[14px] leading-6 text-[#333]">
-            关于「{{ q || '你感兴趣的内容' }}」，耶耶根据站内笔记整理了这些看法：
+          <p class="mt-3 text-[14px] leading-6 text-[#555]">
+            耶耶尚未接入，无法根据「{{ q || '你感兴趣的内容' }}」整理看法。
           </p>
-          <ul class="mt-2 list-disc space-y-1 pl-5 text-[13px] leading-6 text-[#555]">
-            <li>先看真实体验贴，再决定要不要跟风。</li>
-            <li>把预算和场景说清楚，能缩成更可执行的清单。</li>
-            <li>相关直播和话题可以对照着刷，避免只看一面之词。</li>
-          </ul>
-          <div class="mt-4 flex flex-col gap-2">
-            <button
-              v-for="item in followUps"
-              :key="item"
-              type="button"
-              class="rounded-full bg-white px-3 py-1.5 text-left text-[12px] text-[#555] ring-1 ring-[#eee] hover:text-[#ff2442]"
-              @click="openYehyeh(item)"
-            >
-              {{ item }}
-            </button>
-          </div>
         </div>
         <button
           type="button"

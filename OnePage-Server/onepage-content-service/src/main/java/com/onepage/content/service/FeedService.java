@@ -32,6 +32,7 @@ public class FeedService {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
         .eq(Post::getStatus, "published")
+        .eq(Post::getVisibility, 0)
         .isNull(Post::getDeletedAt);
     if (StringUtils.hasText(category)) {
       query.eq(Post::getCategory, category.trim());

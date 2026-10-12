@@ -18,6 +18,11 @@ public final class FeedDtos {
       String coverUrl,
       String postType,
       String category,
+      boolean original,
+      String contentKind,
+      String eventId,
+      String eventTitle,
+      String visibility,
       long likeCount,
       long favoriteCount,
       long commentCount,
@@ -33,6 +38,11 @@ public final class FeedDtos {
       String coverUrl,
       String postType,
       String category,
+      boolean original,
+      String contentKind,
+      String eventId,
+      String eventTitle,
+      String visibility,
       List<MediaItem> media,
       long likeCount,
       long favoriteCount,
@@ -40,6 +50,17 @@ public final class FeedDtos {
       boolean likedByMe,
       boolean favoritedByMe,
       String publishedAt) {}
+
+  public record PublishSpec(
+      String title,
+      String body,
+      List<String> mediaIds,
+      String postType,
+      String category,
+      Boolean original,
+      String contentKind,
+      String eventId,
+      String visibility) {}
 
   public record CreateResult(String postId, String publishedAt) {}
 

@@ -1,6 +1,6 @@
 <!--
   耶耶首页 + 对话。无顶搜、左上圆形展开、白底输入卡。
-  发送仍走本地 mock，历史在 localStorage。
+  AI 未接入，发送会明确告知尚未可用；历史仍在本机 localStorage。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -61,8 +61,8 @@ const groupedHistory = computed(() => {
   return buckets.filter((b) => b.items.length)
 })
 
-function mockReply(text: string) {
-  return `收到「${text}」。这是耶耶前端占位回复：接入模型后会结合站内笔记回答，而不是编造链接。`
+function unavailableReply() {
+  return '耶耶还没接上，暂时不能回答。'
 }
 
 function payload(raw: string) {
@@ -80,7 +80,7 @@ async function send(raw: string) {
   plusOpen.value = false
   draft.value = PRESET
   chatDraft.value = ''
-  yeh.append(text, mockReply(text))
+  yeh.append(text, unavailableReply())
   if (route.query.q) router.replace({ path: '/yehyeh' })
   await nextTick()
   chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight, behavior: 'smooth' })

@@ -28,6 +28,11 @@ export type PostBrief = {
   coverUrl: string
   postType: string
   category: string
+  original: boolean
+  contentKind: string
+  eventId: string
+  eventTitle: string
+  visibility: string
   likeCount: number
   favoriteCount: number
   commentCount: number
@@ -145,6 +150,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   me: () => request<UserProfile>('/api/v1/users/me'),
+  userByPageId: (pageId: string) => request<UserProfile>(`/api/v1/users/${encodeURIComponent(pageId)}`),
   patchMe: (body: { nickname?: string; bio?: string; gender?: number; avatarMediaId?: string; coverMediaId?: string }) =>
     request<UserProfile>('/api/v1/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
   presign: (mimeType: string, sizeBytes: number, purpose: string) =>
@@ -163,6 +169,10 @@ export const api = {
     mediaIds?: string[]
     postType: string
     category: string
+    original?: boolean
+    contentKind?: string
+    eventId?: string
+    visibility?: string
   }) =>
     request<{ postId: string; publishedAt: string }>('/api/v1/posts', {
       method: 'POST',

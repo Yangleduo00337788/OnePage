@@ -112,6 +112,14 @@ async function submit() {
     posted.value = '请选择笔记分类'
     return
   }
+  if (visibility.value === 'friend') {
+    posted.value = '好友可见尚未接入'
+    return
+  }
+  if (scheduleOn.value) {
+    posted.value = '定时发布尚未接入'
+    return
+  }
   const text =
     [body.value.trim(), topics.value.map((tag) => `#${tag}`).join(' ')].filter(Boolean).join('\n') ||
     title.value.trim()
@@ -125,13 +133,15 @@ async function submit() {
       mediaIds,
       postType: postTypeOf(),
       category: category.value,
+      original: original.value,
+      contentKind: contentType.value === '不声明' ? '' : contentType.value,
+      eventId: linkedEventId.value || undefined,
+      visibility: visibility.value,
     })
-    const notes: string[] = []
-    if (visibility.value !== 'public') notes.push('可见范围暂仅公开')
-    if (scheduleOn.value) notes.push('定时尚未接入，已立即发出')
-    posted.value = notes.length
-      ? `发布成功 #${created.postId}（${notes.join('；')}）`
-      : `发布成功 #${created.postId}`
+    posted.value =
+      visibility.value === 'self'
+        ? `发布成功 #${created.postId}（仅自己可见，发现流不展示）`
+        : `发布成功 #${created.postId}`
     window.setTimeout(() => emit('done'), 600)
   } catch (e) {
     posted.value = e instanceof ApiError ? e.message : '发布失败'
@@ -309,7 +319,7 @@ async function submit() {
           <div class="cell stack">
             <div>
               <p class="row-l">笔记可见</p>
-              <p class="sub">P1 发出仍按公开</p>
+              <p class="sub">公开进发现流；仅自己不展示给别人</p>
             </div>
             <div class="slide" role="radiogroup" aria-label="笔记可见">
               <span class="slide-thumb" :style="{ transform: `translateX(${visIndex * 100}%)` }" />
@@ -330,7 +340,7 @@ async function submit() {
             <div class="cell-top">
               <div>
                 <p class="row-l">定时发布</p>
-                <p class="sub">到点自动发出，P1 先记在本地</p>
+                <p class="sub">尚未接入，打开后无法发布</p>
               </div>
               <button
                 type="button"

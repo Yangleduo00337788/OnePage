@@ -6,7 +6,7 @@ import { LEGAL } from '../data/legal'
 
 const route = useRoute()
 const router = useRouter()
-const kind = computed(() => (route.path === '/privacy' ? 'privacy' : 'terms') as const)
+const kind = computed((): 'privacy' | 'terms' => (route.path === '/privacy' ? 'privacy' : 'terms'))
 const doc = computed(() => LEGAL[kind.value])
 </script>
 

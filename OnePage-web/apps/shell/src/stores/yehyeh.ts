@@ -1,5 +1,5 @@
 /**
- * 耶耶会话：P0 只落 localStorage，不接模型。
+ * 耶耶会话：只落 localStorage，不接模型。页面发送时说明尚未接入。
  * 历史、当前会话、新建 / 删除都走这一份状态。
  */
 import { defineStore } from 'pinia'

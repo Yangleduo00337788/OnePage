@@ -6,3 +6,4 @@
 | local | 002_p1.sql | P1：笔记 / 媒体关联 / Outbox / 赞藏评 / 浏览。工作空间同名 md |
 | local | 002_p1_fix_comments.sql | 修正 002 用错误码页写入的中文 COMMENT |
 | local | 003_category.sql | `post.category`：首页分类 |
+| local | 004_post_settings.sql | 原创 / 内容类型 / 活动快照；visibility 仅自己 |

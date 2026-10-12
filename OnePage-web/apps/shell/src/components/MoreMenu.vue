@@ -45,7 +45,7 @@ const titles: Record<View, string> = {
   password: '设置密码',
 }
 
-const legalKind = computed(() => (view.value === 'privacy' ? 'privacy' : 'terms') as const)
+const legalKind = computed((): 'privacy' | 'terms' => (view.value === 'privacy' ? 'privacy' : 'terms'))
 const legalDoc = computed(() => LEGAL[legalKind.value])
 
 const content = ref('')

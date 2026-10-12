@@ -49,7 +49,7 @@ onepage-parent、onepage-common、onepage-gateway
 onepage-auth-service、onepage-user-service、onepage-content-service
 ```
 
-user 目前只有 `me` / 改资料 / 按一页号查资料。帖子列表、赞藏历史、关注接口未实现。content 已提供发帖、Feed、赞藏评、分享链接。
+user 目前只有 `me` / 改资料 / 按一页号查资料。帖子列表、赞藏历史、关注接口未实现。content 已提供发帖、Feed、赞藏评、分享链接。社区壳（5174）已去掉演示假数据：有接口的走 API，没有的用空态。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 

@@ -260,42 +260,11 @@ function openLegal(kind: 'terms' | 'privacy') {
               <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">耶耶 AI</span>
               <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">直播</span>
             </div>
-            <div class="relative mt-6 rounded-[16px] bg-white p-2 shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
-              <svg class="h-[112px] w-[112px] text-[#1f1f1f]" viewBox="0 0 29 29" aria-hidden="true">
-                <rect width="29" height="29" fill="#fff" />
-                <g fill="currentColor">
-                  <path d="M1 1h9v9H1zm2 2v5h5V3z" />
-                  <path d="M19 1h9v9h-9zm2 2v5h5V3z" />
-                  <path d="M1 19h9v9H1zm2 2v5h5v-5z" />
-                  <rect x="4" y="4" width="3" height="3" />
-                  <rect x="22" y="4" width="3" height="3" />
-                  <rect x="4" y="22" width="3" height="3" />
-                  <rect x="12" y="1" width="2" height="2" />
-                  <rect x="16" y="2" width="2" height="2" />
-                  <rect x="12" y="5" width="2" height="2" />
-                  <rect x="15" y="6" width="2" height="2" />
-                  <rect x="12" y="9" width="2" height="2" />
-                  <rect x="1" y="12" width="2" height="2" />
-                  <rect x="5" y="13" width="2" height="2" />
-                  <rect x="8" y="12" width="2" height="2" />
-                  <rect x="12" y="12" width="5" height="5" />
-                  <rect x="19" y="12" width="2" height="2" />
-                  <rect x="23" y="13" width="2" height="2" />
-                  <rect x="26" y="12" width="2" height="2" />
-                  <rect x="12" y="19" width="2" height="2" />
-                  <rect x="16" y="20" width="2" height="2" />
-                  <rect x="19" y="19" width="2" height="2" />
-                  <rect x="23" y="21" width="2" height="2" />
-                  <rect x="26" y="19" width="2" height="2" />
-                  <rect x="12" y="24" width="2" height="2" />
-                  <rect x="16" y="26" width="2" height="2" />
-                  <rect x="20" y="25" width="2" height="2" />
-                  <rect x="24" y="26" width="3" height="2" />
-                </g>
-              </svg>
+            <div
+              class="relative mt-6 flex h-[128px] w-[128px] items-center justify-center rounded-[16px] bg-white text-center text-[12px] leading-5 text-[#bbb] shadow-[0_4px_16px_rgba(0,0,0,0.04)] ring-1 ring-dashed ring-[#eee]"
+            >
+              App 扫码登录即将接入
             </div>
-            <p class="mt-3 text-[12px] text-[#8a8a8a]">打开一页 App 扫码登录</p>
-            <p class="mt-0.5 text-[11px] text-[#c4c4c4]">扫码能力即将接入，当前为占位码</p>
           </aside>
 
           <div class="flex h-full w-1/2 min-w-0 flex-col justify-center overflow-y-auto px-10 py-8">

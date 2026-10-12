@@ -37,7 +37,7 @@ public class CommentService {
   }
 
   public FeedDtos.CommentPage list(Long viewerId, long postId, String rootId, Integer offset, Integer limit) {
-    postService.requirePublished(postId);
+    postService.requireVisible(postId, viewerId);
     int skip = offset == null ? 0 : Math.max(offset, 0);
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Comment> query = Wrappers.<Comment>lambdaQuery()
@@ -71,7 +71,7 @@ public class CommentService {
 
   @Transactional
   public FeedDtos.CommentView create(long userId, long postId, String content, String parentId) {
-    Post post = postService.requirePublished(postId);
+    Post post = postService.requireVisible(postId, userId);
     if (!StringUtils.hasText(content) || content.trim().length() > 2000) {
       throw BusinessException.validation("评论内容不合法");
     }
@@ -105,7 +105,7 @@ public class CommentService {
     if (row == null || row.getStatus() == null || row.getStatus() != 0) {
       throw BusinessException.notFound("评论不存在");
     }
-    Post post = postService.requirePublished(row.getPostId());
+    Post post = postService.requireVisible(row.getPostId(), userId);
     if ((row.getUserId() == null || row.getUserId() != userId)
         && (post.getAuthorId() == null || post.getAuthorId() != userId)) {
       throw BusinessException.forbidden("只能删除自己的评论");

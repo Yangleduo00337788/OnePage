@@ -128,8 +128,12 @@ order: 4
 | body | TEXT | 正文 |
 | post_type | VARCHAR(16) | `text` / `image` / `video` / `mixed` |
 | category | VARCHAR(16) | 首页 Tab：旅行/美食/时尚/摄影/生活/运动/游戏/音乐；旧帖可空 |
+| original | TINYINT | 1 声明原创 |
+| content_kind | VARCHAR(16) | 空=不声明；虚构创作 / 个人观点 / 专业内容 |
+| event_id | VARCHAR(32) | 关联活动 id，可空串 |
+| event_title | VARCHAR(64) | 关联活动标题快照 |
 | status | VARCHAR(16) | `draft` / `published` / `deleted` |
-| visibility | TINYINT | 0 公开（MVP 仅公开） |
+| visibility | TINYINT | 0 公开；1 仅自己（不进发现流） |
 | published_at | DATETIME(3) 可空 | |
 | created_at | DATETIME(3) | |
 | updated_at | DATETIME(3) | |

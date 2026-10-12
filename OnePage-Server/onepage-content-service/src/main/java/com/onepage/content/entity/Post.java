@@ -16,6 +16,10 @@ public class Post {
   private String body;
   private String postType;
   private String category;
+  private Integer original;
+  private String contentKind;
+  private String eventId;
+  private String eventTitle;
   private String status;
   private Integer visibility;
   private LocalDateTime publishedAt;
@@ -35,6 +39,14 @@ public class Post {
   public void setPostType(String postType) { this.postType = postType; }
   public String getCategory() { return category; }
   public void setCategory(String category) { this.category = category; }
+  public Integer getOriginal() { return original; }
+  public void setOriginal(Integer original) { this.original = original; }
+  public String getContentKind() { return contentKind; }
+  public void setContentKind(String contentKind) { this.contentKind = contentKind; }
+  public String getEventId() { return eventId; }
+  public void setEventId(String eventId) { this.eventId = eventId; }
+  public String getEventTitle() { return eventTitle; }
+  public void setEventTitle(String eventTitle) { this.eventTitle = eventTitle; }
   public String getStatus() { return status; }
   public void setStatus(String status) { this.status = status; }
   public Integer getVisibility() { return visibility; }

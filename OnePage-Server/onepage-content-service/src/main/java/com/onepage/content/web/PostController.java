@@ -35,11 +35,16 @@ public class PostController {
   public ResponseEntity<FeedDtos.CreateResult> create(HttpServletRequest request, @Valid @RequestBody CreateRequest body) {
     FeedDtos.CreateResult result = postService.publish(
         CurrentUser.requireUserId(request),
-        body.title(),
-        body.body(),
-        body.mediaIds(),
-        body.postType(),
-        body.category());
+        new FeedDtos.PublishSpec(
+            body.title(),
+            body.body(),
+            body.mediaIds(),
+            body.postType(),
+            body.category(),
+            body.original(),
+            body.contentKind(),
+            body.eventId(),
+            body.visibility()));
     return ResponseEntity.status(HttpStatus.CREATED).body(result);
   }
 
@@ -63,7 +68,7 @@ public class PostController {
   @PostMapping("/{postId}/share/link")
   public ShareLinkResult shareLink(HttpServletRequest request, @PathVariable("postId") long postId) {
     CurrentUser.requireUserId(request);
-    return new ShareLinkResult(postService.shareLink(postId));
+    return new ShareLinkResult(postService.shareLink(postId, CurrentUser.requireUserId(request)));
   }
 
   @GetMapping("/{postId}/comments")
@@ -91,7 +96,11 @@ public class PostController {
       @NotBlank String body,
       List<String> mediaIds,
       @NotBlank String postType,
-      @NotBlank String category) {}
+      @NotBlank String category,
+      Boolean original,
+      String contentKind,
+      String eventId,
+      String visibility) {}
 
   public record CreateCommentRequest(@NotBlank String content, String parentId, List<String> mentionPageIds) {}
 
