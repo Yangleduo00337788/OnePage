@@ -1,12 +1,17 @@
 <!-- 发布编辑页：有图后再进来。白卡片叠放，底栏暂存 / 发布。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { api, ApiError, FEED_CATEGORIES } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import { EVENTS } from './events'
-import type { LocalFile, PublishKind } from './publishTypes'
+import type { LocalFile, PublishKind, PublishSeed } from './publishTypes'
 
-const props = defineProps<{ kind: PublishKind; files: LocalFile[] }>()
+const props = defineProps<{
+  kind: PublishKind
+  files: LocalFile[]
+  seed?: PublishSeed | null
+  editPostId?: string
+}>()
 const emit = defineEmits<{
   leave: []
   done: []
@@ -80,12 +85,39 @@ function mimeOf(file: File) {
   return purposeOf(file) === 'post_video' ? 'video/mp4' : 'image/jpeg'
 }
 
+function isVideoItem(item: LocalFile) {
+  if (props.kind === 'video') return true
+  if (item.file?.type.startsWith('video/')) return true
+  return /\.(mp4|webm|mov)(\?|#|$)/i.test(item.url)
+}
+
+function applySeed(seed: PublishSeed) {
+  title.value = seed.title.slice(0, 20)
+  body.value = seed.body
+  category.value = seed.category
+  original.value = seed.original
+  contentType.value = seed.contentKind || '不声明'
+  linkedEventId.value = seed.eventId
+  visibility.value = seed.visibility === 'self' ? 'self' : 'public'
+}
+
+watch(
+  () => props.seed,
+  (seed) => {
+    if (seed) applySeed(seed)
+  },
+  { immediate: true },
+)
+
 async function uploadOne(item: LocalFile): Promise<string> {
-  const mimeType = mimeOf(item.file)
-  const ticket = await api.presign(mimeType, item.file.size, purposeOf(item.file))
+  if (item.mediaId) return item.mediaId
+  const file = item.file
+  if (!file) throw new Error('缺少文件')
+  const mimeType = mimeOf(file)
+  const ticket = await api.presign(mimeType, file.size, purposeOf(file))
   const put = await fetch(ticket.uploadUrl, {
     method: 'PUT',
-    body: item.file,
+    body: file,
     headers: { 'Content-Type': mimeType },
   })
   if (!put.ok) throw new Error('直传对象存储失败')
@@ -127,7 +159,7 @@ async function submit() {
   try {
     const mediaIds: string[] = []
     for (const item of props.files) mediaIds.push(await uploadOne(item))
-    const created = await api.createPost({
+    const payload = {
       title: title.value.trim(),
       body: text,
       mediaIds,
@@ -137,14 +169,20 @@ async function submit() {
       contentKind: contentType.value === '不声明' ? '' : contentType.value,
       eventId: linkedEventId.value || undefined,
       visibility: visibility.value,
-    })
-    posted.value =
-      visibility.value === 'self'
-        ? `发布成功 #${created.postId}（仅自己可见，发现流不展示）`
-        : `发布成功 #${created.postId}`
+    }
+    if (props.editPostId) {
+      await api.patchPost(props.editPostId, payload)
+      posted.value = '已保存'
+    } else {
+      const created = await api.createPost(payload)
+      posted.value =
+        visibility.value === 'self'
+          ? `发布成功 #${created.postId}（仅自己可见，发现流不展示）`
+          : `发布成功 #${created.postId}`
+    }
     window.setTimeout(() => emit('done'), 600)
   } catch (e) {
-    posted.value = e instanceof ApiError ? e.message : '发布失败'
+    posted.value = e instanceof ApiError ? e.message : props.editPostId ? '保存失败' : '发布失败'
   } finally {
     busy.value = false
   }
@@ -170,7 +208,7 @@ async function submit() {
             />
           </label>
           <div v-for="(item, i) in props.files" :key="item.url" class="thumb">
-            <video v-if="props.kind === 'video' || item.file.type.startsWith('video/')" :src="item.url" muted />
+            <video v-if="isVideoItem(item)" :src="item.url" muted />
             <img v-else :src="item.url" alt="" />
             <span v-if="i === 0 && props.kind === 'image'" class="cover">1</span>
             <button type="button" class="thumb-x" aria-label="移除" @click="emit('remove-file', i)">
@@ -253,7 +291,7 @@ async function submit() {
           <div class="cell">
             <div>
               <p class="row-l">声明原创作品</p>
-              <p class="sub">打开后笔记展示原创标识</p>
+              <p class="sub">打开后在帖子详情展示原创标识</p>
             </div>
             <button
               type="button"
@@ -366,9 +404,11 @@ async function submit() {
 
     <footer class="bar">
       <span class="msg">{{ posted }}</span>
-      <button type="button" class="ghost" @click="emit('leave')">暂存离开</button>
+      <button type="button" class="ghost" @click="emit('leave')">
+        {{ props.editPostId ? '取消' : '暂存离开' }}
+      </button>
       <button type="button" class="post" :disabled="busy" @click="submit">
-        {{ busy ? '发布中…' : '发布' }}
+        {{ busy ? (props.editPostId ? '保存中…' : '发布中…') : props.editPostId ? '保存' : '发布' }}
       </button>
     </footer>
   </div>

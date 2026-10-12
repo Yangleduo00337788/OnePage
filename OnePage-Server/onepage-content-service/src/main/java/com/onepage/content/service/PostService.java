@@ -141,6 +141,62 @@ public class PostService {
     return new FeedDtos.CreateResult(String.valueOf(postId), now.toString());
   }
 
+  @Transactional
+  public FeedDtos.PostDetail update(long userId, long postId, FeedDtos.PublishSpec spec) {
+    Post post = postMapper.selectById(postId);
+    if (post == null || post.getDeletedAt() != null || !"published".equals(post.getStatus())) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (post.getAuthorId() == null || post.getAuthorId() != userId) {
+      throw BusinessException.forbidden("只能修改自己的笔记");
+    }
+    if (!StringUtils.hasText(spec.body())) {
+      throw BusinessException.validation("正文不能为空");
+    }
+    String type = spec.postType() == null ? "" : spec.postType().trim().toLowerCase();
+    if (!POST_TYPES.contains(type)) {
+      throw BusinessException.validation("postType 不支持");
+    }
+    String cat = spec.category() == null ? "" : spec.category().trim();
+    if (!CATEGORIES.contains(cat)) {
+      throw BusinessException.validation("请选择笔记分类");
+    }
+    List<MediaAsset> assets = loadOwnedReadyMedia(userId, spec.mediaIds());
+    if ("text".equals(type) && !assets.isEmpty()) {
+      throw BusinessException.validation("纯文本笔记不能带媒体");
+    }
+    if (!"text".equals(type) && assets.isEmpty()) {
+      throw BusinessException.validation("该类型需要媒体");
+    }
+    LocalDateTime now = LocalDateTime.now();
+    post.setTitle(spec.title() == null ? "" : spec.title().trim());
+    post.setBody(spec.body().trim());
+    post.setPostType(type);
+    post.setCategory(cat);
+    post.setOriginal(Boolean.TRUE.equals(spec.original()) ? 1 : 0);
+    post.setContentKind(normalizeKind(spec.contentKind()));
+    applyCampaign(post, spec.eventId());
+    post.setVisibility(parseVisibility(spec.visibility()));
+    post.setUpdatedAt(now);
+    postMapper.updateById(post);
+    postMediaMapper.delete(Wrappers.<PostMedia>lambdaQuery().eq(PostMedia::getPostId, postId));
+    int i = 0;
+    for (MediaAsset asset : assets) {
+      PostMedia link = new PostMedia();
+      link.setId(IdGenerator.nextId());
+      link.setPostId(postId);
+      link.setMediaId(asset.getId());
+      link.setSortOrder(i);
+      link.setRole(roleFor(asset, i));
+      postMediaMapper.insert(link);
+      i++;
+    }
+    writeOutbox("post", String.valueOf(postId), "post.updated", Map.of(
+        "postId", String.valueOf(postId),
+        "authorId", String.valueOf(userId)));
+    return detail(userId, postId);
+  }
+
   public FeedDtos.PostDetail detail(Long viewerId, long postId) {
     Post post = requireVisible(postId, viewerId);
     List<PostMedia> links = postMediaMapper.selectList(

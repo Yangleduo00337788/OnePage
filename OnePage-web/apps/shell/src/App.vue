@@ -7,10 +7,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { api } from '@onepage/api-client'
 import { useSession } from './stores/session'
 import { useAuthModal } from './stores/authModal'
 import { useMoreMenu } from './stores/moreMenu'
 import { useTheme } from './stores/theme'
+import { useNoteDetail } from './stores/noteDetail'
+import { noteFromPost } from './data/home'
 import { openCreatorSite } from './creatorSite'
 import Icon from './components/Icon.vue'
 import SearchBox from './components/SearchBox.vue'
@@ -22,6 +25,7 @@ const session = useSession()
 const auth = useAuthModal()
 const more = useMoreMenu()
 const theme = useTheme()
+const detail = useNoteDetail()
 const route = useRoute()
 onMounted(() => {
   session.refresh()
@@ -31,6 +35,20 @@ onMounted(() => {
 watch(
   () => route.fullPath,
   () => more.hide(),
+)
+
+watch(
+  () => route.query.post,
+  async (id) => {
+    if (typeof id !== 'string' || !id) return
+    try {
+      const post = await api.post(id)
+      detail.show(noteFromPost(post))
+    } catch {
+      /* 笔记不存在或仅自己可见 */
+    }
+  },
+  { immediate: true },
 )
 
 const nav = computed(() => [

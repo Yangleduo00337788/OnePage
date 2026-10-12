@@ -48,13 +48,6 @@ const isText = computed(() => !props.note.video && !props.note.image)
         class="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/25"
       />
       <span
-        v-if="note.original"
-        class="absolute top-2.5 left-2.5 z-[1] rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-        style="background:#ff2442"
-      >
-        原创
-      </span>
-      <span
         v-if="note.video"
         class="absolute top-2.5 right-2.5 z-[1] text-white drop-shadow"
       >

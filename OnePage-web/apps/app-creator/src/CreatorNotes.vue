@@ -1,8 +1,9 @@
 <!-- 笔记管理：卡片/列表、筛选、批量。列表走 GET /posts/mine。 -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, ApiError } from '@onepage/api-client'
+import { api, ApiError, type PostDetail } from '@onepage/api-client'
 import Icon from './Icon.vue'
+import CreatorNotePreview from './CreatorNotePreview.vue'
 import TextNoteCover from './TextNoteCover.vue'
 import { coverVideoSrc, isTextNote, isVideoNote, noteFromMine, type Note, type NoteStatus } from './notes'
 
@@ -18,6 +19,11 @@ const toast = ref('')
 const loading = ref(false)
 const failed = ref('')
 const busy = ref(false)
+const previewOpen = ref(false)
+const previewDetail = ref<PostDetail | null>(null)
+const previewLoading = ref(false)
+const previewError = ref('')
+const emit = defineEmits<{ edit: [string] }>()
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -63,10 +69,7 @@ function flash(text: string) {
 
 function chipsOf(item: Note) {
   const chips: string[] = []
-  if (item.original) chips.push('原创')
   if (item.category) chips.push(item.category)
-  if (item.contentKind) chips.push(item.contentKind)
-  if (item.eventTitle) chips.push(item.eventTitle)
   if (item.visibility === 'self') chips.push('仅自己可见')
   return chips
 }
@@ -129,6 +132,30 @@ async function batchHide() {
   } finally {
     busy.value = false
   }
+}
+
+async function previewNote(item: Note) {
+  previewOpen.value = true
+  previewDetail.value = null
+  previewError.value = ''
+  previewLoading.value = true
+  try {
+    previewDetail.value = await api.post(item.id)
+  } catch (e) {
+    previewError.value = e instanceof ApiError ? e.message : '预览失败'
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+function closePreview() {
+  previewOpen.value = false
+  previewDetail.value = null
+  previewError.value = ''
+}
+
+function editNote(item: Note) {
+  emit('edit', item.id)
 }
 
 onMounted(() => {
@@ -195,6 +222,14 @@ onMounted(() => {
           <img v-else-if="item.cover && !isTextNote(item)" :src="item.cover" alt="" />
           <TextNoteCover v-else size="card" :title="item.title" :body="item.body" />
           <span v-if="isVideoNote(item)" class="play" aria-hidden="true">▶</span>
+          <div class="hover-acts">
+            <button type="button" class="act" title="预览笔记" aria-label="预览笔记" @click.stop="previewNote(item)">
+              <Icon name="eye" :size="18" />
+            </button>
+            <button type="button" class="act" title="编辑笔记" aria-label="编辑笔记" @click.stop="editNote(item)">
+              <Icon name="pencil" :size="18" />
+            </button>
+          </div>
         </div>
         <div class="meta">
           <p class="name">{{ item.title }}</p>
@@ -233,6 +268,14 @@ onMounted(() => {
         </div>
         <span :class="['st', item.status === '已发布' ? 'ok' : item.status === '审核中' ? 'wait' : 'no']">{{ item.status }}</span>
         <span class="views">浏览 {{ item.views }}</span>
+        <div class="hover-acts is-row">
+          <button type="button" class="act" title="预览笔记" @click.stop="previewNote(item)">
+            <Icon name="eye" :size="16" />
+          </button>
+          <button type="button" class="act" title="编辑笔记" @click.stop="editNote(item)">
+            <Icon name="pencil" :size="16" />
+          </button>
+        </div>
       </article>
     </div>
 
@@ -244,6 +287,14 @@ onMounted(() => {
       <p v-if="tab === '审核中' || tab === '未通过'">审核尚未接入</p>
       <p v-else>没有找到相关笔记</p>
     </div>
+
+    <CreatorNotePreview
+      v-if="previewOpen"
+      :detail="previewDetail"
+      :loading="previewLoading"
+      :error="previewError"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -415,6 +466,65 @@ onMounted(() => {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
+.hover-acts {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.card:hover .hover-acts,
+.row:hover .hover-acts {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hover-acts.is-row {
+  position: static;
+  inset: auto;
+  background: transparent;
+  opacity: 0;
+  margin-left: 4px;
+}
+
+.row:hover .hover-acts.is-row {
+  opacity: 1;
+}
+
+.act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  color: #1f1f1f;
+}
+
+.act:hover {
+  background: #ff2442;
+  color: #fff;
+}
+
+.hover-acts.is-row .act {
+  width: 32px;
+  height: 32px;
+  background: rgb(248, 248, 248);
+}
+
+.hover-acts.is-row .act:hover {
+  background: #ff2442;
+  color: #fff;
+}
+
 .thumb {
   overflow: hidden;
   width: 48px;
@@ -474,7 +584,7 @@ onMounted(() => {
   position: absolute;
   top: 10px;
   left: 10px;
-  z-index: 1;
+  z-index: 3;
 }
 
 .row .pick {

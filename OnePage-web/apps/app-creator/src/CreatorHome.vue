@@ -12,13 +12,19 @@ import PublishComposer, { type PublishKind } from './PublishComposer.vue'
 export type PageId = 'home' | 'notes' | 'account' | 'content' | 'fans' | 'events' | 'dict' | 'publish'
 export type { PublishKind }
 
-const props = defineProps<{ page: PageId; publishKind: PublishKind; me: UserProfile | null }>()
+const props = defineProps<{
+  page: PageId
+  publishKind: PublishKind
+  me: UserProfile | null
+  editPostId?: string
+}>()
 const emit = defineEmits<{
   'update:publishKind': [PublishKind]
   publish: [PublishKind]
   'open-stats': []
   'open-notes': []
   'open-events': []
+  edit: [string]
 }>()
 
 const statsKind = computed(() => {
@@ -31,8 +37,11 @@ const statsKind = computed(() => {
   <div class="cc-root">
     <PublishComposer
       v-if="props.page === 'publish'"
+      :key="props.editPostId || 'new'"
       :kind="props.publishKind"
+      :edit-post-id="props.editPostId"
       @update:kind="emit('update:publishKind', $event)"
+      @close="emit('open-notes')"
     />
 
     <CreatorDash
@@ -44,7 +53,7 @@ const statsKind = computed(() => {
       @open-events="emit('open-events')"
     />
 
-    <CreatorNotes v-else-if="props.page === 'notes'" />
+    <CreatorNotes v-else-if="props.page === 'notes'" @edit="emit('edit', $event)" />
 
     <CreatorStats v-else-if="statsKind" :kind="statsKind" @publish="emit('publish', $event)" />
 

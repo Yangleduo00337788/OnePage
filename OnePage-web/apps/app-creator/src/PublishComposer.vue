@@ -1,14 +1,15 @@
 <!-- 发布落地页：只提示规格和上传。点上传 / 开始写作后进入编辑页。 -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { api, ApiError } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import PublishEditor from './PublishEditor.vue'
-import type { LocalFile, PublishKind } from './publishTypes'
+import type { LocalFile, PublishKind, PublishSeed } from './publishTypes'
 
 export type { PublishKind }
 
-const props = defineProps<{ kind: PublishKind }>()
-const emit = defineEmits<{ 'update:kind': [PublishKind] }>()
+const props = defineProps<{ kind: PublishKind; editPostId?: string }>()
+const emit = defineEmits<{ 'update:kind': [PublishKind]; close: [] }>()
 
 const kinds: { id: PublishKind; label: string }[] = [
   { id: 'video', label: '上传视频' },
@@ -19,15 +20,78 @@ const kinds: { id: PublishKind; label: string }[] = [
 const files = ref<LocalFile[]>([])
 const phase = ref<'landing' | 'editor'>('landing')
 const dragging = ref(false)
+const seed = ref<PublishSeed | null>(null)
+const editError = ref('')
+const editLoading = ref(false)
 const drafts = computed(() => files.value.length)
 const maxFiles = computed(() => (props.kind === 'video' ? 1 : 9))
 
 watch(
   () => props.kind,
   () => {
-    phase.value = 'landing'
+    if (!props.editPostId) phase.value = 'landing'
   },
 )
+
+function kindOf(postType: string): PublishKind {
+  if (postType === 'video') return 'video'
+  if (postType === 'text') return 'article'
+  return 'image'
+}
+
+async function loadEdit() {
+  if (!props.editPostId) return
+  editLoading.value = true
+  editError.value = ''
+  try {
+    const detail = await api.post(props.editPostId)
+    const nextKind = kindOf(detail.postType)
+    if (nextKind !== props.kind) emit('update:kind', nextKind)
+    files.value = (detail.media || []).map((m, i) => ({
+      name: `media-${i + 1}`,
+      url: m.url,
+      mediaId: m.mediaId,
+    }))
+    seed.value = {
+      title: detail.title || '',
+      body: detail.body || '',
+      category: detail.category || '',
+      original: Boolean(detail.original),
+      contentKind: detail.contentKind || '',
+      eventId: detail.eventId || '',
+      visibility: detail.visibility === 'self' ? 'self' : 'public',
+    }
+    phase.value = 'editor'
+  } catch (e) {
+    editError.value = e instanceof ApiError ? e.message : '加载笔记失败'
+  } finally {
+    editLoading.value = false
+  }
+}
+
+watch(
+  () => props.editPostId,
+  () => {
+    void loadEdit()
+  },
+  { immediate: true },
+)
+
+function leaveEditor() {
+  if (props.editPostId) {
+    emit('close')
+    return
+  }
+  phase.value = 'landing'
+}
+
+function finishEditor() {
+  if (props.editPostId) {
+    emit('close')
+    return
+  }
+  reset()
+}
 
 const cta = computed(() => {
   if (props.kind === 'image') return '上传图文'
@@ -122,12 +186,16 @@ function switchKind(id: PublishKind) {
 </script>
 
 <template>
+  <p v-if="props.editPostId && editLoading" class="hint">加载中…</p>
+  <p v-else-if="props.editPostId && editError" class="hint">{{ editError }}</p>
   <PublishEditor
-    v-if="phase === 'editor'"
+    v-else-if="phase === 'editor'"
     :kind="props.kind"
     :files="files"
-    @leave="phase = 'landing'"
-    @done="reset"
+    :seed="seed"
+    :edit-post-id="props.editPostId"
+    @leave="leaveEditor"
+    @done="finishEditor"
     @add-files="addList"
     @remove-file="removeFile"
   />
@@ -186,6 +254,12 @@ function switchKind(id: PublishKind) {
 </template>
 
 <style scoped>
+.hint {
+  margin: 48px 20px 0 0;
+  color: #8a8a8a;
+  font-size: 14px;
+}
+
 .pub-page {
   display: flex;
   flex-direction: column;

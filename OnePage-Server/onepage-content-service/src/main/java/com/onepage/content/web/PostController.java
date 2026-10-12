@@ -57,6 +57,26 @@ public class PostController {
     return postService.listMine(CurrentUser.requireUserId(request), cursor, limit);
   }
 
+  @PatchMapping("/{postId}")
+  public FeedDtos.PostDetail update(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId,
+      @Valid @RequestBody CreateRequest body) {
+    return postService.update(
+        CurrentUser.requireUserId(request),
+        postId,
+        new FeedDtos.PublishSpec(
+            body.title(),
+            body.body(),
+            body.mediaIds(),
+            body.postType(),
+            body.category(),
+            body.original(),
+            body.contentKind(),
+            body.eventId(),
+            body.visibility()));
+  }
+
   @PatchMapping("/{postId}/visibility")
   public FeedDtos.PostBrief visibility(
       HttpServletRequest request,

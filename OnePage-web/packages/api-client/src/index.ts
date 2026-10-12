@@ -179,7 +179,25 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  post: (postId: string) => request<PostDetail>(`/api/v1/posts/${postId}`),
+  post: (postId: string) => request<PostDetail>(`/api/v1/posts/${encodeURIComponent(postId)}`),
+  patchPost: (
+    postId: string,
+    body: {
+      title?: string
+      body: string
+      mediaIds?: string[]
+      postType: string
+      category: string
+      original?: boolean
+      contentKind?: string
+      eventId?: string
+      visibility?: string
+    },
+  ) =>
+    request<PostDetail>(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   deletePost: (postId: string) => request<void>(`/api/v1/posts/${postId}`, { method: 'DELETE' }),
   myPosts: (cursor?: string, limit?: number) => {
     const q = new URLSearchParams()

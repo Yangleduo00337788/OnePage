@@ -10,6 +10,7 @@ const STAT_PAGES: PageId[] = ['account', 'content', 'fans']
 
 const page = ref<PageId>('home')
 const publishKind = ref<PublishKind>('image')
+const editPostId = ref('')
 const statsOpen = ref(false)
 const collapsed = ref(localStorage.getItem('onepage.creator.navCollapsed') === '1')
 const me = ref<UserProfile | null>(null)
@@ -47,6 +48,7 @@ function onDocClick(e: MouseEvent) {
 }
 
 function openPage(id: PageId) {
+  editPostId.value = ''
   page.value = id
   if (STAT_PAGES.includes(id)) statsOpen.value = true
 }
@@ -87,7 +89,13 @@ const publishKinds = [
 ]
 
 function goPublish(kind: PublishKind = 'image') {
+  editPostId.value = ''
   publishKind.value = kind
+  page.value = 'publish'
+}
+
+function goEdit(postId: string) {
+  editPostId.value = postId
   page.value = 'publish'
 }
 </script>
@@ -220,8 +228,10 @@ function goPublish(kind: PublishKind = 'image') {
         :page="page"
         :me="me"
         :publish-kind="publishKind"
+        :edit-post-id="editPostId"
         @update:publish-kind="publishKind = $event"
         @publish="goPublish"
+        @edit="goEdit"
         @open-stats="openPage('account')"
         @open-notes="openPage('notes')"
         @open-events="openPage('events')"
