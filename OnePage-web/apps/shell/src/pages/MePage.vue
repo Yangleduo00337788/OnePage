@@ -5,12 +5,13 @@
   未登录会被拉去首页并打开登录弹窗，redirect 仍是 /me。
 -->
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { openCreatorSite } from '../creatorSite'
 import { api, ApiError } from '@onepage/api-client'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
+import ImageCropDialog from '@onepage/image-crop'
 import Icon from '../components/Icon.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
@@ -71,6 +72,7 @@ const saving = ref(false)
 const uploading = ref<'avatar' | 'cover' | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const coverInput = ref<HTMLInputElement | null>(null)
+const crop = ref<{ purpose: 'avatar' | 'cover'; src: string; name: string } | null>(null)
 const listTab = ref<(typeof ME_TABS)[number]>('笔记')
 const tabDir = ref<'next' | 'prev'>('next')
 const relation = ref<'following' | 'followers' | null>(null)
@@ -98,6 +100,8 @@ onMounted(async () => {
     await router.replace('/')
   }
 })
+
+onUnmounted(() => closeCrop())
 
 function onCoverClick(event: MouseEvent) {
   const t = event.target
@@ -151,15 +155,28 @@ function showToast(text: string) {
   }, 2200)
 }
 
-/**
- * 三步上传：presign（Java 签 PUT 地址）→ 浏览器直传 MinIO → complete → PATCH 资料绑 mediaId。
- * PUT 的 Content-Type 必须和申请预签名时一致，否则签名对不上。
- */
-async function onFile(event: Event, purpose: 'avatar' | 'cover') {
+function closeCrop() {
+  if (crop.value) URL.revokeObjectURL(crop.value.src)
+  crop.value = null
+}
+
+function onFile(event: Event, purpose: 'avatar' | 'cover') {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
   if (!file) return
+  if (crop.value) URL.revokeObjectURL(crop.value.src)
+  crop.value = { purpose, src: URL.createObjectURL(file), name: file.name }
+}
+
+/**
+ * 裁完再走三步上传：presign → 浏览器直传 MinIO → complete → PATCH 资料绑 mediaId。
+ * PUT 的 Content-Type 必须和申请预签名时一致，否则签名对不上。
+ */
+async function onCropped(file: File) {
+  const purpose = crop.value?.purpose
+  closeCrop()
+  if (!purpose) return
   uploading.value = purpose
   try {
     const mimeType = file.type || 'image/jpeg'
@@ -418,6 +435,17 @@ async function logout() {
         </div>
       </div>
     </Teleport>
+    <ImageCropDialog
+      v-if="crop"
+      :src="crop.src"
+      :title="crop.purpose === 'avatar' ? '裁剪头像' : '裁剪封面'"
+      :aspect="crop.purpose === 'avatar' ? 1 : 3"
+      :round="crop.purpose === 'avatar'"
+      :file-name="crop.name"
+      :output-width="crop.purpose === 'avatar' ? 800 : 1920"
+      @confirm="onCropped"
+      @cancel="closeCrop"
+    />
   </section>
 </template>
 

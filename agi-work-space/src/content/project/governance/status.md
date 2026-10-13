@@ -26,6 +26,7 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-13 — 头像/封面/发帖图片先裁剪再上传（头像 1:1、封面 3:1、笔记 3:4）；视频不裁
 - 2026-10-13 — 「我的」/他人主页封面铺到 Tab 上分割线；头像、昵称、一页号、签名、统计叠在封面上
 - 2026-10-13 — 私信气泡旁加 36px 圆头像（对方左、自己右；无图用昵称首字）
 - 2026-10-13 — P2 私信：`onepage-message-service`（8085）；单聊 `pair_key`；`GET/POST /conversations`、消息与 `unread-count`；社区 `/messages` 轮询。须执行 `001_init.sql`，`.env` 补 `MESSAGE_PORT`、`MYSQL_MESSAGE_DB`。WebSocket / 图片 / 笔记卡片未做

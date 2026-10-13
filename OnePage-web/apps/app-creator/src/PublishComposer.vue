@@ -1,7 +1,8 @@
 <!-- 发布落地页：只提示规格和上传。点上传 / 开始写作后进入编辑页。 -->
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { api, ApiError } from '@onepage/api-client'
+import ImageCropDialog from '@onepage/image-crop'
 import Icon from './Icon.vue'
 import PublishEditor from './PublishEditor.vue'
 import type { LocalFile, PublishKind, PublishSeed } from './publishTypes'
@@ -137,19 +138,95 @@ function allowed(file: File) {
   return file.type.startsWith('image/') || file.type === '' || /\.(jpe?g|png|webp|gif)$/i.test(file.name)
 }
 
+function isImageFile(file: File) {
+  return file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(file.name)
+}
+
+const cropQueue = ref<File[]>([])
+const cropSrc = ref('')
+const cropName = ref('')
+const recropAt = ref<number | null>(null)
+
+function stopCrop() {
+  if (cropSrc.value) URL.revokeObjectURL(cropSrc.value)
+  cropSrc.value = ''
+  cropName.value = ''
+  recropAt.value = null
+}
+
+function roomLeft() {
+  return maxFiles.value - files.value.length
+}
+
+function nextCrop() {
+  if (cropSrc.value) URL.revokeObjectURL(cropSrc.value)
+  cropSrc.value = ''
+  const file = cropQueue.value[0]
+  if (!file) {
+    cropName.value = ''
+    if (files.value.length || props.kind === 'article') enterEditor()
+    return
+  }
+  cropName.value = file.name
+  cropSrc.value = URL.createObjectURL(file)
+}
+
 function addList(list: FileList | File[]) {
+  const wait: File[] = []
   for (const file of Array.from(list)) {
     if (!allowed(file)) continue
-    if (files.value.length >= maxFiles.value) break
+    if (!isImageFile(file) || props.kind === 'video') {
+      if (files.value.length >= maxFiles.value) break
+      files.value.push({ name: file.name, url: URL.createObjectURL(file), file })
+      continue
+    }
+    wait.push(file)
+  }
+  const cap = roomLeft()
+  cropQueue.value.push(...wait.slice(0, Math.max(0, cap)))
+  if (!cropSrc.value) nextCrop()
+}
+
+function onCropConfirm(file: File) {
+  if (recropAt.value != null) {
+    const i = recropAt.value
+    URL.revokeObjectURL(files.value[i].url)
+    files.value[i] = { name: file.name, url: URL.createObjectURL(file), file }
+    stopCrop()
+    return
+  }
+  cropQueue.value.shift()
+  if (files.value.length < maxFiles.value) {
     files.value.push({ name: file.name, url: URL.createObjectURL(file), file })
   }
+  nextCrop()
+}
+
+function onCropCancel() {
+  if (recropAt.value != null) {
+    stopCrop()
+    return
+  }
+  cropQueue.value.shift()
+  nextCrop()
+}
+
+function recrop(i: number) {
+  const item = files.value[i]
+  if (!item?.file || !isImageFile(item.file)) return
+  recropAt.value = i
+  if (cropSrc.value) URL.revokeObjectURL(cropSrc.value)
+  cropName.value = item.file.name
+  cropSrc.value = URL.createObjectURL(item.file)
 }
 
 function pickFiles(e: Event) {
   const list = (e.target as HTMLInputElement).files
   if (list?.length) addList(list)
   ;(e.target as HTMLInputElement).value = ''
-  if (files.value.length || props.kind === 'article') enterEditor()
+  if ((files.value.length || props.kind === 'article') && !cropSrc.value && !cropQueue.value.length) {
+    enterEditor()
+  }
 }
 
 function startArticle() {
@@ -160,7 +237,7 @@ function onDrop(e: DragEvent) {
   dragging.value = false
   const list = e.dataTransfer?.files
   if (list?.length) addList(list)
-  if (files.value.length) enterEditor()
+  if (files.value.length && !cropSrc.value && !cropQueue.value.length) enterEditor()
 }
 
 function enterEditor() {
@@ -175,8 +252,15 @@ function removeFile(i: number) {
 function reset() {
   for (const item of files.value) URL.revokeObjectURL(item.url)
   files.value = []
+  cropQueue.value = []
+  stopCrop()
   phase.value = 'landing'
 }
+
+onUnmounted(() => {
+  cropQueue.value = []
+  stopCrop()
+})
 
 function switchKind(id: PublishKind) {
   if (id === props.kind) return
@@ -188,19 +272,20 @@ function switchKind(id: PublishKind) {
 <template>
   <p v-if="props.editPostId && editLoading" class="hint">加载中…</p>
   <p v-else-if="props.editPostId && editError" class="hint">{{ editError }}</p>
-  <PublishEditor
-    v-else-if="phase === 'editor'"
-    :kind="props.kind"
-    :files="files"
-    :seed="seed"
-    :edit-post-id="props.editPostId"
-    @leave="leaveEditor"
-    @done="finishEditor"
-    @add-files="addList"
-    @remove-file="removeFile"
-  />
-
-  <div v-else class="pub-page">
+  <template v-else>
+    <PublishEditor
+      v-if="phase === 'editor'"
+      :kind="props.kind"
+      :files="files"
+      :seed="seed"
+      :edit-post-id="props.editPostId"
+      @leave="leaveEditor"
+      @done="finishEditor"
+      @add-files="addList"
+      @remove-file="removeFile"
+      @recrop="recrop"
+    />
+    <div v-else class="pub-page">
     <div class="top">
       <div class="tabs">
         <button
@@ -250,7 +335,18 @@ function switchKind(id: PublishKind) {
         <p>{{ item.d }}</p>
       </article>
     </div>
-  </div>
+    </div>
+    <ImageCropDialog
+      v-if="cropSrc"
+      :src="cropSrc"
+      title="裁剪图片"
+      :aspect="0.75"
+      :file-name="cropName"
+      :output-width="1080"
+      @confirm="onCropConfirm"
+      @cancel="onCropCancel"
+    />
+  </template>
 </template>
 
 <style scoped>

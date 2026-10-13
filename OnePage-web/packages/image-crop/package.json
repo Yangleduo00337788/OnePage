@@ -1,0 +1,9 @@
+{
+  "name": "@onepage/image-crop",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/ImageCropDialog.vue",
+  "exports": {
+    ".": "./src/ImageCropDialog.vue"
+  }
+}

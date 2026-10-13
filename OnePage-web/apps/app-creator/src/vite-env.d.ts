@@ -5,3 +5,9 @@ declare module '*.vue' {
   const component: DefineComponent<object, object, unknown>
   export default component
 }
+
+declare module '@onepage/image-crop' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<object, object, unknown>
+  export default component
+}

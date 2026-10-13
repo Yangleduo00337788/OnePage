@@ -17,6 +17,7 @@ const emit = defineEmits<{
   done: []
   'add-files': [FileList | File[]]
   'remove-file': [number]
+  recrop: [number]
 }>()
 
 const title = ref('')
@@ -209,7 +210,15 @@ async function submit() {
           </label>
           <div v-for="(item, i) in props.files" :key="item.url" class="thumb">
             <video v-if="isVideoItem(item)" :src="item.url" muted />
-            <img v-else :src="item.url" alt="" />
+            <button
+              v-else
+              type="button"
+              class="thumb-recrop"
+              :disabled="!item.file"
+              @click="item.file && emit('recrop', i)"
+            >
+              <img :src="item.url" alt="" />
+            </button>
             <span v-if="i === 0 && props.kind === 'image'" class="cover">1</span>
             <button type="button" class="thumb-x" aria-label="移除" @click="emit('remove-file', i)">
               <Icon name="x" :size="12" :stroke="2.5" />
@@ -470,6 +479,15 @@ async function submit() {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.thumb-recrop {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .thumb-add {

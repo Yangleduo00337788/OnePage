@@ -13,6 +13,9 @@ importers:
       '@onepage/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@onepage/image-crop':
+        specifier: workspace:*
+        version: link:../../packages/image-crop
       vue:
         specifier: ^3.5.13
         version: 3.5.43(typescript@5.9.3)
@@ -35,6 +38,9 @@ importers:
       '@onepage/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@onepage/image-crop':
+        specifier: workspace:*
+        version: link:../../packages/image-crop
       pinia:
         specifier: ^3.0.3
         version: 3.0.4(typescript@5.9.3)(vue@3.5.43(typescript@5.9.3))
@@ -65,6 +71,8 @@ importers:
         version: 2.2.12(typescript@5.9.3)
 
   packages/api-client: {}
+
+  packages/image-crop: {}
 
 packages:
 
