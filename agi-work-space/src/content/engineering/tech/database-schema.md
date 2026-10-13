@@ -220,6 +220,7 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | --- | --- | --- |
 | id | BIGINT PK | |
 | type | VARCHAR(16) | `single` |
+| pair_key | VARCHAR(64) 可空 | 单聊双方 userId 升序拼接，UNIQUE |
 | created_at | DATETIME(3) | |
 | updated_at | DATETIME(3) | 最后消息时间 |
 

@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本私信。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** 获赞/被收藏列表、分享到私信、AI 润色/问答、评论内 @。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** 获赞/被收藏列表、分享到私信、AI 润色/问答、评论内 @、私信 WebSocket。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -350,29 +350,33 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 
 ## Conversations / IM（P2）
 
+必须登录。
+
 ### GET `/api/v1/conversations`
 
-会话列表。**Response**：`items[]`：`conversationId`, `peer` UserBrief, `lastMessage`, `unreadCount`, `updatedAt`
+会话列表。**Response**：`items[]`：`conversationId`, `peer` UserBrief, `lastMessage`（`messageId`, `msgType`, `text`, `createdAt`）, `unreadCount`, `updatedAt`
 
 ### POST `/api/v1/conversations`
 
-**Body**：`{ "peerUserId" }` → 单聊  
-**Response 201**：`conversationId`
+**Body**：`{ "peerUserId" }` → 单聊。新建 **201** `{ conversationId }`；已有会话 **200** 同 body。不能给自己发。
+
+### GET `/api/v1/conversations/unread-count`
+
+**Response**：`{ "count" }` 各会话未读合计。
 
 ### GET `/api/v1/conversations/{id}/messages`
 
 Query：`beforeId?`, `limit`  
-**Response**：`messages[]`：`messageId`, `senderId`, `msgType`, `content`, `createdAt`
+**Response**：`{ "messages": [] }`：`messageId`, `senderId`, `msgType`, `content`, `createdAt`。打开最新一页会更新已读。
 
 ### POST `/api/v1/conversations/{id}/messages`
 
-**Body**：`msgType`, `content`（JSON）  
-**Response 201**
+**Body**：`{ "msgType": "text", "content": { "text": "..." } }`  
+**Response 201** 消息。本期只支持 `text`。
 
 ### WebSocket `WS /ws/im`
 
-客户端 JSON：`{ "type": "send", "conversationId", "msgType", "content" }`  
-服务端推送：`{ "type": "message", ... }`
+尚未实现。社区页用 HTTP 轮询。
 
 ---
 

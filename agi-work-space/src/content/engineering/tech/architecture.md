@@ -21,7 +21,7 @@ order: 1
 - 界面：**shadcn-vue + Tailwind 4**，组件集中在 `packages/ui`。  
 - **站点拆分**：社区 `apps/shell`（本机 5174）与创作者 `apps/app-creator`（本机 5175）是两个前端，入口整页跳转。规划中的 feed / user / im / live 仍可后续用微前端嵌进壳。  
 - 调 API：**带 Cookie**（`credentials: 'include'`），类型由 OpenAPI 生成。  
-- 私信、直播：**WebSocket**，握手时带同一套 Session。
+- 私信本期：**HTTP** 列表/收发 + 社区页约 3 秒轮询。规划中的 **WebSocket** `/ws/im` 尚未接。直播仍规划 WS。
 
 规划目录：
 
@@ -40,17 +40,17 @@ packages/ui、api-client、types
 - 登录：**Spring Session + Redis**，Cookie **`ONEPAGE_SESSION`**（见 [接口契约](/engineering/process/contracts)）。  
 - 文件 **MinIO** 预签名直传；搜索 **ES**、消息 **仅 RocketMQ**（尚未接到 P0）。
 
-本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动五个主类（user 8082 → auth 8081 → content 8083 → notification 8084 → gateway 8080）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准，与各服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。
+本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动六个主类（user 8082 → auth 8081 → content 8083 → notification 8084 → message 8085 → gateway 8080）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准，与各服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。
 
-已落地目录（五服务；message / search / ai / moderation / live 未建模块）：
+已落地目录（六服务；search / ai / moderation / live 未建模块）：
 
 ```text
 onepage-parent、onepage-common、onepage-gateway
 onepage-auth-service、onepage-user-service、onepage-content-service
-onepage-notification-service
+onepage-notification-service、onepage-message-service
 ```
 
-user 含资料、关注、列表。content 含发帖、Feed、赞藏评。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。社区壳（5174）有接口的走 API，没有的用空态。
+user 含资料、关注、列表。content 含发帖、Feed、赞藏评。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本；对端资料 Feign 调 user。社区壳（5174）有接口的走 API，没有的用空态。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 

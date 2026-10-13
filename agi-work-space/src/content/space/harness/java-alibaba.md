@@ -157,7 +157,7 @@ ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约�
 | --- | --- |
 | 必须 | 测试类 `src/test/java`，名称 `*Test`，方法能说明场景 |
 | 必须 | 断言明确期望；禁止无断言的「跑过就算」 |
-| 必须 | 单测不依赖真实 Nacos / 本机 MySQL 才算单元测试；联调用文档里的五进程 |
+| 必须 | 单测不依赖真实 Nacos / 本机 MySQL 才算单元测试；联调用文档里的六进程 |
 | 推荐 | 先测 service 规则（分类必填、自己的帖、cursor 解析），Controller 只测绑定 |
 | 推荐 | 边界：空列表、未登录公开 GET、无权限删帖 |
 | 允许 | P1 可以先少测，但新写分支逻辑不要零覆盖 |
@@ -194,7 +194,7 @@ ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约�
 | 推荐 | 字符集 utf8mb4；时间列与现网脚本一致 |
 | 禁止 | 在循环里一条条查能改成 in / 一次 join 的（N+1） |
 
-ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。P2 通知库 `onepage_notification`，须执行 `onepage-notification-service/db/sql/001_init.sql`；投递在事务提交后 Feign，失败不回滚赞藏关注。
+ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。P2 通知库 `onepage_notification`，须执行 `onepage-notification-service/db/sql/001_init.sql`；投递在事务提交后 Feign，失败不回滚赞藏关注。P2 私信库 `onepage_message`，须执行 `onepage-message-service/db/sql/001_init.sql`；本期 HTTP 文本，不做 WS。
 
 ---
 

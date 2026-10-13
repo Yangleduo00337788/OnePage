@@ -11,14 +11,14 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 | 项 | 内容 |
 | --- | --- |
 | 项目类型 | ONEPAGE 产品开发 |
-| 当前阶段 | P2 关注与通知已接；私信未建 |
+| 当前阶段 | P2 关注、通知、单聊文本已接 |
 | 健康度 | 正常 |
-| 下次节点 | 私信服务 |
+| 下次节点 | 分享到私信 / 获赞列表 |
 
 ## 正在做
 
-- 关注与通知已接；`/notify` 三 Tab 走真实收件箱。私信/搜索/直播/耶耶仍空态。获赞/被收藏列表仍未做
-- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需建库 `onepage_notification` 并执行 `001_init.sql`，另起 `NotifyApplication`（8084）
+- 关注、通知、私信文本已接。搜索/直播/耶耶仍空态。获赞/被收藏列表、私信 WebSocket、笔记卡片仍未做
+- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需 `onepage_notification` 的 `001_init.sql`（8084）；私信需 `onepage_message` 的 `001_init.sql`，另起 `ImApplication`（8085）
 
 ## 阻塞
 
@@ -26,6 +26,8 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-13 — 私信气泡旁加 36px 圆头像（对方左、自己右；无图用昵称首字）
+- 2026-10-13 — P2 私信：`onepage-message-service`（8085）；单聊 `pair_key`；`GET/POST /conversations`、消息与 `unread-count`；社区 `/messages` 轮询。须执行 `001_init.sql`，`.env` 补 `MESSAGE_PORT`、`MYSQL_MESSAGE_DB`。WebSocket / 图片 / 笔记卡片未做
 - 2026-10-13 — 通知行展示评论/回复摘要；未读数拆到三 Tab。已有通知无正文需再评论一次才会带摘要
 - 2026-10-13 — P2 通知：`onepage-notification-service`；赞/评/关注提交后 Feign 投递；`GET /notifications`（`group`）/`read`/`unread-count`；社区 `/notify` 与侧栏未读。须执行 `001_init.sql`，`.env` 补 `NOTIFY_PORT`、`MYSQL_NOTIFY_DB`
 - 2026-10-13 — P2 关注：`user_follow`；`POST/DELETE /users/{pageId}/follow`；关注/粉丝列表；资料 `followedByMe`；关注流只出已关注作者。新关注通知尚未做。已有库须执行 `002_follow.sql`

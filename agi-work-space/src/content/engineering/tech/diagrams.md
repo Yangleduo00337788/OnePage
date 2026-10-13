@@ -258,7 +258,27 @@ sequenceDiagram
   AI->>B: 200 带引用片段
 ```
 
-## 9. 时序：私信 WebSocket
+## 9. 时序：私信 HTTP（本期）
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant G as Gateway
+  participant M as message_service
+  participant U as user_service
+  participant DB as MySQL
+
+  B->>G: POST /conversations Cookie
+  G->>M: X-User-Id
+  M->>U: Feign briefs
+  M->>DB: conversation + members
+  M->>B: 201 conversationId
+  B->>G: GET messages / POST text
+  G->>M: persist / mark read
+  Note over B: 约 3 秒再拉列表和消息
+```
+
+## 9b. 时序：私信 WebSocket（尚未实现）
 
 ```mermaid
 sequenceDiagram
