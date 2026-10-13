@@ -258,7 +258,9 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | comment_id | BIGINT 可空 | |
 | payload | JSON 可空 | 扩展 |
 | read_at | DATETIME(3) 可空 | |
-| created_at | DATETIME(3) | |
+| created_at | DATETIME(3) | 创建或最近一次合并时间 |
+
+UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `read_at` 并刷新时间。
 
 **type 枚举（MVP）**
 

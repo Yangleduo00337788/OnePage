@@ -40,16 +40,17 @@ packages/ui、api-client、types
 - 登录：**Spring Session + Redis**，Cookie **`ONEPAGE_SESSION`**（见 [接口契约](/engineering/process/contracts)）。  
 - 文件 **MinIO** 预签名直传；搜索 **ES**、消息 **仅 RocketMQ**（尚未接到 P0）。
 
-本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动四个主类（user 8082 → auth 8081 → content 8083 → gateway 8080）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准，与四服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。
+本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动五个主类（user 8082 → auth 8081 → content 8083 → notification 8084 → gateway 8080）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准，与各服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。
 
-已落地目录（仅四服务；message / notification / search / ai / moderation / live 未建模块）：
+已落地目录（五服务；message / search / ai / moderation / live 未建模块）：
 
 ```text
 onepage-parent、onepage-common、onepage-gateway
 onepage-auth-service、onepage-user-service、onepage-content-service
+onepage-notification-service
 ```
 
-user 目前只有 `me` / 改资料 / 按一页号查资料。帖子列表、赞藏历史、关注接口未实现。content 已提供发帖、Feed、赞藏评、分享链接。社区壳（5174）已去掉演示假数据：有接口的走 API，没有的用空态。
+user 含资料、关注、列表。content 含发帖、Feed、赞藏评。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。社区壳（5174）有接口的走 API，没有的用空态。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 
@@ -82,7 +83,7 @@ Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`enti
 
 1. **浏览 / 读**：浏览器 → 产品前端 → Gateway → 服务 → MySQL 或 ES。  
 2. **发帖**：content 写 MySQL + Outbox（P1 不发 MQ）。  
-3. **点赞等**：P1 由 content 写同一库；通知消费留 P2。  
+3. **点赞等**：P1 由 content 写同一库；P2 通知在提交后 Feign 写入 notification 库，失败不回滚赞藏。  
 4. **传图/视频**：先要上传凭证 → 浏览器直传 MinIO → 再绑定到笔记。
 
 图示：[架构图与时序图](/engineering/tech/diagrams)。

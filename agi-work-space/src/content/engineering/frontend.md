@@ -19,7 +19,7 @@ FE 维护。
 
 源码里有面向阅读的中文注释（文件角色、Vue/Pinia 关键字、为什么走 Cookie/代理/弹窗登录）。业务事实仍以本页和契约为准，不要把长文案只写在注释里。
 
-P0 **已有**：`apps/shell`（社区站，本机 **5174**），`apps/app-creator`（创作者独立站，本机 **5175**，地址栏 favicon 与社区相同），`packages/api-client`（`credentials: 'include'`，含 P1 发帖/Feed/赞藏评方法）。两边 Vite 都把 `/api` 代理到网关（`VITE_DEV_PROXY_TARGET`）。PC 壳：260px 左栏 + 顶搜 + 瀑布流笔记。首页推荐接 `GET /feeds/explore`，关注 Tab 接 `/feeds/following`（已关注作者的公开帖）；旅行等 Tab 带 `category` 筛。自己的帖详情不显示关注钮；他人可关注/取关。点卡片打开 `NoteDetailModal`，拉 `GET /posts/{id}`、评论与赞藏。底栏赞/藏/发评走 `/reactions` `/comments`；评论头像用 `author.avatarUrl`。视频页同接口只展示 `postType=video`。社区站已去掉 picsum / 假帖 / 假直播 / 假通知 / 假私信；无接口的页改空态。搜索无结果为空；他人主页资料走 `GET /users/{pageId}`。文档工作空间占用 **5173**，不要和社区抢端口。三站地址栏 favicon 同一套 Logo PNG（`favicon-32.png` / `favicon.png`）。
+P0 **已有**：`apps/shell`（社区站，本机 **5174**），`apps/app-creator`（创作者独立站，本机 **5175**，地址栏 favicon 与社区相同），`packages/api-client`（`credentials: 'include'`，含 P1 发帖/Feed/赞藏评方法）。两边 Vite 都把 `/api` 代理到网关（`VITE_DEV_PROXY_TARGET`）。PC 壳：260px 左栏 + 顶搜 + 瀑布流笔记。首页推荐接 `GET /feeds/explore`，关注 Tab 接 `/feeds/following`（已关注作者的公开帖）；旅行等 Tab 带 `category` 筛。自己的帖详情不显示关注钮；他人可关注/取关。点卡片打开 `NoteDetailModal`，拉 `GET /posts/{id}`、评论与赞藏。底栏赞/藏/发评走 `/reactions` `/comments`；评论头像用 `author.avatarUrl`。视频页同接口只展示 `postType=video`。社区站已去掉 picsum / 假帖 / 假直播 / 假私信；通知页接真实收件箱。无接口的页改空态。搜索无结果为空；他人主页资料走 `GET /users/{pageId}`。文档工作空间占用 **5173**，不要和社区抢端口。三站地址栏 favicon 同一套 Logo PNG（`favicon-32.png` / `favicon.png`）。
 
 规划中尚未建：`app-feed`、`app-user`、`app-im`、`app-live`、`packages/ui`。
 
@@ -47,7 +47,7 @@ packages/api-client/  fetch + Cookie
 | `/login`, `/register` | 不再渲染独立页；守卫打开 `AuthModal` 后回到 `/` |
 | `/video` | 视频瀑布流：与首页同卡片 280×440，无分类；只展示视频帖（右上播放图标，无时长） |
 | `/live` | 直播：分类 Tab 同首页；live 服务未建，空态 |
-| `/notify` | 通知：居中三 Tab（评论和@ / 点赞和收藏 / 新增关注），无通知服务时各 Tab 空态 |
+| `/notify` | 通知：居中三 Tab 接 `GET /notifications?group=`；评论摘要；侧栏与 Tab 未读数 |
 | `/messages` | 私信：左 320px 会话栏 + 右侧对话区；无 message 服务时双方空态 |
 | `/about` | 关于我们：可拖装饰卡；协议/隐私/帮助/创作者弹窗 |
 | `/create` | 侧栏发布选中；主区同首页；点击时新开创作者站 |

@@ -11,14 +11,14 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 | 项 | 内容 |
 | --- | --- |
 | 项目类型 | ONEPAGE 产品开发 |
-| 当前阶段 | P2 关注已接；通知/私信未建 |
+| 当前阶段 | P2 关注与通知已接；私信未建 |
 | 健康度 | 正常 |
-| 下次节点 | 通知或私信服务 |
+| 下次节点 | 私信服务 |
 
 ## 正在做
 
-- 关注/取关与关注粉丝列表已接；首页关注流按关注图筛。通知/私信/搜索/直播/耶耶仍空态。获赞/被收藏列表仍未做
-- 后端 P1 主链路已通。P2 关注在 user-service（需执行 `002_follow.sql`）；通知、私信尚未建服务
+- 关注与通知已接；`/notify` 三 Tab 走真实收件箱。私信/搜索/直播/耶耶仍空态。获赞/被收藏列表仍未做
+- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需建库 `onepage_notification` 并执行 `001_init.sql`，另起 `NotifyApplication`（8084）
 
 ## 阻塞
 
@@ -26,6 +26,8 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-13 — 通知行展示评论/回复摘要；未读数拆到三 Tab。已有通知无正文需再评论一次才会带摘要
+- 2026-10-13 — P2 通知：`onepage-notification-service`；赞/评/关注提交后 Feign 投递；`GET /notifications`（`group`）/`read`/`unread-count`；社区 `/notify` 与侧栏未读。须执行 `001_init.sql`，`.env` 补 `NOTIFY_PORT`、`MYSQL_NOTIFY_DB`
 - 2026-10-13 — P2 关注：`user_follow`；`POST/DELETE /users/{pageId}/follow`；关注/粉丝列表；资料 `followedByMe`；关注流只出已关注作者。新关注通知尚未做。已有库须执行 `002_follow.sql`
 - 2026-10-13 — 「我的」收藏/点赞/历史接 `GET /users/me/favorites` `/likes` `/history`；按互动时间倒序；已删或他人仅自己可见的帖不出现。清空浏览尚未做
 - 2026-10-12 — 瀑布流封面改回 `object-cover` 铺满，不留左右白边；图文详情仍按比例收窄

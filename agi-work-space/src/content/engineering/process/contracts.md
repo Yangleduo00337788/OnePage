@@ -16,7 +16,7 @@ order: 3
 | --- | --- |
 | 地址前缀 | `/api/v1` |
 | 格式 | JSON；生产走 HTTPS |
-| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有 Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/favorites` `/likes` `/history`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}` 必须登录 |
+| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有 Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/favorites` `/likes` `/history`、`GET/POST /notifications/**`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}` 必须登录 |
 | 密码 | 注册 8～32 位，须同时包含字母和数字；BCrypt 存储 |
 | 登出 | `POST /api/v1/auth/logout` 由**网关** invalidate WebSession，返回 200 |
 | 设密 | 已登录 `POST /auth/password`；未登录找回 `POST /auth/password/reset` + `sms scene=reset` |
@@ -58,9 +58,9 @@ order: 3
 | 事件 | 谁发 | 谁可能消费 |
 | --- | --- | --- |
 | 笔记发布 | content | search（建索引） |
-| 点赞 | social | notification |
-| 评论 | social | notification |
-| 新关注 | user | notification |
+| 点赞 | content | notification（本期 Feign，MQ 未消费） |
+| 评论 | content | notification（本期 Feign，MQ 未消费） |
+| 新关注 | user | notification（本期 Feign，MQ 未消费） |
 
 消息里带 `eventId`（幂等）、`eventType`、`occurredAt`、`payload`。Topic 命名见 [路线图 · RocketMQ](/engineering/tech/mvp-roadmap)。
 

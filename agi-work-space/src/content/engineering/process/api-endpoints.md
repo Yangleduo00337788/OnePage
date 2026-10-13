@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** 获赞/被收藏列表、通知、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** 获赞/被收藏列表、分享到私信、AI 润色/问答、评论内 @。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -174,7 +174,7 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 
 ### POST `/api/v1/users/{pageId}/follow`
 
-必须登录。不能关注自己。新建 **201** `{ followed: true }`；已关注 **200** 同 body。计数写入 `user_stat`。新关注通知尚未做。
+必须登录。不能关注自己。新建 **201** `{ followed: true }`；已关注 **200** 同 body。计数写入 `user_stat`。新建关注会投递 `follow` 通知。
 
 ### DELETE `/api/v1/users/{pageId}/follow`
 
@@ -332,10 +332,10 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 
 ### GET `/api/v1/notifications`
 
-Query：`cursor`, `limit`, `unreadOnly?`  
+必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注）。  
 **Response**：`CursorPage<NotificationItem>`
 
-**NotificationItem**：`id`, `type`, `actor` UserBrief, `postId?`, `commentId?`, `read`, `createdAt`
+**NotificationItem**：`id`, `type`, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复正文摘要，最多 120 字）, `read`, `createdAt`
 
 ### POST `/api/v1/notifications/read`
 
@@ -344,7 +344,7 @@ Query：`cursor`, `limit`, `unreadOnly?`
 
 ### GET `/api/v1/notifications/unread-count`
 
-**Response**：`{ "count" }`
+**Response**：`{ "count", "comment", "reaction", "follow" }` 各 Tab 未读；`count` 为合计。
 
 ---
 

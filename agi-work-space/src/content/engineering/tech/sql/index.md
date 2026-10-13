@@ -18,5 +18,6 @@ order: 5
 | [002_p1_fix_comments](/engineering/tech/sql/onepage-content-service/002_p1_fix_comments) | `onepage-content-service/db/sql/002_p1_fix_comments.sql` |
 | [003_category](/engineering/tech/sql/onepage-content-service/003_category) | `onepage-content-service/db/sql/003_category.sql` |
 | [004_post_settings](/engineering/tech/sql/onepage-content-service/004_post_settings) | `onepage-content-service/db/sql/004_post_settings.sql` |
+| [onepage-notification-service / 001_init](/engineering/tech/sql/onepage-notification-service/001_init) | `onepage-notification-service/db/sql/001_init.sql` |
 | [00-databases](/engineering/tech/sql/docker/00-databases) | `docker/mysql/init/00-databases.sql` |
 | [01-tables](/engineering/tech/sql/docker/01-tables) | `docker/mysql/init/01-tables.sql` |

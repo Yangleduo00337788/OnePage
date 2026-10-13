@@ -85,7 +85,7 @@ PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 M
 | P4 | 能开播、能看直播 |
 | P5 | 能举报、能基本运维 |
 
-**当前**：P1 主链路已通。P2 关注已落在 user-service：`user_follow`、关注/取关、关注与粉丝列表；首页关注流只出已关注作者。通知/私信仍无服务。社区「我的」收藏/点赞/历史已接。尚未实现：获赞/被收藏列表、新关注通知、AI、私信/搜索/直播。Outbox 只落库。本地 IDEA 四进程；yml 只引用环境变量。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、`003_category.sql`、`004_post_settings.sql`；user 关注需 `002_follow.sql`。
+**当前**：P1 主链路已通。P2 关注已落在 user-service。P2 通知已落 `onepage-notification-service`（8084）：赞/评/关注在事务提交后 Feign 投递；`/notify` 三 Tab 与未读数已接。私信仍无服务。尚未实现：获赞/被收藏列表、@ 解析、AI、私信/搜索/直播。Outbox 只落库。本地 IDEA 五进程；yml 只引用环境变量。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、`003_category.sql`、`004_post_settings.sql`；user 关注需 `002_follow.sql`；通知需执行 `onepage-notification-service/db/sql/001_init.sql`（并在 `.env` 加 `NOTIFY_PORT`、`MYSQL_NOTIFY_DB`）。
 
 ## 往下翻
 
