@@ -14,11 +14,13 @@ export const useSession = defineStore('session', () => {
   const loaded = ref(false)
   const unreadNotify = ref(0)
   const unreadNotifyGroups = ref({ ...emptyGroups })
+  const unreadIm = ref(0)
 
   async function refreshUnread() {
     if (!me.value) {
       unreadNotify.value = 0
       unreadNotifyGroups.value = { ...emptyGroups }
+      unreadIm.value = 0
       return
     }
     try {
@@ -32,6 +34,11 @@ export const useSession = defineStore('session', () => {
     } catch {
       unreadNotify.value = 0
       unreadNotifyGroups.value = { ...emptyGroups }
+    }
+    try {
+      unreadIm.value = (await api.conversationUnread()).count ?? 0
+    } catch {
+      unreadIm.value = 0
     }
   }
 
@@ -60,7 +67,18 @@ export const useSession = defineStore('session', () => {
     me.value = null
     unreadNotify.value = 0
     unreadNotifyGroups.value = { ...emptyGroups }
+    unreadIm.value = 0
   }
 
-  return { me, loaded, unreadNotify, unreadNotifyGroups, refresh, refreshUnread, logout, bumpFollowing }
+  return {
+    me,
+    loaded,
+    unreadNotify,
+    unreadNotifyGroups,
+    unreadIm,
+    refresh,
+    refreshUnread,
+    logout,
+    bumpFollowing,
+  }
 })

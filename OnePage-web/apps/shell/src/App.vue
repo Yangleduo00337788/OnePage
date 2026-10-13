@@ -58,7 +58,7 @@ const nav = computed(() => [
   { to: '/live', label: '直播', icon: 'tv-minimal-play', match: ['/live'] },
   { to: '/create', label: '发布', icon: 'badge-plus', match: ['/create'], creator: true },
   { to: '/notify', label: '通知', icon: 'bell-ring', match: ['/notify'], notify: true },
-  { to: '/messages', label: '消息', icon: 'message-circle-more', match: ['/messages'] },
+  { to: '/messages', label: '消息', icon: 'message-circle-more', match: ['/messages'], im: true },
 ])
 
 const meNav = { to: '/me', label: '我的', icon: 'smile', match: ['/me'] }
@@ -117,6 +117,12 @@ const flushMain = computed(() => yehShell.value || route.path === '/messages')
                 class="min-w-[16px] rounded-full bg-[#ff2442] px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
               >
                 {{ session.unreadNotify > 99 ? '99+' : session.unreadNotify }}
+              </span>
+              <span
+                v-else-if="item.im && session.unreadIm > 0"
+                class="min-w-[16px] rounded-full bg-[#ff2442] px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
+              >
+                {{ session.unreadIm > 99 ? '99+' : session.unreadIm }}
               </span>
             </span>
           </span>

@@ -65,6 +65,22 @@ export type NotificationItem = {
   createdAt: string
 }
 
+export type ConversationItem = {
+  conversationId: string
+  peer: UserBrief
+  lastMessage: { messageId: string; msgType: string; text: string; createdAt: string } | null
+  unreadCount: number
+  updatedAt: string
+}
+
+export type ImMessage = {
+  messageId: string
+  senderId: string
+  msgType: string
+  content: { text?: string }
+  createdAt: string
+}
+
 export type NotificationUnread = {
   count: number
   comment?: number
@@ -326,4 +342,25 @@ export const api = {
     request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/comments/${commentId}/like`, {
       method: 'POST',
     }),
+  conversations: () => request<{ items: ConversationItem[] }>('/api/v1/conversations'),
+  openConversation: (peerUserId: string) =>
+    request<{ conversationId: string }>('/api/v1/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ peerUserId }),
+    }),
+  conversationMessages: (conversationId: string, beforeId?: string, limit?: number) => {
+    const q = new URLSearchParams()
+    if (beforeId) q.set('beforeId', beforeId)
+    if (limit) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<{ messages: ImMessage[] }>(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages${suffix}`,
+    )
+  },
+  sendMessage: (conversationId: string, text: string) =>
+    request<ImMessage>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ msgType: 'text', content: { text } }),
+    }),
+  conversationUnread: () => request<{ count: number }>('/api/v1/conversations/unread-count'),
 }

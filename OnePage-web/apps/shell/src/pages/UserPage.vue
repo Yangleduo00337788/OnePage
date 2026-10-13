@@ -59,8 +59,21 @@ async function load() {
   }
 }
 
-function goMessage() {
-  void router.push('/messages')
+async function goMessage() {
+  if (!profile.value) return
+  if (!session.me) {
+    auth.show('login', `/u/${profile.value.pageId}`)
+    return
+  }
+  try {
+    const opened = await api.openConversation(profile.value.userId)
+    await router.push({ path: '/messages', query: { c: opened.conversationId } })
+  } catch (e) {
+    toast.value = e instanceof ApiError ? e.message : '无法发起私信'
+    window.setTimeout(() => {
+      toast.value = ''
+    }, 1800)
+  }
 }
 
 async function toggleFollow() {

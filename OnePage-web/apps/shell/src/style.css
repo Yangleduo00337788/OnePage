@@ -847,17 +847,59 @@ html[data-theme='dark'] .theme-tab.is-on {
 
 .im-msg {
   display: flex;
-  max-width: 72%;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 14px;
 }
 
 .im-msg.is-them {
-  align-items: flex-start;
+  flex-direction: row;
+  justify-content: flex-start;
 }
 
 .im-msg.is-me {
-  margin-left: auto;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.im-msg-face {
+  height: 36px;
+  width: 36px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #ececec;
+}
+
+.im-msg-face img {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.im-msg-face > span {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #8a8a8a;
+}
+
+.im-msg-body {
+  display: flex;
+  max-width: min(72%, 520px);
+  min-width: 0;
+  flex-direction: column;
+}
+
+.im-msg.is-them .im-msg-body {
+  align-items: flex-start;
+}
+
+.im-msg.is-me .im-msg-body {
   align-items: flex-end;
 }
 
