@@ -1,5 +1,5 @@
 <!--
-  PC 首页瀑布流。推荐走 GET /feeds/explore，关注走 /feeds/following（P1 同一数据）。
+  PC 首页瀑布流。推荐走 GET /feeds/explore，关注走 /feeds/following（已关注作者的公开帖）。
   分类 Tab 按 post.category 筛发现流。点卡片打开详情弹窗。
 -->
 <script setup lang="ts">
@@ -125,7 +125,9 @@ onUnmounted(() => {
     </div>
 
     <p v-if="!loading && failed" class="py-16 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
-    <p v-else-if="!loading && !notes.length" class="py-16 text-center text-[14px] text-[#8a8a8a]">还没有笔记</p>
+    <p v-else-if="!loading && !notes.length" class="py-16 text-center text-[14px] text-[#8a8a8a]">
+      {{ tab === '关注' ? '还没有关注的人，去发现里看看' : '还没有笔记' }}
+    </p>
 
     <div v-else class="feed-grid flex flex-wrap justify-center gap-4" :class="loading ? 'is-refreshing' : ''">
       <NoteFeedCard v-for="note in notes" :key="note.id" :note="note" />

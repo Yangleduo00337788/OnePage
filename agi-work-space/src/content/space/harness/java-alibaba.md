@@ -194,7 +194,7 @@ ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约�
 | 推荐 | 字符集 utf8mb4；时间列与现网脚本一致 |
 | 禁止 | 在循环里一条条查能改成 in / 一次 join 的（N+1） |
 
-ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。
+ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。
 
 ---
 

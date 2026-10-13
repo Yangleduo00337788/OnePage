@@ -12,6 +12,7 @@ order: 5
 | --- | --- |
 | [onepage-auth-service / 001_init](/engineering/tech/sql/onepage-auth-service/001_init) | `onepage-auth-service/db/sql/001_init.sql` |
 | [onepage-user-service / 001_init](/engineering/tech/sql/onepage-user-service/001_init) | `onepage-user-service/db/sql/001_init.sql` |
+| [002_follow](/engineering/tech/sql/onepage-user-service/002_follow) | `onepage-user-service/db/sql/002_follow.sql` |
 | [onepage-content-service / 001_init](/engineering/tech/sql/onepage-content-service/001_init) | `onepage-content-service/db/sql/001_init.sql` |
 | [002_p1](/engineering/tech/sql/onepage-content-service/002_p1) | `onepage-content-service/db/sql/002_p1.sql` |
 | [002_p1_fix_comments](/engineering/tech/sql/onepage-content-service/002_p1_fix_comments) | `onepage-content-service/db/sql/002_p1_fix_comments.sql` |

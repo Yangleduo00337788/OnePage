@@ -14,6 +14,7 @@ export type UserBrief = {
   pageId: string
   nickname: string
   avatarUrl: string
+  followedByMe?: boolean
 }
 
 export const FEED_CATEGORIES = ['旅行', '美食', '时尚', '摄影', '生活', '运动', '游戏', '音乐'] as const
@@ -69,6 +70,7 @@ export type UserProfile = UserSummary & {
   coverUrl: string
   bio: string
   gender: number
+  followedByMe?: boolean
   stats: {
     followingCount: number
     followerCount: number
@@ -173,6 +175,14 @@ export const api = {
     request<CursorPage<PostBrief>>(`/api/v1/users/me/likes${cursorQuery(cursor, limit)}`),
   myHistory: (cursor?: string, limit?: number) =>
     request<CursorPage<PostBrief>>(`/api/v1/users/me/history${cursorQuery(cursor, limit)}`),
+  userFollowing: (pageId: string, cursor?: string, limit?: number) =>
+    request<CursorPage<UserBrief>>(`/api/v1/users/${encodeURIComponent(pageId)}/following${cursorQuery(cursor, limit)}`),
+  userFollowers: (pageId: string, cursor?: string, limit?: number) =>
+    request<CursorPage<UserBrief>>(`/api/v1/users/${encodeURIComponent(pageId)}/followers${cursorQuery(cursor, limit)}`),
+  followUser: (pageId: string) =>
+    request<{ followed: boolean }>(`/api/v1/users/${encodeURIComponent(pageId)}/follow`, { method: 'POST' }),
+  unfollowUser: (pageId: string) =>
+    request<void>(`/api/v1/users/${encodeURIComponent(pageId)}/follow`, { method: 'DELETE' }),
   patchMe: (body: { nickname?: string; bio?: string; gender?: number; avatarMediaId?: string; coverMediaId?: string }) =>
     request<UserProfile>('/api/v1/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
   presign: (mimeType: string, sizeBytes: number, purpose: string) =>

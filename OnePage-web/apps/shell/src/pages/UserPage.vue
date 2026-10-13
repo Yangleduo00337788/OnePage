@@ -7,14 +7,19 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
 import { formatCount } from '../data/home'
+import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSession()
+const auth = useAuthModal()
 const moreOpen = ref(false)
+const relation = ref<'following' | 'followers' | null>(null)
+const followBusy = ref(false)
 const moreWrap = ref<HTMLElement | null>(null)
 const toast = ref('')
 const loading = ref(true)
@@ -58,11 +63,31 @@ function goMessage() {
   void router.push('/messages')
 }
 
-function followSoon() {
-  toast.value = '关注尚未接入'
-  window.setTimeout(() => {
-    if (toast.value === '关注尚未接入') toast.value = ''
-  }, 1600)
+async function toggleFollow() {
+  if (!profile.value) return
+  if (!session.me) {
+    auth.show('login', `/u/${profile.value.pageId}`)
+    return
+  }
+  followBusy.value = true
+  try {
+    if (profile.value.followedByMe) {
+      await api.unfollowUser(profile.value.pageId)
+      profile.value.followedByMe = false
+      profile.value.stats.followerCount = Math.max(0, (profile.value.stats.followerCount ?? 0) - 1)
+      session.bumpFollowing(-1)
+    } else {
+      await api.followUser(profile.value.pageId)
+      profile.value.followedByMe = true
+      profile.value.stats.followerCount = (profile.value.stats.followerCount ?? 0) + 1
+      session.bumpFollowing(1)
+    }
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) auth.show('login', `/u/${profile.value.pageId}`)
+    else toast.value = e instanceof ApiError ? e.message : '操作失败'
+  } finally {
+    followBusy.value = false
+  }
 }
 
 function report() {
@@ -125,7 +150,16 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
     <div class="relative px-8">
       <div class="absolute top-10 right-8 z-10 flex items-center gap-2">
-        <button v-if="!mine" type="button" class="follow-btn" @click="followSoon">关注</button>
+        <button
+          v-if="!mine"
+          type="button"
+          class="follow-btn"
+          :class="{ 'is-on': profile.followedByMe }"
+          :disabled="followBusy"
+          @click="toggleFollow"
+        >
+          {{ followBusy ? '…' : profile.followedByMe ? '已关注' : '关注' }}
+        </button>
         <button type="button" class="user-round" aria-label="发消息" @click="goMessage">
           <Icon name="message-circle" :size="18" />
         </button>
@@ -184,11 +218,15 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
           签名：{{ profile.bio?.trim() ? profile.bio : '暂无' }}
         </p>
         <p class="mt-4 text-[14px] text-[#8a8a8a]">
-          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ profile.stats.followingCount }}</span>
-          关注
+          <button type="button" class="stat-link" @click="relation = 'following'">
+            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ profile.stats.followingCount }}</span>
+            关注
+          </button>
           <span class="mx-3 text-[#eee]">|</span>
-          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ profile.stats.followerCount }}</span>
-          粉丝
+          <button type="button" class="stat-link" @click="relation = 'followers'">
+            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ profile.stats.followerCount }}</span>
+            粉丝
+          </button>
           <span class="mx-3 text-[#eee]">|</span>
           <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ likes }}</span>
           获赞与收藏
@@ -217,6 +255,12 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     >
       {{ toast }}
     </p>
+    <FollowListModal
+      :open="Boolean(relation)"
+      :page-id="profile.pageId"
+      :kind="relation || 'following'"
+      @close="relation = null"
+    />
   </section>
 </template>
 
@@ -233,6 +277,13 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
+}
+.follow-btn.is-on {
+  background: #f2f2f2;
+  color: #555;
+}
+.stat-link:hover span {
+  color: #ff2442;
 }
 
 .user-round {

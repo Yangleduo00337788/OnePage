@@ -106,7 +106,9 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
     return path.matches("/api/v1/posts/[^/]+")
         || path.matches("/api/v1/posts/[^/]+/comments")
         || path.matches("/api/v1/users/[^/]+")
-        || path.matches("/api/v1/users/[^/]+/posts");
+        || path.matches("/api/v1/users/[^/]+/posts")
+        || path.matches("/api/v1/users/[^/]+/following")
+        || path.matches("/api/v1/users/[^/]+/followers");
   }
 
   private Mono<Void> json(ServerHttpResponse response, HttpStatus status, Map<String, ?> body) {

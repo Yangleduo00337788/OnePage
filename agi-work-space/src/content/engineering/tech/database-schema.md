@@ -86,12 +86,13 @@ order: 4
 
 ### user_follow
 
+P2 已建。脚本 [002_follow.sql](/engineering/tech/sql/onepage-user-service/002_follow)。复合主键，无单独 id。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| id | BIGINT PK | |
-| follower_id | BIGINT | 关注人 |
-| followee_id | BIGINT | 被关注人 |
-| created_at | DATETIME(3) | UK(follower_id, followee_id) |
+| follower_id | BIGINT | 关注人；PK 之一 |
+| followee_id | BIGINT | 被关注人；PK 之一 |
+| created_at | DATETIME(3) | 关注时间 |
 
 ### browse_history
 

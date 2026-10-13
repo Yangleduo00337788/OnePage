@@ -6,11 +6,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-/** 拉作者摘要。name 必须等于 user 服务在 Nacos 里的应用名。 */
+import java.util.List;
+
+/** 拉作者摘要与关注的人。name 必须等于 user 服务在 Nacos 里的应用名。 */
 @FeignClient(name = "onepage-user-service")
 public interface UserClient {
   @GetMapping("/internal/profiles/{userId}/summary")
   UserSummary summary(
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("userId") Long userId);
+
+  @GetMapping("/internal/users/{userId}/followee-ids")
+  List<Long> followeeIds(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId);
 }

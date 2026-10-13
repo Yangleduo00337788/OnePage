@@ -1,6 +1,7 @@
 <!--
   「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。
   笔记 Tab GET /users/{pageId}/posts；收藏/点赞/历史走 /users/me/favorites|likes|history。
+  点关注/粉丝数字打开关注列表。
   未登录会被拉去首页并打开登录弹窗，redirect 仍是 /me。
 -->
 <script setup lang="ts">
@@ -11,6 +12,7 @@ import { api, ApiError } from '@onepage/api-client'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
 import Icon from '../components/Icon.vue'
+import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
 
 const GENDERS = [
@@ -71,6 +73,7 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const coverInput = ref<HTMLInputElement | null>(null)
 const listTab = ref<(typeof ME_TABS)[number]>('笔记')
 const tabDir = ref<'next' | 'prev'>('next')
+const relation = ref<'following' | 'followers' | null>(null)
 
 function onTabEmpty() {
   if (listTab.value === '笔记') {
@@ -313,11 +316,15 @@ async function logout() {
           签名：{{ session.me.bio?.trim() ? session.me.bio : '暂无' }}
         </p>
         <p class="mt-4 text-[14px] text-[#8a8a8a]">
-          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followingCount }}</span>
-          关注
+          <button type="button" class="stat-link" @click="relation = 'following'">
+            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followingCount }}</span>
+            关注
+          </button>
           <span class="mx-3 text-[#eee]">|</span>
-          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followerCount }}</span>
-          粉丝
+          <button type="button" class="stat-link" @click="relation = 'followers'">
+            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followerCount }}</span>
+            粉丝
+          </button>
           <span class="mx-3 text-[#eee]">|</span>
           <span class="font-semibold tabular-nums text-[#1f1f1f]">{{
             (session.me.stats.likeReceivedCount ?? 0) + (session.me.stats.favoriteReceivedCount ?? 0)
@@ -366,6 +373,12 @@ async function logout() {
     >
       {{ toast }}
     </p>
+    <FollowListModal
+      :open="Boolean(relation)"
+      :page-id="session.me.pageId"
+      :kind="relation || 'following'"
+      @close="relation = null"
+    />
 
     <Teleport to="body">
       <div
@@ -415,3 +428,9 @@ async function logout() {
     </Teleport>
   </section>
 </template>
+
+<style scoped>
+.stat-link:hover span {
+  color: #ff2442;
+}
+</style>

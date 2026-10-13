@@ -13,7 +13,7 @@ order: 1
 | user_profile | 资料、一页号 |
 | user_stat | 关注/粉丝/获赞藏计数 |
 
-`user_follow`、`browse_history` **本脚本没有**。规划见 [数据库设计](/engineering/tech/database-schema)。
+`user_follow` 见 [002_follow.sql](/engineering/tech/sql/onepage-user-service/002_follow)。`browse_history` 本脚本没有，浏览列表读 content `post_view`。
 
 ## 字段
 

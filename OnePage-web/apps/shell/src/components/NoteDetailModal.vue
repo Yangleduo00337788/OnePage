@@ -32,6 +32,8 @@ const session = useSession()
 const detail = useNoteDetail()
 const full = ref<PostDetail | null>(null)
 const authorProfile = ref<UserProfile | null>(null)
+const followingAuthor = ref(false)
+const followBusy = ref(false)
 const likeCount = ref(0)
 const favCount = ref(0)
 const commentTotal = ref(0)
@@ -202,6 +204,7 @@ watch(
     favCount.value = 0
     full.value = null
     authorProfile.value = null
+    followingAuthor.value = false
     current.value = 0
     durationSec.value = 0
     playing.value = false
@@ -572,8 +575,10 @@ async function loadLive(id: string) {
     if (post.author.pageId) {
       try {
         authorProfile.value = await api.userByPageId(post.author.pageId)
+        followingAuthor.value = Boolean(authorProfile.value?.followedByMe)
       } catch {
         authorProfile.value = null
+        followingAuthor.value = false
       }
     }
     if (token !== loadSeq) return
@@ -596,6 +601,33 @@ async function loadLive(id: string) {
   } catch {
     if (token !== loadSeq) return
     comments.value = []
+  }
+}
+
+async function toggleFollow() {
+  const pid = full.value?.author.pageId || authorProfile.value?.pageId
+  if (!pid || mine.value) return
+  followBusy.value = true
+  try {
+    if (followingAuthor.value) {
+      await api.unfollowUser(pid)
+      followingAuthor.value = false
+      if (authorProfile.value?.stats) {
+        authorProfile.value.stats.followerCount = Math.max(0, (authorProfile.value.stats.followerCount ?? 0) - 1)
+      }
+      session.bumpFollowing(-1)
+    } else {
+      await api.followUser(pid)
+      followingAuthor.value = true
+      if (authorProfile.value?.stats) {
+        authorProfile.value.stats.followerCount = (authorProfile.value.stats.followerCount ?? 0) + 1
+      }
+      session.bumpFollowing(1)
+    }
+  } catch (e) {
+    if (!needLogin(e)) flash(e instanceof Error ? e.message : '操作失败')
+  } finally {
+    followBusy.value = false
   }
 }
 
@@ -929,7 +961,16 @@ watch(moreOpen, async (on) => {
                       class="shrink-0 text-[#ff2442]"
                     />
                   </button>
-                  <button v-if="!mine" type="button" class="follow-btn" @click.stop="flash('关注尚未接入')">关注</button>
+                  <button
+                    v-if="!mine"
+                    type="button"
+                    class="follow-btn"
+                    :class="{ 'is-on': followingAuthor }"
+                    :disabled="followBusy"
+                    @click.stop="toggleFollow"
+                  >
+                    {{ followBusy ? '…' : followingAuthor ? '已关注' : '关注' }}
+                  </button>
                 </div>
                 <p class="mt-2.5 line-clamp-2 text-[13px] leading-5 text-[#555]">{{ authorBio }}</p>
                 <div class="mt-2.5 grid grid-cols-3 gap-2 text-center">
@@ -952,9 +993,11 @@ watch(moreOpen, async (on) => {
               v-if="!mine"
               type="button"
               class="follow-btn"
-              @click="flash('关注尚未接入')"
+              :class="{ 'is-on': followingAuthor }"
+              :disabled="followBusy"
+              @click="toggleFollow"
             >
-              关注
+              {{ followBusy ? '…' : followingAuthor ? '已关注' : '关注' }}
             </button>
             <button type="button" class="close-x" aria-label="关闭" @click="requestClose">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">

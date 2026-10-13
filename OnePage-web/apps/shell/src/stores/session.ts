@@ -21,6 +21,11 @@ export const useSession = defineStore('session', () => {
     }
   }
 
+  function bumpFollowing(delta: number) {
+    if (!me.value) return
+    me.value.stats.followingCount = Math.max(0, (me.value.stats.followingCount ?? 0) + delta)
+  }
+
   async function logout() {
     try {
       await api.logout()
@@ -30,5 +35,5 @@ export const useSession = defineStore('session', () => {
     me.value = null
   }
 
-  return { me, loaded, refresh, logout }
+  return { me, loaded, refresh, logout, bumpFollowing }
 })

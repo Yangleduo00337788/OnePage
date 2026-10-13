@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed（following=explore）、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** 获赞/被收藏列表、关注（P2）、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** 获赞/被收藏列表、通知、分享到私信、AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -35,6 +35,7 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 | pageId | string | 一页号 |
 | nickname | string | |
 | avatarUrl | string | 可空，CDN 或网关签名 URL |
+| followedByMe | boolean | 关注/粉丝列表有；资料接口也有。未登录为 false |
 
 ### PostBrief
 
@@ -165,7 +166,7 @@ Query：`cursor`, `limit` → `CursorPage<PostBrief>`。必须登录。按收藏
 
 ### GET `/api/v1/users/{pageId}/following` | `/followers`
 
-Query：`cursor`, `limit` → `CursorPage<UserBrief>`
+Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录时 `UserBrief.followedByMe` 表示当前用户是否已关注这一行。按关注时间倒序。
 
 ### GET `/api/v1/users/me/likes-received` | `/favorites-received`
 
@@ -173,11 +174,11 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`
 
 ### POST `/api/v1/users/{pageId}/follow`
 
-**Response 201** / 已关注 **200**
+必须登录。不能关注自己。新建 **201** `{ followed: true }`；已关注 **200** 同 body。计数写入 `user_stat`。新关注通知尚未做。
 
 ### DELETE `/api/v1/users/{pageId}/follow`
 
-取消关注 **204**
+取消关注 **204**（未关注也 204）。
 
 ---
 
@@ -235,7 +236,7 @@ Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存
 
 ### GET `/api/v1/feeds/following` | `/feeds/explore`
 
-Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。P1 **following 与 explore 同一数据**（尚无关注图）。GET 公开；已登录时带 `likedByMe` 等字段（详情接口）。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部；分类 Tab 只出对应 `post.category`。
+Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。GET 公开。关注流只出已关注作者的公开帖；未登录或未关注任何人为空页。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部；分类 Tab 只出对应 `post.category`。
 
 ### DELETE `/api/v1/posts/{postId}`
 

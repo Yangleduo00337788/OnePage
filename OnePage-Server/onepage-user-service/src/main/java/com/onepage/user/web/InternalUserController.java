@@ -3,6 +3,8 @@ package com.onepage.user.web;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +37,12 @@ public class InternalUserController {
   public UserSummary summary(HttpServletRequest request, @PathVariable("userId") Long userId) {
     tokenFilter.assertInternal(request);
     return userService.summary(userId);
+  }
+
+  @GetMapping("/users/{userId}/followee-ids")
+  public List<Long> followeeIds(HttpServletRequest request, @PathVariable("userId") long userId) {
+    tokenFilter.assertInternal(request);
+    return userService.listFolloweeIds(userId);
   }
 
   public record CreateProfileRequest(Long userId, String nickname) {}

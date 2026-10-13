@@ -12,6 +12,7 @@ public record UserProfileView(
     String coverUrl,
     String bio,
     int gender,
+    boolean followedByMe,
     Stats stats
 ) {
   public record Stats(

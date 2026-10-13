@@ -1,13 +1,15 @@
 package com.onepage.content.web;
 
+import com.onepage.common.web.CurrentUser;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.service.FeedService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** following 与 explore 在 P1 同一数据：还没有关注图。 */
+/** 发现流公开；关注流公开但未登录时为空。 */
 @RestController
 @RequestMapping("/api/v1/feeds")
 public class FeedController {
@@ -27,8 +29,9 @@ public class FeedController {
 
   @GetMapping("/following")
   public FeedDtos.CursorPage following(
+      HttpServletRequest request,
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit) {
-    return feedService.page(cursor, limit, null);
+    return feedService.pageFollowing(CurrentUser.tryUserId(request), cursor, limit);
   }
 }
