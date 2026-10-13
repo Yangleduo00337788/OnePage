@@ -153,101 +153,103 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   </section>
 
   <section v-else class="-mx-8 -mt-1 pb-16">
-    <div class="relative h-[240px] w-full overflow-hidden bg-[#fafafa]">
-      <img v-if="profile.coverUrl" :src="profile.coverUrl" alt="" class="h-full w-full object-cover" />
-      <div v-else class="relative h-full w-full overflow-hidden bg-[#fafafa]">
-        <span class="pointer-events-none absolute -top-10 -left-8 h-48 w-48 rounded-full bg-[#ff2442]/[0.07]" />
-        <span class="pointer-events-none absolute right-[-24px] bottom-[-28px] h-44 w-44 rounded-full bg-[#ff2442]/[0.05]" />
+    <div class="profile-hero">
+      <div class="profile-hero-bg">
+        <img v-if="profile.coverUrl" :src="profile.coverUrl" alt="" />
+        <div v-else class="relative h-full w-full overflow-hidden bg-[#fafafa]">
+          <span class="pointer-events-none absolute -top-10 -left-8 h-48 w-48 rounded-full bg-[#ff2442]/[0.07]" />
+          <span class="pointer-events-none absolute right-[-24px] bottom-[-28px] h-44 w-44 rounded-full bg-[#ff2442]/[0.05]" />
+        </div>
       </div>
-    </div>
-
-    <div class="relative px-8">
-      <div class="absolute top-10 right-8 z-10 flex items-center gap-2">
-        <button
-          v-if="!mine"
-          type="button"
-          class="follow-btn"
-          :class="{ 'is-on': profile.followedByMe }"
-          :disabled="followBusy"
-          @click="toggleFollow"
-        >
-          {{ followBusy ? '…' : profile.followedByMe ? '已关注' : '关注' }}
-        </button>
-        <button type="button" class="user-round" aria-label="发消息" @click="goMessage">
-          <Icon name="message-circle" :size="18" />
-        </button>
-        <div ref="moreWrap" class="relative">
+      <div class="profile-hero-shade" />
+      <div class="profile-hero-body">
+        <div class="absolute top-6 right-8 z-10 flex items-center gap-2">
           <button
+            v-if="!mine"
             type="button"
-            class="user-round"
-            aria-label="更多"
-            @click.stop="moreOpen = !moreOpen"
+            class="follow-btn"
+            :class="{ 'is-on': profile.followedByMe }"
+            :disabled="followBusy"
+            @click="toggleFollow"
           >
-            <Icon name="ellipsis" :size="18" />
+            {{ followBusy ? '…' : profile.followedByMe ? '已关注' : '关注' }}
           </button>
-          <div
-            v-if="moreOpen"
-            class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-white py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[#eee]"
-          >
+          <button type="button" class="user-round" aria-label="发消息" @click="goMessage">
+            <Icon name="message-circle" :size="18" />
+          </button>
+          <div ref="moreWrap" class="relative">
             <button
               type="button"
-              class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f7]"
-              @click="report"
+              class="user-round"
+              aria-label="更多"
+              @click.stop="moreOpen = !moreOpen"
             >
-              举报
+              <Icon name="ellipsis" :size="18" />
             </button>
+            <div
+              v-if="moreOpen"
+              class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-white py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[#eee]"
+            >
+              <button
+                type="button"
+                class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f7]"
+                @click="report"
+              >
+                举报
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="flex justify-center">
-        <div class="relative -mt-12 h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white">
-          <img v-if="profile.avatarUrl" :src="profile.avatarUrl" class="h-full w-full object-cover" alt="" />
-          <span v-else class="flex h-full items-center justify-center text-[28px] text-[#c4c4c4]">
-            {{ (profile.nickname || '一').slice(0, 1) }}
-          </span>
+        <div class="flex justify-center">
+          <div class="relative h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white">
+            <img v-if="profile.avatarUrl" :src="profile.avatarUrl" class="h-full w-full object-cover" alt="" />
+            <span v-else class="flex h-full items-center justify-center text-[28px] text-[#c4c4c4]">
+              {{ (profile.nickname || '一').slice(0, 1) }}
+            </span>
+          </div>
         </div>
-      </div>
 
-      <div class="mx-auto mt-4 max-w-[560px] text-center">
-        <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
-          <span class="truncate">{{ profile.nickname }}</span>
-          <Icon
-            v-if="profile.gender === 1"
-            name="mars"
-            :size="16"
-            :stroke="2"
-            class="shrink-0 text-[#4a90d9]"
-          />
-          <Icon
-            v-else-if="profile.gender === 2"
-            name="venus"
-            :size="16"
-            :stroke="2"
-            class="shrink-0 text-[#ff2442]"
-          />
-        </h1>
-        <p class="mt-1 text-[13px] text-[#8a8a8a]">一页号：{{ profile.pageId }}</p>
-        <p class="mt-3 text-[14px] leading-6 text-[#555]">
-          签名：{{ profile.bio?.trim() ? profile.bio : '暂无' }}
-        </p>
-        <p class="mt-4 text-[14px] text-[#8a8a8a]">
-          <button type="button" class="stat-link" @click="relation = 'following'">
-            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ profile.stats.followingCount }}</span>
-            关注
-          </button>
-          <span class="mx-3 text-[#eee]">|</span>
-          <button type="button" class="stat-link" @click="relation = 'followers'">
-            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ profile.stats.followerCount }}</span>
-            粉丝
-          </button>
-          <span class="mx-3 text-[#eee]">|</span>
-          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ likes }}</span>
-          获赞与收藏
-        </p>
+        <div class="mx-auto mt-4 max-w-[560px] text-center text-white">
+          <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
+            <span class="truncate">{{ profile.nickname }}</span>
+            <Icon
+              v-if="profile.gender === 1"
+              name="mars"
+              :size="16"
+              :stroke="2"
+              class="shrink-0 text-[#4a90d9]"
+            />
+            <Icon
+              v-else-if="profile.gender === 2"
+              name="venus"
+              :size="16"
+              :stroke="2"
+              class="shrink-0 text-[#ff2442]"
+            />
+          </h1>
+          <p class="mt-1 text-[13px] text-white/80">一页号：{{ profile.pageId }}</p>
+          <p class="mt-3 text-[14px] leading-6 text-white/85">
+            签名：{{ profile.bio?.trim() ? profile.bio : '暂无' }}
+          </p>
+          <p class="mt-4 text-[14px] text-white/80">
+            <button type="button" class="stat-link" @click="relation = 'following'">
+              <span class="font-semibold tabular-nums text-white">{{ profile.stats.followingCount }}</span>
+              关注
+            </button>
+            <span class="mx-3 text-white/30">|</span>
+            <button type="button" class="stat-link" @click="relation = 'followers'">
+              <span class="font-semibold tabular-nums text-white">{{ profile.stats.followerCount }}</span>
+              粉丝
+            </button>
+            <span class="mx-3 text-white/30">|</span>
+            <span class="font-semibold tabular-nums text-white">{{ likes }}</span>
+            获赞与收藏
+          </p>
+        </div>
       </div>
     </div>
 
-    <div class="mt-8 border-t border-[#ececec]">
+    <div class="border-t border-[#ececec]">
       <div class="flex items-center justify-center gap-2 pt-5">
         <button type="button" class="me-tab is-on">笔记</button>
       </div>

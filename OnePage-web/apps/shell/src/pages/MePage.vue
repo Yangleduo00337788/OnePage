@@ -99,6 +99,13 @@ onMounted(async () => {
   }
 })
 
+function onCoverClick(event: MouseEvent) {
+  const t = event.target
+  if (!(t instanceof Element)) return
+  if (t.closest('button, a, input, textarea, label')) return
+  coverInput.value?.click()
+}
+
 function openEdit() {
   if (!session.me) return
   nickname.value = session.me.nickname
@@ -213,128 +220,113 @@ async function logout() {
       @change="onFile($event, 'avatar')"
     />
 
-    <div class="relative">
-      <button
-        type="button"
-        class="group relative block h-[240px] w-full overflow-hidden bg-[#fafafa]"
-        :disabled="uploading === 'cover'"
-        @click="coverInput?.click()"
-      >
-        <img
-          v-if="session.me.coverUrl"
-          :src="session.me.coverUrl"
-          alt=""
-          class="h-full w-full object-cover"
-        />
+    <div class="profile-hero cursor-pointer" @click="onCoverClick">
+      <div class="profile-hero-bg">
+        <img v-if="session.me.coverUrl" :src="session.me.coverUrl" alt="" />
         <div v-else class="relative h-full w-full overflow-hidden bg-[#fafafa]">
           <span class="pointer-events-none absolute -top-10 -left-8 h-48 w-48 rounded-full bg-[#ff2442]/[0.07]" />
           <span class="pointer-events-none absolute right-[-24px] bottom-[-28px] h-44 w-44 rounded-full bg-[#ff2442]/[0.05]" />
-          <span class="flex h-full flex-col items-center justify-center text-[#c4c4c4]">
-            <Icon name="camera" :size="28" :stroke="1.6" />
-            <span class="mt-2 text-[13px]">点击添加封面</span>
-          </span>
         </div>
-        <span
-          class="absolute inset-0 flex items-center justify-center bg-black/0 text-[13px] text-white opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100"
-        >
-          {{ uploading === 'cover' ? '封面上传中…' : '更换封面' }}
-        </span>
-      </button>
-    </div>
-
-    <div class="relative px-8">
-      <div class="absolute top-10 right-8 z-10 flex items-center gap-2">
-        <button type="button" class="me-action" @click="openEdit">
-          <Icon name="pencil" :size="14" :stroke="1.8" />
-          编辑
-        </button>
-        <button type="button" class="me-action text-[#8a8a8a]" @click="logout">退出登录</button>
       </div>
-      <div class="flex justify-center">
-        <div class="relative -mt-12">
-          <button
-            type="button"
-            class="group h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white"
-            :disabled="uploading === 'avatar'"
-            @click="avatarInput?.click()"
-          >
-            <img
-              v-if="session.me.avatarUrl"
-              :src="session.me.avatarUrl"
-              class="h-full w-full object-cover"
-              alt=""
-            />
-            <span v-else class="flex h-full items-center justify-center text-[#c4c4c4]">
-              <Icon name="smile" :size="36" :stroke="1.5" />
-            </span>
-            <span
-              class="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] text-white opacity-0 transition group-hover:opacity-100"
+      <div class="profile-hero-shade" />
+      <span class="profile-hero-hint">
+        <Icon name="camera" :size="14" :stroke="1.8" />
+        {{ uploading === 'cover' ? '封面上传中…' : session.me.coverUrl ? '更换封面' : '点击添加封面' }}
+      </span>
+      <div class="profile-hero-body">
+        <div class="absolute top-6 right-8 z-10 flex items-center gap-2">
+          <button type="button" class="me-action" @click="openEdit">
+            <Icon name="pencil" :size="14" :stroke="1.8" />
+            编辑
+          </button>
+          <button type="button" class="me-action" @click="logout">退出登录</button>
+        </div>
+        <div class="flex justify-center">
+          <div class="relative">
+            <button
+              type="button"
+              class="group h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white"
+              :disabled="uploading === 'avatar'"
+              @click="avatarInput?.click()"
             >
-              {{ uploading === 'avatar' ? '上传中' : '换头像' }}
-            </span>
-          </button>
+              <img
+                v-if="session.me.avatarUrl"
+                :src="session.me.avatarUrl"
+                class="h-full w-full object-cover"
+                alt=""
+              />
+              <span v-else class="flex h-full items-center justify-center text-[#c4c4c4]">
+                <Icon name="smile" :size="36" :stroke="1.5" />
+              </span>
+              <span
+                class="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] text-white opacity-0 transition group-hover:opacity-100"
+              >
+                {{ uploading === 'avatar' ? '上传中' : '换头像' }}
+              </span>
+            </button>
+            <button
+              type="button"
+              class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1f] shadow-sm ring-1 ring-[#eee]"
+              :disabled="uploading === 'avatar'"
+              aria-label="更换头像"
+              @click="avatarInput?.click()"
+            >
+              <Icon name="camera" :size="14" :stroke="1.8" />
+            </button>
+          </div>
+        </div>
+
+        <div class="mx-auto mt-4 max-w-[560px] text-center text-white">
+          <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
+            <span class="truncate">{{ session.me.nickname }}</span>
+            <Icon
+              v-if="session.me.gender === 1"
+              name="mars"
+              :size="16"
+              :stroke="2"
+              class="shrink-0 text-[#4a90d9]"
+            />
+            <Icon
+              v-else-if="session.me.gender === 2"
+              name="venus"
+              :size="16"
+              :stroke="2"
+              class="shrink-0 text-[#ff2442]"
+            />
+          </h1>
           <button
             type="button"
-            class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1f] shadow-sm ring-1 ring-[#eee]"
-            :disabled="uploading === 'avatar'"
-            aria-label="更换头像"
-            @click="avatarInput?.click()"
+            class="mt-1 inline-flex items-center gap-1 text-[13px] text-white/80 hover:text-white"
+            @click="copyPageId"
           >
-            <Icon name="camera" :size="14" :stroke="1.8" />
+            一页号：{{ session.me.pageId }}
+            <Icon name="copy" :size="13" :stroke="1.8" />
+            <span v-if="copied" class="text-[#ff2442]">已复制</span>
           </button>
+          <p class="mt-3 text-[14px] leading-6 text-white/85">
+            签名：{{ session.me.bio?.trim() ? session.me.bio : '暂无' }}
+          </p>
+          <p class="mt-4 text-[14px] text-white/80">
+            <button type="button" class="stat-link" @click="relation = 'following'">
+              <span class="font-semibold tabular-nums text-white">{{ session.me.stats.followingCount }}</span>
+              关注
+            </button>
+            <span class="mx-3 text-white/30">|</span>
+            <button type="button" class="stat-link" @click="relation = 'followers'">
+              <span class="font-semibold tabular-nums text-white">{{ session.me.stats.followerCount }}</span>
+              粉丝
+            </button>
+            <span class="mx-3 text-white/30">|</span>
+            <span class="font-semibold tabular-nums text-white">{{
+              (session.me.stats.likeReceivedCount ?? 0) + (session.me.stats.favoriteReceivedCount ?? 0)
+            }}</span>
+            获赞与收藏
+          </p>
         </div>
-      </div>
-
-      <div class="mx-auto mt-4 max-w-[560px] text-center">
-        <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
-          <span class="truncate">{{ session.me.nickname }}</span>
-          <Icon
-            v-if="session.me.gender === 1"
-            name="mars"
-            :size="16"
-            :stroke="2"
-            class="shrink-0 text-[#4a90d9]"
-          />
-          <Icon
-            v-else-if="session.me.gender === 2"
-            name="venus"
-            :size="16"
-            :stroke="2"
-            class="shrink-0 text-[#ff2442]"
-          />
-        </h1>
-        <button
-          type="button"
-          class="mt-1 inline-flex items-center gap-1 text-[13px] text-[#8a8a8a] hover:text-[#1f1f1f]"
-          @click="copyPageId"
-        >
-          一页号：{{ session.me.pageId }}
-          <Icon name="copy" :size="13" :stroke="1.8" />
-          <span v-if="copied" class="text-[#ff2442]">已复制</span>
-        </button>
-        <p class="mt-3 text-[14px] leading-6 text-[#555]">
-          签名：{{ session.me.bio?.trim() ? session.me.bio : '暂无' }}
-        </p>
-        <p class="mt-4 text-[14px] text-[#8a8a8a]">
-          <button type="button" class="stat-link" @click="relation = 'following'">
-            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followingCount }}</span>
-            关注
-          </button>
-          <span class="mx-3 text-[#eee]">|</span>
-          <button type="button" class="stat-link" @click="relation = 'followers'">
-            <span class="font-semibold tabular-nums text-[#1f1f1f]">{{ session.me.stats.followerCount }}</span>
-            粉丝
-          </button>
-          <span class="mx-3 text-[#eee]">|</span>
-          <span class="font-semibold tabular-nums text-[#1f1f1f]">{{
-            (session.me.stats.likeReceivedCount ?? 0) + (session.me.stats.favoriteReceivedCount ?? 0)
-          }}</span>
-          获赞与收藏
-        </p>
       </div>
     </div>
 
-    <div class="mt-8 border-t border-[#ececec]">
+    <div class="border-t border-[#ececec]">
       <div class="flex items-center justify-center gap-2 pt-5">
         <button
           v-for="item in ME_TABS"
