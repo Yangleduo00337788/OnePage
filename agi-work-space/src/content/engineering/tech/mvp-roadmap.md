@@ -85,7 +85,7 @@ PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 M
 | P4 | 能开播、能看直播 |
 | P5 | 能举报、能基本运维 |
 
-**当前**：P1 后端已能发帖、刷发现流、赞藏评（社交表暂合 `onepage_content`）。社区壳瀑布流与详情已接 `api-client`，演示 mock 已删。尚未实现：本人赞藏历史列表、关注图、AI、通知/私信/搜索/直播服务（前端对应空态）。社区「我的」/他人主页笔记 Tab 已接 `GET /users/{pageId}/posts`。创作者本人笔记列表已用 `GET /posts/mine`。Outbox 只落库，不接 RocketMQ。本地 IDEA 四进程；yml 只引用环境变量；`OnePage-Server/.env` 由 IDEA 注入。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、分类列需 `003_category.sql`、设置列需 `004_post_settings.sql`。
+**当前**：P1 后端已能发帖、刷发现流、赞藏评（社交表暂合 `onepage_content`）。社区壳瀑布流与详情已接 `api-client`，演示 mock 已删。社区「我的」/他人主页笔记 Tab 已接 `GET /users/{pageId}/posts`；「我的」收藏/点赞/历史已接 `GET /users/me/favorites` `/likes` `/history`。创作者本人笔记列表已用 `GET /posts/mine`。尚未实现：获赞/被收藏列表、关注图、AI、通知/私信/搜索/直播服务（前端对应空态）。Outbox 只落库，不接 RocketMQ。本地 IDEA 四进程；yml 只引用环境变量；`OnePage-Server/.env` 由 IDEA 注入。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、分类列需 `003_category.sql`、设置列需 `004_post_settings.sql`。
 
 ## 往下翻
 

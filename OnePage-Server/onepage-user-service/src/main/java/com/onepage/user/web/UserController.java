@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 对浏览器的资料接口。{@code /me} 一律 {@link CurrentUser#requireUserId}，不要自己读 Session。
  * {@code GET /{pageId}} 与 {@code GET /{pageId}/posts} 公开；已登录时带 {@code X-User-Id} 才能看到自己的仅自己可见笔记。
+ * {@code GET /me/favorites} {@code /likes} {@code /history} 仅本人。
  * {@code PATCH /me}：局部更新，body 里没传的字段保持原值。
  */
 @RestController
@@ -56,6 +57,30 @@ public class UserController {
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit) {
     return userService.postsByPageId(pageId, CurrentUser.tryUserId(request), cursor, limit);
+  }
+
+  @GetMapping("/me/favorites")
+  public PostCursorPage favorites(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return userService.myFavorites(CurrentUser.requireUserId(request), cursor, limit);
+  }
+
+  @GetMapping("/me/likes")
+  public PostCursorPage likes(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return userService.myLikes(CurrentUser.requireUserId(request), cursor, limit);
+  }
+
+  @GetMapping("/me/history")
+  public PostCursorPage history(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return userService.myHistory(CurrentUser.requireUserId(request), cursor, limit);
   }
 
   public record PatchMeRequest(

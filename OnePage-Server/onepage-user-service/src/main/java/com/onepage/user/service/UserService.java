@@ -88,6 +88,18 @@ public class UserService {
     return contentClient.listAuthorPosts(internalToken, profile.getUserId(), cursor, limit, viewerId);
   }
 
+  public PostCursorPage myFavorites(long userId, String cursor, Integer limit) {
+    return contentClient.listFavorites(internalToken, userId, cursor, limit);
+  }
+
+  public PostCursorPage myLikes(long userId, String cursor, Integer limit) {
+    return contentClient.listLikes(internalToken, userId, cursor, limit);
+  }
+
+  public PostCursorPage myHistory(long userId, String cursor, Integer limit) {
+    return contentClient.listHistory(internalToken, userId, cursor, limit);
+  }
+
   public UserProfileView updateMe(Long userId, String nickname, String bio, Integer gender,
                                   String avatarMediaId, String coverMediaId) {
     UserProfile profile = requireProfileByUserId(userId);

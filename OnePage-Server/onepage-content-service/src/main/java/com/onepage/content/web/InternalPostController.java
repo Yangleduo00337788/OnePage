@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 给 user-service 拉某作者主页笔记。公网走 `/api/v1/users/{pageId}/posts`。 */
+/** 给 user-service 拉某作者主页笔记、本人赞藏浏览。公网走 `/api/v1/users/...`。 */
 @RestController
 @RequestMapping("/internal")
 public class InternalPostController {
@@ -33,10 +33,44 @@ public class InternalPostController {
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit,
       @RequestParam(value = "viewerId", required = false) Long viewerId) {
+    assertInternal(request);
+    return postService.listByAuthor(authorId, viewerId, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/favorites")
+  public FeedDtos.CursorPage favorites(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.listFavorites(userId, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/likes")
+  public FeedDtos.CursorPage likes(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.listLikes(userId, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/history")
+  public FeedDtos.CursorPage history(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.listHistory(userId, cursor, limit);
+  }
+
+  private void assertInternal(HttpServletRequest request) {
     String token = request.getHeader(GatewayHeaders.INTERNAL_TOKEN);
     if (token == null || !token.equals(expectedToken)) {
       throw BusinessException.unauthorized("内部调用未授权");
     }
-    return postService.listByAuthor(authorId, viewerId, cursor, limit);
   }
 }

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.content.dto.FeedDtos;
+import com.onepage.content.dto.InteractionHit;
 import com.onepage.content.entity.MediaAsset;
 import com.onepage.content.entity.OutboxEvent;
 import com.onepage.content.entity.Post;
@@ -266,6 +267,21 @@ public class PostService {
     return listByAuthor(userId, userId, cursor, limit);
   }
 
+  /** 本人收藏，按收藏时间倒序。已删或他人仅自己可见的帖不出现。 */
+  public FeedDtos.CursorPage listFavorites(long userId, String cursor, Integer limit) {
+    return listByInteraction(userId, cursor, limit, InteractionKind.FAVORITE);
+  }
+
+  /** 本人点赞，按点赞时间倒序。 */
+  public FeedDtos.CursorPage listLikes(long userId, String cursor, Integer limit) {
+    return listByInteraction(userId, cursor, limit, InteractionKind.LIKE);
+  }
+
+  /** 本人浏览，按最近浏览时间倒序。 */
+  public FeedDtos.CursorPage listHistory(long userId, String cursor, Integer limit) {
+    return listByInteraction(userId, cursor, limit, InteractionKind.HISTORY);
+  }
+
   public FeedDtos.CursorPage listByAuthor(long authorId, Long viewerId, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     boolean self = viewerId != null && viewerId == authorId;
@@ -371,25 +387,73 @@ public class PostService {
         iso(post.getPublishedAt()));
   }
 
+  private enum InteractionKind {
+    FAVORITE,
+    LIKE,
+    HISTORY
+  }
+
+  private FeedDtos.CursorPage listByInteraction(
+      long userId, String cursor, Integer limit, InteractionKind kind) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    LocalDateTime cursorAt = null;
+    Long cursorPostId = null;
+    if (StringUtils.hasText(cursor)) {
+      long[] parsed = parseCursor(cursor);
+      cursorAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(parsed[0]), ZoneId.systemDefault());
+      cursorPostId = parsed[1];
+    }
+    List<InteractionHit> hits = switch (kind) {
+      case FAVORITE -> favoriteMapper.pageByUser(userId, cursorAt, cursorPostId, size + 1);
+      case LIKE -> likeMapper.pageByUser(userId, cursorAt, cursorPostId, size + 1);
+      case HISTORY -> postViewMapper.pageByUser(userId, cursorAt, cursorPostId, size + 1);
+    };
+    boolean hasMore = hits.size() > size;
+    if (hasMore) {
+      hits = hits.subList(0, size);
+    }
+    List<FeedDtos.PostBrief> items = new ArrayList<>();
+    for (InteractionHit hit : hits) {
+      if (hit.getPostId() == null) {
+        continue;
+      }
+      Post post = postMapper.selectById(hit.getPostId());
+      if (post == null) {
+        continue;
+      }
+      items.add(toBrief(post, postViewMapper.countByPostId(post.getId())));
+    }
+    String next = null;
+    if (hasMore && !hits.isEmpty()) {
+      InteractionHit last = hits.getLast();
+      if (last.getAt() != null && last.getPostId() != null) {
+        next = epochMilli(last.getAt()) + "_" + last.getPostId();
+      }
+    }
+    return new FeedDtos.CursorPage(items, next, hasMore);
+  }
+
   private void applyCursor(LambdaQueryWrapper<Post> query, String cursor) {
     if (!StringUtils.hasText(cursor)) {
       return;
     }
+    long[] parsed = parseCursor(cursor);
+    LocalDateTime at = LocalDateTime.ofInstant(Instant.ofEpochMilli(parsed[0]), ZoneId.systemDefault());
+    long id = parsed[1];
+    query.and(w -> w.lt(Post::getPublishedAt, at)
+        .or(inner -> inner.eq(Post::getPublishedAt, at).lt(Post::getId, id)));
+  }
+
+  private static long[] parseCursor(String cursor) {
     String[] parts = cursor.split("_", 2);
     if (parts.length != 2) {
       throw BusinessException.validation("cursor 不合法");
     }
-    long millis;
-    long id;
     try {
-      millis = Long.parseLong(parts[0]);
-      id = Long.parseLong(parts[1]);
+      return new long[] {Long.parseLong(parts[0]), Long.parseLong(parts[1])};
     } catch (NumberFormatException ex) {
       throw BusinessException.validation("cursor 不合法");
     }
-    LocalDateTime at = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
-    query.and(w -> w.lt(Post::getPublishedAt, at)
-        .or(inner -> inner.eq(Post::getPublishedAt, at).lt(Post::getId, id)));
   }
 
   private static boolean originalOf(Post post) {

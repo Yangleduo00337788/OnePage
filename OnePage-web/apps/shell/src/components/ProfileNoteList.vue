@@ -1,15 +1,22 @@
-<!-- 主页笔记 Tab：GET /users/{pageId}/posts，卡片同首页瀑布流。 -->
+<!-- 主页笔记 / 「我的」收藏点赞历史：卡片同首页瀑布流。 -->
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { api, ApiError } from '@onepage/api-client'
+import { api, ApiError, type CursorPage, type PostBrief } from '@onepage/api-client'
 import { noteFromPost, type NoteCard } from '../data/home'
 import NoteFeedCard from './NoteFeedCard.vue'
 
-const props = defineProps<{
-  pageId: string
-  emptyTitle: string
-  emptyDesc: string
-}>()
+export type ProfileNoteSource = 'user-posts' | 'favorites' | 'likes' | 'history'
+
+const props = withDefaults(
+  defineProps<{
+    source?: ProfileNoteSource
+    pageId?: string
+    emptyTitle: string
+    emptyDesc: string
+    emptyPrimary?: boolean
+  }>(),
+  { source: 'user-posts', emptyPrimary: true },
+)
 
 const emit = defineEmits<{ emptyAction: [] }>()
 
@@ -23,8 +30,18 @@ const sentinel = ref<HTMLElement | null>(null)
 let io: IntersectionObserver | null = null
 let seq = 0
 
+function fetchPage(nextCursor?: string) {
+  if (props.source === 'favorites') return api.myFavorites(nextCursor, 20)
+  if (props.source === 'likes') return api.myLikes(nextCursor, 20)
+  if (props.source === 'history') return api.myHistory(nextCursor, 20)
+  if (!props.pageId) {
+    return Promise.resolve({ items: [], nextCursor: null, hasMore: false } as CursorPage<PostBrief>)
+  }
+  return api.userPosts(props.pageId, nextCursor, 20)
+}
+
 async function refresh() {
-  if (!props.pageId) return
+  if (props.source === 'user-posts' && !props.pageId) return
   const token = ++seq
   loading.value = true
   loadingMore.value = false
@@ -32,7 +49,7 @@ async function refresh() {
   cursor.value = null
   hasMore.value = true
   try {
-    const page = await api.userPosts(props.pageId, undefined, 20)
+    const page = await fetchPage(undefined)
     if (token !== seq) return
     notes.value = page.items.map(noteFromPost)
     cursor.value = page.nextCursor
@@ -47,11 +64,12 @@ async function refresh() {
 }
 
 async function loadMore() {
-  if (loading.value || loadingMore.value || !hasMore.value || !props.pageId) return
+  if (loading.value || loadingMore.value || !hasMore.value) return
+  if (props.source === 'user-posts' && !props.pageId) return
   const token = seq
   loadingMore.value = true
   try {
-    const page = await api.userPosts(props.pageId, cursor.value || undefined, 20)
+    const page = await fetchPage(cursor.value || undefined)
     if (token !== seq) return
     notes.value = notes.value.concat(page.items.map(noteFromPost))
     cursor.value = page.nextCursor
@@ -64,7 +82,7 @@ async function loadMore() {
 }
 
 watch(
-  () => props.pageId,
+  () => [props.pageId, props.source] as const,
   () => {
     void refresh()
   },
@@ -102,7 +120,13 @@ onUnmounted(() => {
       </span>
       <p class="mt-4 text-[16px] font-medium text-[#1f1f1f]">{{ emptyTitle }}</p>
       <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">{{ emptyDesc }}</p>
-      <button v-if="$slots.action" type="button" class="me-empty-go is-primary" @click="emit('emptyAction')">
+      <button
+        v-if="$slots.action"
+        type="button"
+        class="me-empty-go"
+        :class="{ 'is-primary': emptyPrimary }"
+        @click="emit('emptyAction')"
+      >
         <slot name="action" />
       </button>
     </div>

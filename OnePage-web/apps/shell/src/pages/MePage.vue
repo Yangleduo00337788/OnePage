@@ -1,10 +1,11 @@
 <!--
-  「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。笔记 Tab 走 GET /users/{pageId}/posts；收藏/点赞/历史仍空态。
+  「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。
+  笔记 Tab GET /users/{pageId}/posts；收藏/点赞/历史走 /users/me/favorites|likes|history。
   未登录会被拉去首页并打开登录弹窗，redirect 仍是 /me。
 -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { openCreatorSite } from '../creatorSite'
 import { api, ApiError } from '@onepage/api-client'
 import { useSession } from '../stores/session'
@@ -70,6 +71,14 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const coverInput = ref<HTMLInputElement | null>(null)
 const listTab = ref<(typeof ME_TABS)[number]>('笔记')
 const tabDir = ref<'next' | 'prev'>('next')
+
+function onTabEmpty() {
+  if (listTab.value === '笔记') {
+    openCreatorSite()
+    return
+  }
+  void router.push(TAB_EMPTY[listTab.value].to)
+}
 
 function selectTab(item: (typeof ME_TABS)[number]) {
   const from = ME_TABS.indexOf(listTab.value)
@@ -334,30 +343,19 @@ async function logout() {
       <div class="relative overflow-hidden px-8">
         <Transition :name="tabDir === 'next' ? 'me-pane-next' : 'me-pane-prev'" mode="out-in">
           <ProfileNoteList
-            v-if="listTab === '笔记'"
-            key="笔记"
+            :key="listTab"
+            :source="listTab === '笔记' ? 'user-posts' : listTab === '收藏' ? 'favorites' : listTab === '点赞' ? 'likes' : 'history'"
             :page-id="session.me.pageId"
-            :empty-title="TAB_EMPTY.笔记.title"
-            :empty-desc="TAB_EMPTY.笔记.desc"
-            @empty-action="openCreatorSite"
+            :empty-title="TAB_EMPTY[listTab].title"
+            :empty-desc="TAB_EMPTY[listTab].desc"
+            :empty-primary="listTab === '笔记'"
+            @empty-action="onTabEmpty"
           >
             <template #icon>
-              <Icon name="sticky-note" :size="28" :stroke="1.6" />
-            </template>
-            <template #action>{{ TAB_EMPTY.笔记.action }}</template>
-          </ProfileNoteList>
-          <div v-else :key="listTab" class="me-empty">
-            <span class="me-empty-ico">
               <Icon :name="TAB_EMPTY[listTab].icon" :size="28" :stroke="1.6" />
-            </span>
-            <p class="mt-4 text-[16px] font-medium text-[#1f1f1f]">{{ TAB_EMPTY[listTab].title }}</p>
-            <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">
-              {{ TAB_EMPTY[listTab].desc }}
-            </p>
-            <RouterLink :to="TAB_EMPTY[listTab].to" class="me-empty-go">
-              {{ TAB_EMPTY[listTab].action }}
-            </RouterLink>
-          </div>
+            </template>
+            <template #action>{{ TAB_EMPTY[listTab].action }}</template>
+          </ProfileNoteList>
         </Transition>
       </div>
     </div>

@@ -95,6 +95,8 @@ order: 4
 
 ### browse_history
 
+P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段如下，拆库时再迁。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | BIGINT PK | |

@@ -78,6 +78,14 @@ export type UserProfile = UserSummary & {
 }
 
 /** 业务/HTTP 失败。组件 catch 后用 err.message 展示，用 err.code 分支。 */
+function cursorQuery(cursor?: string, limit?: number) {
+  const q = new URLSearchParams()
+  if (cursor) q.set('cursor', cursor)
+  if (limit) q.set('limit', String(limit))
+  const suffix = q.toString() ? `?${q}` : ''
+  return suffix
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -159,6 +167,12 @@ export const api = {
     const suffix = q.toString() ? `?${q}` : ''
     return request<CursorPage<PostBrief>>(`/api/v1/users/${encodeURIComponent(pageId)}/posts${suffix}`)
   },
+  myFavorites: (cursor?: string, limit?: number) =>
+    request<CursorPage<PostBrief>>(`/api/v1/users/me/favorites${cursorQuery(cursor, limit)}`),
+  myLikes: (cursor?: string, limit?: number) =>
+    request<CursorPage<PostBrief>>(`/api/v1/users/me/likes${cursorQuery(cursor, limit)}`),
+  myHistory: (cursor?: string, limit?: number) =>
+    request<CursorPage<PostBrief>>(`/api/v1/users/me/history${cursorQuery(cursor, limit)}`),
   patchMe: (body: { nickname?: string; bio?: string; gender?: number; avatarMediaId?: string; coverMediaId?: string }) =>
     request<UserProfile>('/api/v1/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
   presign: (mimeType: string, sizeBytes: number, purpose: string) =>
