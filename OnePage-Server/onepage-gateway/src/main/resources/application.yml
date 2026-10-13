@@ -112,6 +112,12 @@ spring:
             - Path=/api/v1/notifications,/api/v1/notifications/**
           metadata:
             sensitiveHeaders: ""
+        - id: conversations
+          uri: lb://onepage-message-service
+          predicates:
+            - Path=/api/v1/conversations,/api/v1/conversations/**
+          metadata:
+            sensitiveHeaders: ""
 
 onepage:
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS}
