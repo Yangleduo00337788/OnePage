@@ -13,6 +13,7 @@ import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
 import ImageCropDialog from '@onepage/image-crop'
 import Icon from '../components/Icon.vue'
+import SearchBox from '../components/SearchBox.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
 
@@ -221,7 +222,7 @@ async function logout() {
 </script>
 
 <template>
-  <section v-if="session.me" class="-mx-8 -mt-1 pb-16">
+  <section v-if="session.me" class="relative pb-16">
     <input
       ref="coverInput"
       type="file"
@@ -237,6 +238,15 @@ async function logout() {
       @change="onFile($event, 'avatar')"
     />
 
+    <div class="profile-hero-actions absolute top-6 right-8 z-20 flex items-center gap-2">
+      <SearchBox compact hero />
+      <button type="button" class="me-action" @click="openEdit">
+        <Icon name="pencil" :size="14" :stroke="1.8" />
+        编辑
+      </button>
+      <button type="button" class="me-action" @click="logout">退出登录</button>
+    </div>
+
     <div class="profile-hero cursor-pointer" @click="onCoverClick">
       <div class="profile-hero-bg">
         <img v-if="session.me.coverUrl" :src="session.me.coverUrl" alt="" />
@@ -251,13 +261,6 @@ async function logout() {
         {{ uploading === 'cover' ? '封面上传中…' : session.me.coverUrl ? '更换封面' : '点击添加封面' }}
       </span>
       <div class="profile-hero-body">
-        <div class="absolute top-6 right-8 z-10 flex items-center gap-2">
-          <button type="button" class="me-action" @click="openEdit">
-            <Icon name="pencil" :size="14" :stroke="1.8" />
-            编辑
-          </button>
-          <button type="button" class="me-action" @click="logout">退出登录</button>
-        </div>
         <div class="flex justify-center">
           <div class="relative">
             <button

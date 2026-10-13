@@ -79,7 +79,21 @@ function onNav(item: { creator?: boolean }) {
 }
 
 const yehShell = computed(() => route.path === '/yehyeh')
-const flushMain = computed(() => yehShell.value || route.path === '/messages')
+const hideTopBar = computed(
+  () =>
+    yehShell.value ||
+    route.path === '/messages' ||
+    route.path === '/me' ||
+    route.path.startsWith('/u/'),
+)
+const flushMain = computed(
+  () =>
+    yehShell.value ||
+    route.path === '/messages' ||
+    route.path === '/me' ||
+    route.path.startsWith('/u/'),
+)
+const searchFull = computed(() => route.path === '/' || route.path === '/search')
 </script>
 
 <template>
@@ -170,10 +184,11 @@ const flushMain = computed(() => yehShell.value || route.path === '/messages')
 
     <div class="ml-[260px] min-h-screen bg-[var(--bg)]">
       <header
-        v-if="!yehShell"
-        class="sticky top-0 z-10 flex h-[72px] items-center justify-center overflow-visible bg-[var(--bg)] px-8"
+        v-if="!hideTopBar"
+        class="sticky top-0 z-10 flex h-[72px] items-center overflow-visible bg-[var(--bg)] px-8"
+        :class="searchFull ? 'justify-center' : 'justify-end'"
       >
-        <SearchBox />
+        <SearchBox :compact="!searchFull" />
       </header>
 
       <main class="bg-[var(--bg)]" :class="flushMain ? 'p-0' : 'px-8 pb-16 pt-1'">

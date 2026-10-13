@@ -1,19 +1,38 @@
 <!--
-  顶栏搜索。展开面板只展示本机历史；直播/话题无接口时为空。
+  顶栏搜索。首页/搜索页出完整输入条；其它页先出图标，点开再输入。
+  展开面板只展示本机历史；直播/话题无接口时为空。
   提交后跳 /search?q=，历史存在 localStorage。
 -->
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from './Icon.vue'
+
+const props = defineProps<{
+  /** 非首页：只出搜索图标，点开才展开输入条 */
+  compact?: boolean
+  /** 「我的」/他人主页：与编辑、退出登录同一套白字胶囊 */
+  hero?: boolean
+}>()
+
+const shellClass = computed(() => {
+  if (props.hero && props.compact && !expanded.value) return ''
+  if (props.hero && props.compact && expanded.value) {
+    return 'absolute right-0 top-0 z-40 w-[min(560px,calc(100vw-292px))]'
+  }
+  if (props.compact && !expanded.value) return 'w-9'
+  return 'w-full max-w-[720px]'
+})
 
 const HISTORY_KEY = 'onepage.search.history'
 const router = useRouter()
 const route = useRoute()
 const open = ref(false)
+const expanded = ref(false)
 const keyword = ref('')
 const history = ref<string[]>([])
 const root = ref<HTMLElement | null>(null)
+const inputEl = ref<HTMLInputElement | null>(null)
 
 function loadHistory() {
   try {
@@ -42,7 +61,20 @@ function search(term = keyword.value) {
   keyword.value = t
   remember(t)
   open.value = false
+  expanded.value = false
   router.push({ path: '/search', query: { q: t } })
+}
+
+async function expand() {
+  expanded.value = true
+  open.value = true
+  await nextTick()
+  inputEl.value?.focus()
+}
+
+function collapse() {
+  open.value = false
+  if (props.compact) expanded.value = false
 }
 
 watch(
@@ -51,6 +83,16 @@ watch(
     if (typeof q === 'string') keyword.value = q
   },
   { immediate: true },
+)
+
+watch(
+  () => [route.path, props.compact] as const,
+  () => {
+    if (props.compact) {
+      open.value = false
+      expanded.value = false
+    }
+  },
 )
 
 function removeHistory(term: string) {
@@ -64,12 +106,13 @@ function clearHistory() {
 }
 
 function onDocPointer(e: PointerEvent) {
-  if (!open.value || !root.value) return
-  if (!root.value.contains(e.target as Node)) open.value = false
+  if (!root.value) return
+  if (root.value.contains(e.target as Node)) return
+  collapse()
 }
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') open.value = false
+  if (e.key === 'Escape') collapse()
 }
 
 onMounted(() => {
@@ -84,13 +127,30 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="relative w-full max-w-[720px]">
+  <div
+    ref="root"
+    class="relative"
+    :class="shellClass"
+    @click.stop
+  >
+    <button
+      v-if="props.compact && !expanded"
+      type="button"
+      :class="props.hero ? 'me-action' : 'search-fab'"
+      aria-label="搜索"
+      @click="expand"
+    >
+      <Icon name="search" :size="props.hero ? 14 : 18" :stroke="1.8" />
+      <span v-if="props.hero">搜索</span>
+    </button>
     <label
+      v-else
       class="flex h-11 w-full items-center rounded-full bg-[#fafafa] px-4 text-sm ring-1"
       :class="open ? 'ring-[#ddd] bg-white' : 'ring-[#eee]'"
     >
       <Icon name="search" :size="16" class="text-[#bbb]" />
       <input
+        ref="inputEl"
         v-model="keyword"
         class="ml-2 h-full w-full bg-transparent outline-none placeholder:text-[#c0c0c0]"
         placeholder="搜索你感兴趣的内容、用户或话题..."

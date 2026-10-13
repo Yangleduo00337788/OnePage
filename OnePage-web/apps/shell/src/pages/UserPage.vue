@@ -7,6 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import SearchBox from '../components/SearchBox.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
 import { formatCount } from '../data/home'
@@ -134,25 +135,63 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 </script>
 
 <template>
-  <section v-if="loading" class="flex min-h-[60vh] items-center justify-center pb-16 text-[14px] text-[#8a8a8a]">
+  <section v-if="loading" class="flex min-h-[60vh] items-center justify-center px-8 pb-16 text-[14px] text-[#8a8a8a]">
     加载中…
   </section>
 
-  <section v-else-if="failed === 'error'" class="flex min-h-[60vh] flex-col items-center justify-center pb-16 text-center">
+  <section v-else-if="failed === 'error'" class="flex min-h-[60vh] flex-col items-center justify-center px-8 pb-16 text-center">
     <p class="text-[16px] font-medium">加载失败</p>
     <button type="button" class="me-empty-go mt-6" @click="load">重试</button>
   </section>
 
   <section
     v-else-if="failed === 'missing' || !profile"
-    class="flex min-h-[60vh] flex-col items-center justify-center pb-16 text-center"
+    class="flex min-h-[60vh] flex-col items-center justify-center px-8 pb-16 text-center"
   >
     <p class="text-[16px] font-medium">没有这个人</p>
     <p class="mt-2 text-[13px] text-[#8a8a8a]">一页号 {{ pageId }} 不存在</p>
     <RouterLink to="/" class="me-empty-go mt-6">回首页</RouterLink>
   </section>
 
-  <section v-else class="-mx-8 -mt-1 pb-16">
+  <section v-else class="relative pb-16">
+    <div class="profile-hero-actions absolute top-6 right-8 z-20 flex items-center gap-2">
+      <SearchBox compact hero />
+      <button
+        v-if="!mine"
+        type="button"
+        class="follow-btn"
+        :class="{ 'is-on': profile.followedByMe }"
+        :disabled="followBusy"
+        @click="toggleFollow"
+      >
+        {{ followBusy ? '…' : profile.followedByMe ? '已关注' : '关注' }}
+      </button>
+      <button type="button" class="user-round" aria-label="发消息" @click="goMessage">
+        <Icon name="message-circle" :size="18" />
+      </button>
+      <div ref="moreWrap" class="relative">
+        <button
+          type="button"
+          class="user-round"
+          aria-label="更多"
+          @click.stop="moreOpen = !moreOpen"
+        >
+          <Icon name="ellipsis" :size="18" />
+        </button>
+        <div
+          v-if="moreOpen"
+          class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-white py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[#eee]"
+        >
+          <button
+            type="button"
+            class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f7]"
+            @click="report"
+          >
+            举报
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="profile-hero">
       <div class="profile-hero-bg">
         <img v-if="profile.coverUrl" :src="profile.coverUrl" alt="" />
@@ -163,43 +202,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       </div>
       <div class="profile-hero-shade" />
       <div class="profile-hero-body">
-        <div class="absolute top-6 right-8 z-10 flex items-center gap-2">
-          <button
-            v-if="!mine"
-            type="button"
-            class="follow-btn"
-            :class="{ 'is-on': profile.followedByMe }"
-            :disabled="followBusy"
-            @click="toggleFollow"
-          >
-            {{ followBusy ? '…' : profile.followedByMe ? '已关注' : '关注' }}
-          </button>
-          <button type="button" class="user-round" aria-label="发消息" @click="goMessage">
-            <Icon name="message-circle" :size="18" />
-          </button>
-          <div ref="moreWrap" class="relative">
-            <button
-              type="button"
-              class="user-round"
-              aria-label="更多"
-              @click.stop="moreOpen = !moreOpen"
-            >
-              <Icon name="ellipsis" :size="18" />
-            </button>
-            <div
-              v-if="moreOpen"
-              class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-white py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[#eee]"
-            >
-              <button
-                type="button"
-                class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f7]"
-                @click="report"
-              >
-                举报
-              </button>
-            </div>
-          </div>
-        </div>
         <div class="flex justify-center">
           <div class="relative h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white">
             <img v-if="profile.avatarUrl" :src="profile.avatarUrl" class="h-full w-full object-cover" alt="" />

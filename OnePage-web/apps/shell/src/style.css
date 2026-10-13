@@ -93,6 +93,20 @@ button {
   background: #f2f2f2;
 }
 
+.search-fab {
+  display: flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #1f1f1f;
+}
+
+.search-fab:hover {
+  background: #eee;
+}
+
 .nav-pill:hover,
 .nav-pill.is-on {
   background: #f2f2f2;
@@ -251,21 +265,21 @@ textarea.field-auth::placeholder {
   opacity: 1;
 }
 
-.profile-hero .me-action {
+.profile-hero-actions .me-action {
   color: #fff;
 }
 
-.profile-hero .me-action:hover,
-.profile-hero .me-action:active {
+.profile-hero-actions .me-action:hover,
+.profile-hero-actions .me-action:active {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
 }
 
-.profile-hero .user-round {
+.profile-hero-actions .user-round {
   color: #fff;
 }
 
-.profile-hero .user-round:hover {
+.profile-hero-actions .user-round:hover {
   background: rgba(255, 255, 255, 0.18);
 }
 
@@ -835,7 +849,7 @@ html[data-theme='dark'] .theme-tab.is-on {
 
 .im-page {
   display: flex;
-  height: calc(100vh - 72px);
+  height: 100vh;
   overflow: hidden;
   background: var(--bg);
 }
@@ -910,7 +924,7 @@ html[data-theme='dark'] .theme-tab.is-on {
 .im-thread-head {
   flex-shrink: 0;
   height: 56px;
-  padding: 0 24px;
+  padding: 0 72px 0 24px;
   border-bottom: 1px solid #ececec;
   font-size: 16px;
   font-weight: 600;
