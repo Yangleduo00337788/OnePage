@@ -54,6 +54,24 @@ export type CursorPage<T> = {
   hasMore: boolean
 }
 
+export type NotificationItem = {
+  id: string
+  type: string
+  actor: UserBrief
+  postId?: string | null
+  commentId?: string | null
+  preview?: string | null
+  read: boolean
+  createdAt: string
+}
+
+export type NotificationUnread = {
+  count: number
+  comment?: number
+  reaction?: number
+  follow?: number
+}
+
 export type CommentView = {
   commentId: string
   author: UserBrief
@@ -264,6 +282,17 @@ export const api = {
     request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/posts/${postId}/like`, {
       method: 'POST',
     }),
+  notifications: (group?: string, cursor?: string, limit?: number) => {
+    const q = new URLSearchParams()
+    if (group) q.set('group', group)
+    if (cursor) q.set('cursor', cursor)
+    if (limit) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<NotificationItem>>(`/api/v1/notifications${suffix}`)
+  },
+  markNotificationsRead: (body: { ids?: string[]; all?: boolean }) =>
+    request<void>('/api/v1/notifications/read', { method: 'POST', body: JSON.stringify(body) }),
+  notificationUnread: () => request<NotificationUnread>('/api/v1/notifications/unread-count'),
   unlikePost: (postId: string) =>
     request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/posts/${postId}/like`, {
       method: 'DELETE',

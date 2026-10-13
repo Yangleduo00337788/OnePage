@@ -7,9 +7,33 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api, type UserProfile } from '@onepage/api-client'
 
+const emptyGroups = { comment: 0, reaction: 0, follow: 0 }
+
 export const useSession = defineStore('session', () => {
   const me = ref<UserProfile | null>(null)
   const loaded = ref(false)
+  const unreadNotify = ref(0)
+  const unreadNotifyGroups = ref({ ...emptyGroups })
+
+  async function refreshUnread() {
+    if (!me.value) {
+      unreadNotify.value = 0
+      unreadNotifyGroups.value = { ...emptyGroups }
+      return
+    }
+    try {
+      const data = await api.notificationUnread()
+      unreadNotify.value = data.count ?? 0
+      unreadNotifyGroups.value = {
+        comment: data.comment ?? 0,
+        reaction: data.reaction ?? 0,
+        follow: data.follow ?? 0,
+      }
+    } catch {
+      unreadNotify.value = 0
+      unreadNotifyGroups.value = { ...emptyGroups }
+    }
+  }
 
   async function refresh() {
     try {
@@ -19,6 +43,7 @@ export const useSession = defineStore('session', () => {
     } finally {
       loaded.value = true
     }
+    await refreshUnread()
   }
 
   function bumpFollowing(delta: number) {
@@ -33,7 +58,9 @@ export const useSession = defineStore('session', () => {
       /* 网关已清 Cookie 时仍可能失败，本地照样退出 */
     }
     me.value = null
+    unreadNotify.value = 0
+    unreadNotifyGroups.value = { ...emptyGroups }
   }
 
-  return { me, loaded, refresh, logout, bumpFollowing }
+  return { me, loaded, unreadNotify, unreadNotifyGroups, refresh, refreshUnread, logout, bumpFollowing }
 })
