@@ -7,6 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 import SearchBox from '../components/SearchBox.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
@@ -140,17 +141,16 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   </section>
 
   <section v-else-if="failed === 'error'" class="flex min-h-[60vh] flex-col items-center justify-center px-8 pb-16 text-center">
-    <p class="text-[16px] font-medium">加载失败</p>
-    <button type="button" class="me-empty-go mt-6" @click="load">重试</button>
+    <EmptyState src="/empty-box.png" title="加载失败" />
+    <button type="button" class="me-empty-go" @click="load">重试</button>
   </section>
 
   <section
     v-else-if="failed === 'missing' || !profile"
     class="flex min-h-[60vh] flex-col items-center justify-center px-8 pb-16 text-center"
   >
-    <p class="text-[16px] font-medium">没有这个人</p>
-    <p class="mt-2 text-[13px] text-[#8a8a8a]">一页号 {{ pageId }} 不存在</p>
-    <RouterLink to="/" class="me-empty-go mt-6">回首页</RouterLink>
+    <EmptyState src="/empty-search.png" title="没有这个人" :desc="`一页号 ${pageId} 不存在`" />
+    <RouterLink to="/" class="me-empty-go">回首页</RouterLink>
   </section>
 
   <section v-else class="relative pb-16">
@@ -259,11 +259,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         :page-id="profile.pageId"
         empty-title="还没有公开笔记"
         empty-desc="这里会展示已公开的笔记。"
-      >
-        <template #icon>
-          <Icon name="sticky-note" :size="28" :stroke="1.6" />
-        </template>
-      </ProfileNoteList>
+      />
     </div>
 
     <p

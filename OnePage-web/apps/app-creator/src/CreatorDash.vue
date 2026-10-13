@@ -214,7 +214,10 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
             </div>
           </li>
         </ul>
-        <p v-else class="empty-recent">还没有已发布的笔记</p>
+        <div v-else class="empty-recent">
+          <img class="empty-art" src="/empty-me.png" alt="" width="120" height="120" />
+          <p>还没有已发布的笔记</p>
+        </div>
       </article>
       <article class="card">
         <h3>平台公告</h3>
@@ -596,6 +599,14 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
   margin: 8px 0 0;
   color: #8a8a8a;
   font-size: 13px;
+  text-align: center;
+}
+
+.empty-art {
+  display: block;
+  width: 120px;
+  height: auto;
+  margin: 8px auto 8px;
 }
 
 @media (max-width: 1100px) {

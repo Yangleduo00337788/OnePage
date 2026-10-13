@@ -7,6 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { TABS, noteFromPost, type NoteCard } from '../data/home'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 import NoteFeedCard from '../components/NoteFeedCard.vue'
 import { api, ApiError, FEED_CATEGORIES } from '@onepage/api-client'
 
@@ -125,9 +126,12 @@ onUnmounted(() => {
     </div>
 
     <p v-if="!loading && failed" class="py-16 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
-    <p v-else-if="!loading && !notes.length" class="py-16 text-center text-[14px] text-[#8a8a8a]">
-      {{ tab === '关注' ? '还没有关注的人，去发现里看看' : '还没有笔记' }}
-    </p>
+    <EmptyState
+      v-else-if="!loading && !notes.length"
+      :src="tab === '关注' ? '/empty-people.png' : '/empty-me.png'"
+      :title="tab === '关注' ? '还没有关注的人' : '还没有笔记'"
+      :desc="tab === '关注' ? '去发现里看看，关注喜欢的创作者。' : ''"
+    />
 
     <div v-else class="feed-grid flex flex-wrap justify-center gap-4" :class="loading ? 'is-refreshing' : ''">
       <NoteFeedCard v-for="note in notes" :key="note.id" :note="note" />

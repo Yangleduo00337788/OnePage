@@ -7,6 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type ConversationItem, type ImMessage } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 
@@ -179,7 +180,7 @@ watch(
     <aside class="im-list">
       <div class="im-list-head">消息</div>
       <p v-if="listFailed" class="px-5 py-16 text-center text-[13px] text-[#8a8a8a]">{{ listFailed }}</p>
-      <p v-else-if="!list.length" class="px-5 py-16 text-center text-[13px] text-[#8a8a8a]">还没有私信</p>
+      <EmptyState v-else-if="!list.length" compact src="/empty-chat.png" title="还没有私信" />
       <button
         v-for="item in list"
         :key="item.conversationId"
@@ -212,7 +213,7 @@ watch(
         <div ref="logEl" class="im-log">
           <p v-if="loadingThread" class="py-10 text-center text-[13px] text-[#8a8a8a]">加载中…</p>
           <p v-else-if="threadFailed" class="py-10 text-center text-[13px] text-[#8a8a8a]">{{ threadFailed }}</p>
-          <p v-else-if="!messages.length" class="py-10 text-center text-[13px] text-[#8a8a8a]">发一条消息打个招呼</p>
+          <EmptyState v-else-if="!messages.length" compact src="/empty-chat.png" title="发一条消息打个招呼" />
           <div
             v-for="item in threadRows"
             :key="item.row.messageId"
@@ -236,10 +237,7 @@ watch(
           </button>
         </form>
       </template>
-      <div v-else class="im-empty">
-        <Icon name="message-circle-more" :size="36" :stroke="1.5" />
-        <p>选择一个会话开始聊天</p>
-      </div>
+      <EmptyState v-else class="im-empty-wrap" src="/empty-chat.png" title="选择一个会话开始聊天" />
     </div>
   </section>
 </template>

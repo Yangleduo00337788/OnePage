@@ -6,6 +6,7 @@ import { api, ApiError, type UserBrief } from '@onepage/api-client'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
+import EmptyState from './EmptyState.vue'
 
 const props = defineProps<{
   open: boolean
@@ -151,7 +152,7 @@ watch(
         <div class="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           <p v-if="loading" class="py-10 text-center text-[14px] text-[#8a8a8a]">加载中…</p>
           <p v-else-if="failed" class="py-10 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
-          <p v-else-if="!items.length" class="py-10 text-center text-[14px] text-[#8a8a8a]">还没有人</p>
+          <EmptyState v-else-if="!items.length" compact src="/empty-people.png" title="还没有人" />
           <button
             v-for="user in items"
             :key="user.userId"

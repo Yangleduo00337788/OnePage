@@ -259,6 +259,7 @@ const days = computed(() => {
           </div>
         </div>
         <div v-if="!filtered.length" class="empty">
+          <img class="empty-art" src="/empty-me.png" alt="" width="160" height="160" />
           <p>还没有可分析的笔记。发布后会出现在这里。</p>
           <button type="button" class="cta" @click="emit('publish', 'image')">去发布</button>
         </div>
@@ -541,6 +542,12 @@ h1 {
   align-items: center;
   padding: 36px 12px 20px;
   color: #8a8a8a;
+}
+
+.empty-art {
+  width: 160px;
+  height: auto;
+  margin-bottom: 12px;
 }
 
 .empty p {

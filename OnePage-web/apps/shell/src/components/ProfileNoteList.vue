@@ -115,11 +115,9 @@ onUnmounted(() => {
     <p v-if="loading" class="py-10 text-center text-[14px] text-[#8a8a8a]">加载中…</p>
     <p v-else-if="failed" class="py-10 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
     <div v-else-if="!notes.length" class="me-empty">
-      <span class="me-empty-ico">
-        <slot name="icon" />
-      </span>
-      <p class="mt-4 text-[16px] font-medium text-[#1f1f1f]">{{ emptyTitle }}</p>
-      <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">{{ emptyDesc }}</p>
+      <img class="me-empty-art" src="/empty-me.png" alt="" width="180" height="180" />
+      <p class="me-empty-title">{{ emptyTitle }}</p>
+      <p class="me-empty-desc">{{ emptyDesc }}</p>
       <button
         v-if="$slots.action"
         type="button"

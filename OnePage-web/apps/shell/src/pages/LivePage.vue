@@ -5,6 +5,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { LIVE_TABS } from '../data/home'
 
 const route = useRoute()
@@ -41,13 +42,11 @@ function toTop() {
       </button>
     </div>
 
-    <div class="me-empty">
-      <span class="me-empty-ico">
-        <Icon name="tv-minimal-play" :size="28" :stroke="1.6" />
-      </span>
-      <p class="mt-4 text-[16px] font-medium text-[#1f1f1f]">还没有直播</p>
-      <p class="mt-2 max-w-[280px] text-[13px] leading-6 text-[#8a8a8a]">开播能力尚未接入，这里不再用假房间占位。</p>
-    </div>
+    <EmptyState
+      src="/empty-live.png"
+      title="还没有直播"
+      desc="开播能力尚未接入，这里不再用假房间占位。"
+    />
 
     <div class="feed-fabs">
       <button type="button" class="feed-fab" @click="toTop">

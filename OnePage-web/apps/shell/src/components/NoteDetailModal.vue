@@ -7,6 +7,7 @@ import { useNoteDetail } from '../stores/noteDetail'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
+import EmptyState from './EmptyState.vue'
 import TextNoteCover from './TextNoteCover.vue'
 import { formatCount } from '../data/home'
 
@@ -1056,7 +1057,7 @@ watch(moreOpen, async (on) => {
                 </div>
               </li>
             </ul>
-            <p v-else class="py-8 text-center text-[13px] text-[#bbb]">还没有评论</p>
+            <EmptyState v-else compact src="/empty-chat.png" title="还没有评论" />
           </div>
 
           <div class="border-t border-[#f2f2f2] px-3 py-3">
@@ -1104,10 +1105,7 @@ watch(moreOpen, async (on) => {
       <div v-if="shareOpen" class="absolute inset-0 z-30 flex items-center justify-center bg-black/25" @click.self="shareOpen = false">
         <div class="flex h-[420px] w-[360px] flex-col rounded-[20px] bg-white shadow-[0_16px_48px_rgba(0,0,0,0.16)]">
           <p class="py-4 text-center text-[16px] font-medium">分享至</p>
-          <div class="flex flex-1 flex-col items-center justify-center text-[#c8c8c8]">
-            <Icon name="users" :size="64" :stroke="1.2" />
-            <p class="mt-3 text-[14px] text-[#bbb]">暂无好友</p>
-          </div>
+          <EmptyState compact src="/empty-people.png" title="暂无好友" />
           <div class="flex justify-center gap-16 border-t border-[#f2f2f2] py-6">
             <button type="button" class="flex flex-col items-center gap-2 text-[13px] text-[#1f1f1f]" @click="flash('私信能力即将接入'); shareOpen = false">
               <span class="flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f5]">

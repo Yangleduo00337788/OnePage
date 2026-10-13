@@ -26,31 +26,27 @@ const GENDERS = [
 const ME_TABS = ['笔记', '收藏', '点赞', '历史'] as const
 const TAB_EMPTY: Record<
   (typeof ME_TABS)[number],
-  { icon: string; title: string; desc: string; action: string; to: string }
+  { title: string; desc: string; action: string; to: string }
 > = {
   笔记: {
-    icon: 'sticky-note',
     title: '还没有发布过笔记',
     desc: '把生活里的一页记下来，发布后会出现在这里。',
     action: '去发布',
     to: '/create',
   },
   收藏: {
-    icon: 'bookmark',
     title: '还没有收藏',
     desc: '看到喜欢的笔记点一下收藏，以后都能在这里找到。',
     action: '去首页逛逛',
     to: '/',
   },
   点赞: {
-    icon: 'heart',
     title: '还没有点过赞',
     desc: '给打动你的内容点个赞，它们会安静地待在这里。',
     action: '去发现',
     to: '/',
   },
   历史: {
-    icon: 'clock',
     title: '还没有浏览记录',
     desc: '看过的笔记会留在这里，方便你随时再回来。',
     action: '去首页看看',
@@ -370,9 +366,6 @@ async function logout() {
             :empty-primary="listTab === '笔记'"
             @empty-action="onTabEmpty"
           >
-            <template #icon>
-              <Icon :name="TAB_EMPTY[listTab].icon" :size="28" :stroke="1.6" />
-            </template>
             <template #action>{{ TAB_EMPTY[listTab].action }}</template>
           </ProfileNoteList>
         </Transition>

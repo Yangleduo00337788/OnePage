@@ -44,7 +44,10 @@ const items = computed(() => {
         <p>{{ item.a }}</p>
       </article>
     </div>
-    <p v-else class="empty">没有找到相关问题</p>
+    <div v-else class="empty">
+      <img class="empty-art" src="/empty-search.png" alt="" width="160" height="160" />
+      <p>没有找到相关问题</p>
+    </div>
   </div>
 </template>
 
@@ -144,9 +147,16 @@ const items = computed(() => {
 }
 
 .empty {
-  margin: 80px 0 0;
+  margin: 48px 0 0;
   color: #8a8a8a;
   font-size: 14px;
   text-align: center;
+}
+
+.empty-art {
+  display: block;
+  width: 160px;
+  height: auto;
+  margin: 0 auto 16px;
 }
 </style>

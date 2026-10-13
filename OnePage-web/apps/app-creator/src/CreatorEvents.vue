@@ -49,7 +49,10 @@ const list = computed(() => {
         </div>
       </article>
     </div>
-    <p v-else class="empty">暂时没有这类活动</p>
+    <div v-else class="empty">
+      <img class="empty-art" src="/empty-box.png" alt="" width="160" height="160" />
+      <p>暂时没有这类活动</p>
+    </div>
   </div>
 </template>
 
@@ -165,10 +168,17 @@ h2 {
 }
 
 .empty {
-  margin: 80px 0 0;
+  margin: 48px 0 0;
   color: #8a8a8a;
   font-size: 14px;
   text-align: center;
+}
+
+.empty-art {
+  display: block;
+  width: 160px;
+  height: auto;
+  margin: 0 auto 16px;
 }
 
 @media (max-width: 1100px) {

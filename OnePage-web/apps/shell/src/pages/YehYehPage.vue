@@ -6,6 +6,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { useYehYeh, type YehSession } from '../stores/yehyeh'
 
 const PRESET = '帮我发现今天值得一看的生活方式笔记'
@@ -165,7 +166,7 @@ watch(
         </button>
         <div class="yeh-rail-line" />
         <div class="yeh-history">
-          <p v-if="!yeh.sessions.length" class="yeh-history-empty">还没有会话</p>
+          <EmptyState v-if="!yeh.sessions.length" compact src="/empty-ai.png" title="还没有会话" />
           <template v-for="group in groupedHistory" :key="group.label">
             <p class="yeh-rail-label">{{ group.label }}</p>
             <div

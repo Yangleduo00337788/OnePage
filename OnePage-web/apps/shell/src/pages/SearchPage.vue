@@ -5,6 +5,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +51,12 @@ const emptyHint = computed(() => {
   if (tab.value === '话题') return '还没有热门话题'
   if (tab.value === '直播') return '还没有直播'
   return q.value ? `没有找到与「${q.value}」相关的笔记` : '输入关键词开始搜索'
+})
+
+const emptyArt = computed(() => {
+  if (tab.value === '用户') return '/empty-people.png'
+  if (tab.value === '直播') return '/empty-live.png'
+  return '/empty-search.png'
 })
 
 function openYehyeh(topic = q.value) {
@@ -170,7 +177,7 @@ function closeFilter() {
 
     <div class="flex items-start gap-8">
       <div class="min-w-0 flex-1">
-        <p class="py-20 text-center text-[14px] text-[#8a8a8a]">{{ emptyHint }}</p>
+        <EmptyState :src="emptyArt" :title="emptyHint" />
       </div>
 
       <aside class="sticky top-[84px] hidden h-[calc(100vh-108px)] w-[400px] shrink-0 flex-col lg:flex">

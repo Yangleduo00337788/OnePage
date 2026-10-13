@@ -568,15 +568,35 @@ html[data-theme='dark'] .theme-tab.is-on {
   text-align: center;
 }
 
-.me-empty-ico {
-  display: flex;
-  height: 64px;
-  width: 64px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #f5f5f5;
-  color: #b8b8b8;
+.me-empty-art {
+  display: block;
+  width: 180px;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.me-empty.is-compact {
+  padding: 28px 0 16px;
+}
+
+.me-empty.is-compact .me-empty-art {
+  width: 120px;
+}
+
+.me-empty-title {
+  margin-top: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+.me-empty-desc {
+  margin-top: 8px;
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #8a8a8a;
 }
 
 .me-empty-go {
@@ -1063,15 +1083,12 @@ html[data-theme='dark'] .theme-tab.is-on {
   cursor: default;
 }
 
-.im-empty {
+.im-empty-wrap {
   display: flex;
   flex: 1;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: #bbb;
-  font-size: 14px;
+  padding-bottom: 80px;
 }
 
 .about-page {

@@ -10,6 +10,7 @@ import { useAuthModal } from '../stores/authModal'
 import { useNoteDetail } from '../stores/noteDetail'
 import { useSession } from '../stores/session'
 import { noteFromPost } from '../data/home'
+import EmptyState from '../components/EmptyState.vue'
 
 const NOTIFY_TABS = ['评论和@', '点赞和收藏', '新增关注'] as const
 type NotifyTab = (typeof NOTIFY_TABS)[number]
@@ -200,7 +201,7 @@ watch([items, loading], async () => {
     </div>
     <p v-if="loading" class="py-20 text-center text-[13px] text-[#8a8a8a]">加载中…</p>
     <p v-else-if="failed" class="py-20 text-center text-[13px] text-[#8a8a8a]">{{ failed }}</p>
-    <p v-else-if="!items.length" class="py-20 text-center text-[13px] text-[#8a8a8a]">暂时还没有这类通知</p>
+    <EmptyState v-else-if="!items.length" src="/empty-notify.png" title="暂时还没有这类通知" />
     <div v-else class="space-y-1">
       <button
         v-for="row in items"
