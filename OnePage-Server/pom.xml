@@ -16,6 +16,7 @@
     <module>onepage-auth-service</module>
     <module>onepage-user-service</module>
     <module>onepage-content-service</module>
+    <module>onepage-notification-service</module>
   </modules>
 
   <properties>

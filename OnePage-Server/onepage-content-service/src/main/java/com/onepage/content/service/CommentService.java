@@ -24,16 +24,19 @@ public class CommentService {
   private final CommentMapper commentMapper;
   private final CommentLikeMapper commentLikeMapper;
   private final AuthorLookup authorLookup;
+  private final InteractionNotifier notifier;
 
   public CommentService(
       PostService postService,
       CommentMapper commentMapper,
       CommentLikeMapper commentLikeMapper,
-      AuthorLookup authorLookup) {
+      AuthorLookup authorLookup,
+      InteractionNotifier notifier) {
     this.postService = postService;
     this.commentMapper = commentMapper;
     this.commentLikeMapper = commentLikeMapper;
     this.authorLookup = authorLookup;
+    this.notifier = notifier;
   }
 
   public FeedDtos.CommentPage list(Long viewerId, long postId, String rootId, Integer offset, Integer limit) {
@@ -85,11 +88,12 @@ public class CommentService {
     row.setLikeCount(0);
     row.setStatus(0);
     row.setCreatedAt(now);
+    Comment parent = null;
     if (!StringUtils.hasText(parentId)) {
       row.setParentId(null);
       row.setRootId(id);
     } else {
-      Comment parent = commentMapper.selectById(parseId(parentId, "parentId"));
+      parent = commentMapper.selectById(parseId(parentId, "parentId"));
       if (parent == null || !postIdEquals(parent.getPostId(), postId) || parent.getStatus() == null || parent.getStatus() != 0) {
         throw BusinessException.notFound("父评论不存在");
       }
@@ -97,6 +101,26 @@ public class CommentService {
       row.setRootId(parent.getRootId() == null ? parent.getId() : parent.getRootId());
     }
     commentMapper.insert(row);
+    String preview = row.getContent();
+    if (parent == null) {
+      notifier.emit(
+          post.getAuthorId(),
+          "comment",
+          userId,
+          "comment:" + id,
+          post.getId(),
+          id,
+          preview);
+    } else {
+      notifier.emit(
+          parent.getUserId(),
+          "reply",
+          userId,
+          "reply:" + id,
+          post.getId(),
+          id,
+          preview);
+    }
     return toView(userId, row);
   }
 

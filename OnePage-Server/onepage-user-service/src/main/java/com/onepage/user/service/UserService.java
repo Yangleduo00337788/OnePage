@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.common.tx.AfterCommit;
 import com.onepage.user.client.ContentClient;
+import com.onepage.user.client.NotificationClient;
 import com.onepage.user.dto.FollowHit;
 import com.onepage.user.dto.PostCursorPage;
 import com.onepage.user.dto.UserBriefView;
@@ -15,6 +17,8 @@ import com.onepage.user.entity.UserStat;
 import com.onepage.user.mapper.UserFollowMapper;
 import com.onepage.user.mapper.UserProfileMapper;
 import com.onepage.user.mapper.UserStatMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +29,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -37,10 +43,13 @@ import java.util.stream.Collectors;
  */
 @Service
 public class UserService {
+  private static final Logger log = LoggerFactory.getLogger(UserService.class);
+
   private final UserProfileMapper profileMapper;
   private final UserStatMapper statMapper;
   private final UserFollowMapper followMapper;
   private final ContentClient contentClient;
+  private final NotificationClient notificationClient;
   private final String internalToken;
   private final String mediaPublicBase;
 
@@ -49,12 +58,14 @@ public class UserService {
       UserStatMapper statMapper,
       UserFollowMapper followMapper,
       ContentClient contentClient,
+      NotificationClient notificationClient,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.profileMapper = profileMapper;
     this.statMapper = statMapper;
     this.followMapper = followMapper;
     this.contentClient = contentClient;
+    this.notificationClient = notificationClient;
     this.internalToken = internalToken;
     this.mediaPublicBase = mediaPublicBase.endsWith("/")
         ? mediaPublicBase.substring(0, mediaPublicBase.length() - 1)
@@ -86,6 +97,35 @@ public class UserService {
     stat.setUpdatedAt(now);
     statMapper.insert(stat);
     return toSummary(profile);
+  }
+
+  public List<UserSummary> briefs(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    LinkedHashSet<Long> uniq = new LinkedHashSet<>();
+    for (Long id : ids) {
+      if (id != null) {
+        uniq.add(id);
+      }
+      if (uniq.size() >= 100) {
+        break;
+      }
+    }
+    if (uniq.isEmpty()) {
+      return List.of();
+    }
+    Map<Long, UserProfile> byId = profileMapper.selectBatchIds(uniq).stream()
+        .filter(Objects::nonNull)
+        .collect(Collectors.toMap(UserProfile::getUserId, Function.identity(), (a, b) -> a));
+    List<UserSummary> out = new ArrayList<>();
+    for (Long id : uniq) {
+      UserProfile profile = byId.get(id);
+      if (profile != null) {
+        out.add(toSummary(profile));
+      }
+    }
+    return out;
   }
 
   public UserSummary summary(Long userId) {
@@ -154,6 +194,22 @@ public class UserService {
     }
     statMapper.bumpFollowing(followerId, 1, now);
     statMapper.bumpFollower(followeeId, 1, now);
+    AfterCommit.run(() -> {
+      try {
+        notificationClient.ingest(
+            internalToken,
+            new NotificationClient.IngestRequest(
+                followeeId,
+                "follow",
+                followerId,
+                "follow:" + followerId + ":" + followeeId,
+                null,
+                null,
+                null));
+      } catch (RuntimeException ex) {
+        log.warn("notify follow to {} failed", followeeId, ex);
+      }
+    });
     return true;
   }
 

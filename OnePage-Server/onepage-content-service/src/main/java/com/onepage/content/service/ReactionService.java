@@ -5,6 +5,7 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.Comment;
 import com.onepage.content.entity.CommentLike;
+import com.onepage.content.entity.Post;
 import com.onepage.content.entity.PostFavorite;
 import com.onepage.content.entity.PostLike;
 import com.onepage.content.mapper.CommentLikeMapper;
@@ -25,22 +26,25 @@ public class ReactionService {
   private final PostFavoriteMapper favoriteMapper;
   private final CommentMapper commentMapper;
   private final CommentLikeMapper commentLikeMapper;
+  private final InteractionNotifier notifier;
 
   public ReactionService(
       PostService postService,
       PostLikeMapper likeMapper,
       PostFavoriteMapper favoriteMapper,
       CommentMapper commentMapper,
-      CommentLikeMapper commentLikeMapper) {
+      CommentLikeMapper commentLikeMapper,
+      InteractionNotifier notifier) {
     this.postService = postService;
     this.likeMapper = likeMapper;
     this.favoriteMapper = favoriteMapper;
     this.commentMapper = commentMapper;
     this.commentLikeMapper = commentLikeMapper;
+    this.notifier = notifier;
   }
 
   public FeedDtos.LikeResult likePost(long userId, long postId) {
-    postService.requireVisible(postId, userId);
+    Post post = postService.requireVisible(postId, userId);
     if (!liked(userId, postId)) {
       PostLike row = new PostLike();
       row.setUserId(userId);
@@ -48,6 +52,13 @@ public class ReactionService {
       row.setCreatedAt(LocalDateTime.now());
       try {
         likeMapper.insert(row);
+        notifier.emit(
+            post.getAuthorId(),
+            "like_post",
+            userId,
+            "like_post:" + postId + ":" + userId,
+            postId,
+            null);
       } catch (DataIntegrityViolationException ignored) {
         // 并发重复点赞当成功
       }
@@ -64,7 +75,7 @@ public class ReactionService {
   }
 
   public FeedDtos.FavoriteResult favoritePost(long userId, long postId) {
-    postService.requireVisible(postId, userId);
+    Post post = postService.requireVisible(postId, userId);
     if (!favorited(userId, postId)) {
       PostFavorite row = new PostFavorite();
       row.setUserId(userId);
@@ -72,6 +83,13 @@ public class ReactionService {
       row.setCreatedAt(LocalDateTime.now());
       try {
         favoriteMapper.insert(row);
+        notifier.emit(
+            post.getAuthorId(),
+            "favorite_post",
+            userId,
+            "favorite_post:" + postId + ":" + userId,
+            postId,
+            null);
       } catch (DataIntegrityViolationException ignored) {
         // 并发重复收藏当成功
       }
@@ -113,6 +131,13 @@ public class ReactionService {
       commentLikeMapper.insert(row);
       comment.setLikeCount(n(comment.getLikeCount()) + 1);
       commentMapper.updateById(comment);
+      notifier.emit(
+          comment.getUserId(),
+          "like_comment",
+          userId,
+          "like_comment:" + commentId + ":" + userId,
+          comment.getPostId(),
+          commentId);
     } catch (DataIntegrityViolationException ignored) {
       comment = commentMapper.selectById(commentId);
     }

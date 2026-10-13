@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -43,6 +44,14 @@ public class InternalUserController {
   public List<Long> followeeIds(HttpServletRequest request, @PathVariable("userId") long userId) {
     tokenFilter.assertInternal(request);
     return userService.listFolloweeIds(userId);
+  }
+
+  @GetMapping("/users/briefs")
+  public List<UserSummary> briefs(
+      HttpServletRequest request,
+      @RequestParam("ids") List<Long> ids) {
+    tokenFilter.assertInternal(request);
+    return userService.briefs(ids);
   }
 
   public record CreateProfileRequest(Long userId, String nickname) {}
