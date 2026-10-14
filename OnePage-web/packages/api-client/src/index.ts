@@ -224,6 +224,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
   me: () => request<UserProfile>('/api/v1/users/me'),
+  suggestUsers: (q: string) =>
+    request<UserSummary[]>(`/api/v1/users/me/suggest?q=${encodeURIComponent(q)}`),
   userByPageId: (pageId: string) => request<UserProfile>(`/api/v1/users/${encodeURIComponent(pageId)}`),
   userPosts: (pageId: string, cursor?: string, limit?: number) => {
     const q = new URLSearchParams()
@@ -371,7 +373,7 @@ export const api = {
     const suffix = q.toString() ? `?${q}` : ''
     return request<{ items: CommentView[]; total: number }>(`/api/v1/posts/${postId}/comments${suffix}`)
   },
-  createComment: (postId: string, body: { content: string; parentId?: string }) =>
+  createComment: (postId: string, body: { content: string; parentId?: string; mentionPageIds?: string[] }) =>
     request<CommentView>(`/api/v1/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify(body),

@@ -54,5 +54,13 @@ public class InternalUserController {
     return userService.briefs(ids);
   }
 
+  @GetMapping("/users/by-keys")
+  public List<UserSummary> byKeys(
+      HttpServletRequest request,
+      @RequestParam("keys") List<String> keys) {
+    tokenFilter.assertInternal(request);
+    return userService.byKeys(keys);
+  }
+
   public record CreateProfileRequest(Long userId, String nickname) {}
 }

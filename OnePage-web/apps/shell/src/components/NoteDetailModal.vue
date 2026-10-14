@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, ApiError, type PostDetail, type UserProfile } from '@onepage/api-client'
+import { api, ApiError, type PostDetail, type UserProfile, type UserSummary } from '@onepage/api-client'
 import { useNoteDetail } from '../stores/noteDetail'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
@@ -49,6 +49,18 @@ const sharePeers = ref<SharePeer[]>([])
 const shareLoading = ref(false)
 const shareBusy = ref('')
 const draft = ref('')
+const mentionOpen = ref(false)
+const commentFocus = ref(false)
+let commentBlurTimer = 0
+const composing = computed(
+  () => commentFocus.value || mentionOpen.value || Boolean(draft.value.trim()),
+)
+const mentionHits = ref<UserSummary[]>([])
+const mentionHi = ref(0)
+const mentionHint = ref('')
+const mentionPicked = ref<Record<string, string>>({})
+let mentionTimer = 0
+let mentionSeq = 0
 const toast = ref('')
 const comments = ref<Comment[]>([])
 const moreWrap = ref<HTMLElement | null>(null)
@@ -513,12 +525,17 @@ function requestClose() {
 function onKey(e: KeyboardEvent) {
   if (!detail.open) return
   if (e.key === 'Escape') {
+    if (mentionOpen.value) {
+      mentionOpen.value = false
+      return
+    }
     if (document.fullscreenElement) return
     requestClose()
   }
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
   if (shareOpen.value || closing.value) return
   if (isVideo.value) {
-    if (e.key === ' ' && !(e.target instanceof HTMLInputElement)) {
+    if (e.key === ' ') {
       e.preventDefault()
       togglePlay()
     }
@@ -539,6 +556,9 @@ watch(
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('fullscreenchange', onFsChange)
       if (!keepPip.value) stopVideo()
+      mentionOpen.value = false
+      mentionHits.value = []
+      commentFocus.value = false
     }
   },
 )
@@ -553,6 +573,8 @@ onUnmounted(() => {
   window.clearTimeout(closeTimer)
   window.clearTimeout(popTimer)
   window.clearTimeout(authorTimer)
+  window.clearTimeout(mentionTimer)
+  window.clearTimeout(commentBlurTimer)
 })
 
 function flash(text: string) {
@@ -660,13 +682,171 @@ async function toggleSave() {
   }
 }
 
+function mentionKeys(text: string) {
+  const keys: string[] = []
+  const re = /@([^\s@]{1,32})/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text))) {
+    if (!keys.includes(match[1])) keys.push(match[1])
+  }
+  return keys
+}
+
+function mentionTokenAt(text: string, caret: number) {
+  const before = text.slice(0, caret)
+  const at = before.lastIndexOf('@')
+  if (at < 0) return null
+  if (at > 0 && !/\s/.test(before.charAt(at - 1))) return null
+  const token = before.slice(at + 1)
+  if (/[\s@]/.test(token) || token.length > 32) return null
+  return { start: at, token }
+}
+
+function onCommentFocus() {
+  window.clearTimeout(commentBlurTimer)
+  commentFocus.value = true
+}
+
+function onCommentBlur() {
+  window.clearTimeout(commentBlurTimer)
+  commentBlurTimer = window.setTimeout(() => {
+    commentFocus.value = false
+  }, 160)
+}
+
+function closeMention() {
+  mentionOpen.value = false
+  mentionHits.value = []
+  mentionHi.value = 0
+  mentionHint.value = ''
+}
+
+function scheduleMention() {
+  window.clearTimeout(mentionTimer)
+  mentionTimer = window.setTimeout(() => {
+    void loadMentions()
+  }, 180)
+}
+
+async function loadMentions() {
+  const el = commentBox.value
+  const caret = el?.selectionStart ?? draft.value.length
+  const hit = mentionTokenAt(draft.value, caret)
+  if (!hit) {
+    closeMention()
+    return
+  }
+  const seq = ++mentionSeq
+  mentionOpen.value = true
+  mentionHint.value = ''
+  try {
+    const items = await api.suggestUsers(hit.token)
+    if (seq !== mentionSeq) return
+    mentionHits.value = items
+    mentionHi.value = 0
+    mentionHint.value = items.length ? '' : '没有匹配的人'
+  } catch (e) {
+    if (seq !== mentionSeq) return
+    mentionHits.value = []
+    mentionHint.value =
+      e instanceof ApiError && e.status === 401 ? '请先登录后再 @ 好友' : '没有匹配的人'
+  }
+}
+
+function pickMention(user: UserSummary) {
+  const el = commentBox.value
+  const caret = el?.selectionStart ?? draft.value.length
+  const hit = mentionTokenAt(draft.value, caret)
+  if (!hit) return
+  const label = (user.nickname || '').replace(/[\s@]/g, '') || user.pageId
+  mentionPicked.value = {
+    ...mentionPicked.value,
+    [user.pageId]: user.pageId,
+    [label]: user.pageId,
+  }
+  const insert = `@${label} `
+  draft.value = draft.value.slice(0, hit.start) + insert + draft.value.slice(hit.start + 1 + hit.token.length)
+  closeMention()
+  void nextTick(() => {
+    const pos = hit.start + insert.length
+    el?.focus()
+    el?.setSelectionRange(pos, pos)
+  })
+}
+
+function onDraftKey(e: KeyboardEvent) {
+  if (mentionOpen.value && mentionHits.value.length) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      mentionHi.value = (mentionHi.value + 1) % mentionHits.value.length
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      mentionHi.value = (mentionHi.value - 1 + mentionHits.value.length) % mentionHits.value.length
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      const user = mentionHits.value[mentionHi.value]
+      if (user) pickMention(user)
+      return
+    }
+  }
+  if (e.key === 'Escape' && mentionOpen.value) {
+    e.preventDefault()
+    closeMention()
+    return
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    void sendComment()
+  }
+}
+
+function commentParts(text: string) {
+  const parts: { kind: 'text' | 'at'; value: string }[] = []
+  const re = /@([^\s@]{1,32})/g
+  let last = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text))) {
+    if (match.index > last) parts.push({ kind: 'text', value: text.slice(last, match.index) })
+    parts.push({ kind: 'at', value: match[1] })
+    last = match.index + match[0].length
+  }
+  if (last < text.length) parts.push({ kind: 'text', value: text.slice(last) })
+  return parts
+}
+
+function goMention(pageId: string) {
+  if (!pageId) return
+  window.clearTimeout(authorTimer)
+  authorOpen.value = false
+  if (player.value && document.pictureInPictureElement === player.value) {
+    keepPip.value = true
+    isPip.value = true
+  } else {
+    stopVideo()
+  }
+  closing.value = false
+  grown.value = false
+  detail.hide()
+  if (session.me?.pageId === pageId || session.me?.nickname === pageId) {
+    void router.push('/me')
+    return
+  }
+  void router.push(`/u/${encodeURIComponent(pageId)}`)
+}
+
 async function sendComment() {
   const text = draft.value.trim()
   if (!text) return
   const id = detail.note?.id
   if (!isLivePost(id)) return
   try {
-    const c = await api.createComment(id, { content: text })
+    const ids = mentionKeys(text).map((key) => mentionPicked.value[key] || key)
+    const mentionPageIds = [...new Set(ids)]
+    const c = await api.createComment(id, { content: text, mentionPageIds })
     comments.value = [
       {
         id: c.commentId,
@@ -679,6 +859,8 @@ async function sendComment() {
     ]
     commentTotal.value += 1
     draft.value = ''
+    mentionPicked.value = {}
+    closeMention()
   } catch (e) {
     if (!needLogin(e)) flash(e instanceof Error ? e.message : '评论失败')
   }
@@ -1121,7 +1303,20 @@ watch(moreOpen, async (on) => {
                   {{ item.name.slice(0, 1) }}
                 </span>
                 <div class="min-w-0">
-                  <p class="text-[13px]"><span class="mr-1.5 text-[#8a8a8a]">{{ item.name }}</span>{{ item.text }}</p>
+                  <p class="text-[13px]">
+                    <span class="mr-1.5 text-[#8a8a8a]">{{ item.name }}</span>
+                    <template v-for="(part, i) in commentParts(item.text)" :key="i">
+                      <button
+                        v-if="part.kind === 'at'"
+                        type="button"
+                        class="text-[#ff2442]"
+                        @click="goMention(part.value)"
+                      >
+                        @{{ part.value }}
+                      </button>
+                      <span v-else>{{ part.value }}</span>
+                    </template>
+                  </p>
                   <p class="mt-0.5 text-[11px] text-[#bbb]">{{ item.time }}</p>
                 </div>
               </li>
@@ -1130,14 +1325,56 @@ watch(moreOpen, async (on) => {
           </div>
 
           <div class="border-t border-[#f2f2f2] px-3 py-3">
-            <div class="flex items-center gap-2">
-              <input
-                ref="commentBox"
-                v-model="draft"
-                class="h-9 min-w-0 flex-1 rounded-[20px] bg-[#f7f7f7] px-3.5 text-[13px] outline-none"
-                placeholder="说点什么…"
-                @keydown.enter.prevent="sendComment"
-              />
+            <div class="compose flex items-center gap-2" :class="{ 'is-on': composing }">
+              <div class="relative min-w-0 flex-1">
+                <ul v-if="mentionOpen && mentionHits.length" class="at-pop">
+                  <li v-for="(user, i) in mentionHits" :key="user.userId">
+                    <button
+                      type="button"
+                      class="at-row"
+                      :class="i === mentionHi ? 'is-hi' : ''"
+                      @mousedown.prevent="pickMention(user)"
+                    >
+                      <img
+                        v-if="user.avatarUrl"
+                        :src="user.avatarUrl"
+                        alt=""
+                        class="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                      <span
+                        v-else
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[12px] text-[#8a8a8a]"
+                      >
+                        {{ (user.nickname || user.pageId).slice(0, 1) }}
+                      </span>
+                      <span class="min-w-0 flex-1 text-left">
+                        <span class="block truncate text-[13px] text-[#1f1f1f]">{{ user.nickname }}</span>
+                        <span class="block truncate text-[11px] text-[#8a8a8a]">{{ user.pageId }}</span>
+                      </span>
+                    </button>
+                  </li>
+                </ul>
+                <p v-else-if="mentionOpen && mentionHint" class="at-pop at-empty">{{ mentionHint }}</p>
+                <input
+                  ref="commentBox"
+                  v-model="draft"
+                  class="h-9 w-full rounded-[20px] bg-[#f7f7f7] px-3.5 text-[13px] outline-none"
+                  :placeholder="composing ? '说点什么… @ 可搜昵称或一页号' : '说点什么…'"
+                  @focus="onCommentFocus"
+                  @blur="onCommentBlur"
+                  @input="scheduleMention"
+                  @keyup="scheduleMention"
+                  @keydown="onDraftKey"
+                />
+              </div>
+              <button
+                type="button"
+                class="send-cmt"
+                :disabled="!draft.trim()"
+                @mousedown.prevent="sendComment"
+              >
+                发送
+              </button>
               <div class="acts">
                 <button type="button" class="act" :class="liked ? 'is-on' : ''" @click="toggleLike">
                   <svg class="act-ico" viewBox="0 0 24 24">
@@ -1504,10 +1741,69 @@ watch(moreOpen, async (on) => {
   color: #1f1f1f;
 }
 
+.compose {
+  height: 48px;
+  min-height: 48px;
+}
+
+.send-cmt {
+  flex-shrink: 0;
+  height: 36px;
+  max-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: 20px;
+  background: #ff2442;
+  color: #fff;
+  font-size: 13px;
+  line-height: 36px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    max-width 0.28s ease,
+    padding 0.28s ease,
+    opacity 0.2s ease;
+}
+
+.send-cmt:disabled {
+  background: #ffc4cc;
+  color: #fff;
+}
+
 .acts {
   display: flex;
   flex-shrink: 0;
   align-items: center;
+  justify-content: flex-end;
+  width: 192px;
+  min-width: 192px;
+  height: 48px;
+  overflow: hidden;
+  transition:
+    width 0.28s ease,
+    min-width 0.28s ease,
+    opacity 0.2s ease,
+    transform 0.28s ease;
+}
+
+.compose:focus-within .acts,
+.compose.is-on .acts {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(16px);
+  pointer-events: none;
+}
+
+.compose:focus-within .send-cmt,
+.compose.is-on .send-cmt {
+  max-width: 72px;
+  padding: 0 16px;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .act {
@@ -1554,5 +1850,38 @@ watch(moreOpen, async (on) => {
 
 .act.is-on .num {
   color: #ff2442;
+}
+
+.at-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 12%);
+}
+
+.at-empty {
+  padding: 12px 14px;
+  color: #8a8a8a;
+  font-size: 12px;
+}
+
+.at-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.at-row:hover,
+.at-row.is-hi {
+  background: #fff1f2;
 }
 </style>

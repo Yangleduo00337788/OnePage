@@ -1,5 +1,6 @@
 package com.onepage.user.web;
 
+import com.onepage.common.dto.UserSummary;
 import com.onepage.common.web.CurrentUser;
 import com.onepage.user.dto.PostCursorPage;
 import com.onepage.user.dto.ReceivedCursorPage;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 对浏览器的资料接口。{@code /me} 一律 {@link CurrentUser#requireUserId}，不要自己读 Session。
@@ -40,6 +43,12 @@ public class UserController {
     return userService.me(CurrentUser.requireUserId(request));
   }
 
+  @GetMapping("/me/suggest")
+  public List<UserSummary> suggest(
+      HttpServletRequest request, @RequestParam(value = "q", required = false) String q) {
+    return userService.suggest(q, CurrentUser.requireUserId(request));
+  }
+
   @PatchMapping("/me")
   public UserProfileView patch(HttpServletRequest request, @RequestBody PatchMeRequest body) {
     return userService.updateMe(
@@ -51,8 +60,8 @@ public class UserController {
         body.coverMediaId());
   }
 
-  /** 公开主页：用对外 pageId，不用内部数字 userId。 */
-  @GetMapping("/{pageId}")
+  /** 公开主页：用对外 pageId。排除 suggest，避免被当成用户号。 */
+  @GetMapping("/{pageId:^(?!suggest$).+}")
   public UserProfileView byPageId(HttpServletRequest request, @PathVariable("pageId") String pageId) {
     return userService.byPageId(pageId, CurrentUser.tryUserId(request));
   }

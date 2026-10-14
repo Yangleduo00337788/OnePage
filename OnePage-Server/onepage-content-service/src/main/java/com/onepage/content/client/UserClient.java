@@ -5,6 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -20,4 +21,9 @@ public interface UserClient {
   List<Long> followeeIds(
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("userId") long userId);
+
+  @GetMapping("/internal/users/by-keys")
+  List<UserSummary> byKeys(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam("keys") List<String> keys);
 }

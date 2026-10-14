@@ -3,40 +3,58 @@ package com.onepage.content.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.onepage.common.api.BusinessException;
+import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.content.client.UserClient;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.Comment;
 import com.onepage.content.entity.CommentLike;
 import com.onepage.content.entity.Post;
 import com.onepage.content.mapper.CommentLikeMapper;
 import com.onepage.content.mapper.CommentMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class CommentService {
+  private static final Logger log = LoggerFactory.getLogger(CommentService.class);
+  private static final Pattern AT = Pattern.compile("@([^\\s@]{1,32})");
+  private static final int MENTION_MAX = 10;
+
   private final PostService postService;
   private final CommentMapper commentMapper;
   private final CommentLikeMapper commentLikeMapper;
   private final AuthorLookup authorLookup;
   private final InteractionNotifier notifier;
+  private final UserClient userClient;
+  private final String internalToken;
 
   public CommentService(
       PostService postService,
       CommentMapper commentMapper,
       CommentLikeMapper commentLikeMapper,
       AuthorLookup authorLookup,
-      InteractionNotifier notifier) {
+      InteractionNotifier notifier,
+      UserClient userClient,
+      @Value("${onepage.internal-token}") String internalToken) {
     this.postService = postService;
     this.commentMapper = commentMapper;
     this.commentLikeMapper = commentLikeMapper;
     this.authorLookup = authorLookup;
     this.notifier = notifier;
+    this.userClient = userClient;
+    this.internalToken = internalToken;
   }
 
   public FeedDtos.CommentPage list(Long viewerId, long postId, String rootId, Integer offset, Integer limit) {
@@ -73,7 +91,8 @@ public class CommentService {
   }
 
   @Transactional
-  public FeedDtos.CommentView create(long userId, long postId, String content, String parentId) {
+  public FeedDtos.CommentView create(
+      long userId, long postId, String content, String parentId, List<String> mentionPageIds) {
     Post post = postService.requireVisible(postId, userId);
     if (!StringUtils.hasText(content) || content.trim().length() > 2000) {
       throw BusinessException.validation("评论内容不合法");
@@ -102,6 +121,8 @@ public class CommentService {
     }
     commentMapper.insert(row);
     String preview = row.getContent();
+    LinkedHashSet<Long> already = new LinkedHashSet<>();
+    already.add(userId);
     if (parent == null) {
       notifier.emit(
           post.getAuthorId(),
@@ -111,6 +132,9 @@ public class CommentService {
           post.getId(),
           id,
           preview);
+      if (post.getAuthorId() != null) {
+        already.add(post.getAuthorId());
+      }
     } else {
       notifier.emit(
           parent.getUserId(),
@@ -120,8 +144,87 @@ public class CommentService {
           post.getId(),
           id,
           preview);
+      if (parent.getUserId() != null) {
+        already.add(parent.getUserId());
+      }
     }
+    emitMentions(userId, post.getId(), id, preview, mentionPageIds, already);
     return toView(userId, row);
+  }
+
+  private void emitMentions(
+      long actorId,
+      long postId,
+      long commentId,
+      String preview,
+      List<String> mentionPageIds,
+      LinkedHashSet<Long> already) {
+    LinkedHashSet<String> keys = new LinkedHashSet<>();
+    if (mentionPageIds != null) {
+      for (String raw : mentionPageIds) {
+        addMentionKey(keys, raw);
+      }
+    }
+    if (StringUtils.hasText(preview)) {
+      Matcher matcher = AT.matcher(preview);
+      while (matcher.find()) {
+        addMentionKey(keys, matcher.group(1));
+      }
+    }
+    if (keys.isEmpty()) {
+      return;
+    }
+    List<UserSummary> hits;
+    try {
+      hits = userClient.byKeys(internalToken, new ArrayList<>(keys));
+    } catch (RuntimeException ex) {
+      log.warn("resolve mention keys failed", ex);
+      return;
+    }
+    if (hits == null) {
+      return;
+    }
+    int sent = 0;
+    for (UserSummary hit : hits) {
+      if (hit == null || !StringUtils.hasText(hit.userId())) {
+        continue;
+      }
+      long recipient;
+      try {
+        recipient = Long.parseLong(hit.userId());
+      } catch (NumberFormatException ex) {
+        continue;
+      }
+      if (!already.add(recipient)) {
+        continue;
+      }
+      notifier.emit(
+          recipient,
+          "mention",
+          actorId,
+          "mention:" + commentId + ":" + recipient,
+          postId,
+          commentId,
+          preview);
+      sent++;
+      if (sent >= MENTION_MAX) {
+        break;
+      }
+    }
+  }
+
+  private static void addMentionKey(LinkedHashSet<String> keys, String raw) {
+    if (!StringUtils.hasText(raw) || keys.size() >= 20) {
+      return;
+    }
+    String key = raw.trim();
+    if (key.startsWith("@")) {
+      key = key.substring(1);
+    }
+    if (key.isEmpty() || key.length() > 32) {
+      return;
+    }
+    keys.add(key);
   }
 
   public void delete(long userId, long commentId) {

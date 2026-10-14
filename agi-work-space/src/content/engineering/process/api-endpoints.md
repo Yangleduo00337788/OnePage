@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答、评论内 @。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -152,9 +152,14 @@ OAuth 回调 → 建号/绑定 → Cookie → 302 到前端首页
 **Body**（均可选）：`nickname`, `bio`, `gender`, `avatarMediaId`, `coverMediaId`  
 **Response 200**：完整 profile
 
+### GET `/api/v1/users/me/suggest`
+
+评论 @ 联想，必须登录。Query：`q`（可空；不要 `%` `_` `\`）。空词返回已关注（最多 8）。有词：一页号前缀或昵称包含，精确优先，最多 8，不含自己。  
+**Response 200**：`UserSummary[]`（`userId`, `pageId`, `nickname`, `avatarUrl`）
+
 ### GET `/api/v1/users/{pageId}`
 
-他人主页（公开字段 + stats）。GET 公开。
+他人主页（公开字段 + stats）。GET 公开。路径先按一页号精确匹配；没有命中且昵称全站唯一时按昵称打开（给评论 @ 用）。前端随后跳到规范 `/u/{pageId}`。
 
 ### GET `/api/v1/users/{pageId}/posts`
 
@@ -308,7 +313,8 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 
 ### POST `/api/v1/posts/{postId}/comments`
 
-**Body**：`content`, `parentId?`, `mentionPageIds?`（@）  
+**Body**：`content`, `parentId?`, `mentionPageIds?`（@ 一页号或昵称）  
+服务端还会从正文解析 `@token`。命中用户则投递 `mention` 通知（已收到本条评论/回复通知的人不再重复）。找不到的 token 忽略，评论仍成功。最多 10 人。  
 **Response 201**：Comment
 
 ### DELETE `/api/v1/comments/{commentId}`
@@ -337,7 +343,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注）。  
 **Response**：`CursorPage<NotificationItem>`
 
-**NotificationItem**：`id`, `type`, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复正文摘要，最多 120 字）, `read`, `createdAt`
+**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要，最多 120 字）, `read`, `createdAt`。`mention` 归入 `group=comment`。
 
 ### POST `/api/v1/notifications/read`
 

@@ -46,6 +46,7 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
   private static final Logger log = LoggerFactory.getLogger(UserService.class);
+  private static final int SUGGEST_MAX = 8;
 
   private final UserProfileMapper profileMapper;
   private final UserStatMapper statMapper;
@@ -132,6 +133,100 @@ public class UserService {
 
   public UserSummary summary(Long userId) {
     return toSummary(requireProfileByUserId(userId));
+  }
+
+  /** 按一页号或昵称精确匹配，给评论 @ 用。找不到的 key 直接丢掉。 */
+  public List<UserSummary> byKeys(List<String> keys) {
+    LinkedHashSet<String> uniq = new LinkedHashSet<>();
+    if (keys != null) {
+      for (String raw : keys) {
+        if (!StringUtils.hasText(raw)) {
+          continue;
+        }
+        String key = raw.trim();
+        if (key.length() > 32) {
+          continue;
+        }
+        uniq.add(key);
+        if (uniq.size() >= 20) {
+          break;
+        }
+      }
+    }
+    if (uniq.isEmpty()) {
+      return List.of();
+    }
+    List<String> list = new ArrayList<>(uniq);
+    List<UserProfile> rows = profileMapper.selectList(
+        Wrappers.<UserProfile>lambdaQuery()
+            .and(w -> w.in(UserProfile::getPageId, list).or().in(UserProfile::getNickname, list)));
+    if (rows == null || rows.isEmpty()) {
+      return List.of();
+    }
+    LinkedHashSet<Long> seen = new LinkedHashSet<>();
+    List<UserSummary> out = new ArrayList<>();
+    for (UserProfile profile : rows) {
+      if (profile == null || profile.getUserId() == null || !seen.add(profile.getUserId())) {
+        continue;
+      }
+      out.add(toSummary(profile));
+    }
+    return out;
+  }
+
+  /** 评论 @ 联想：空词给已关注；有词则前缀匹配一页号或模糊匹配昵称。 */
+  public List<UserSummary> suggest(String q, Long viewerId) {
+    String token = q == null ? "" : q.trim();
+    if (token.startsWith("@")) {
+      token = token.substring(1).trim();
+    }
+    if (token.length() > 32 || token.indexOf('%') >= 0 || token.indexOf('_') >= 0 || token.indexOf('\\') >= 0) {
+      return List.of();
+    }
+    if (!StringUtils.hasText(token)) {
+      if (viewerId == null) {
+        return List.of();
+      }
+      List<Long> ids = listFolloweeIds(viewerId);
+      int end = Math.min(ids.size(), SUGGEST_MAX);
+      return briefs(new ArrayList<>(ids.subList(0, end)));
+    }
+    final String needle = token;
+    List<UserProfile> rows = profileMapper.selectList(
+        Wrappers.<UserProfile>lambdaQuery()
+            .and(w -> w.likeRight(UserProfile::getPageId, needle).or().like(UserProfile::getNickname, needle))
+            .last("LIMIT 20"));
+    if (rows == null || rows.isEmpty()) {
+      return List.of();
+    }
+    List<UserProfile> ranked = new ArrayList<>();
+    LinkedHashSet<Long> seen = new LinkedHashSet<>();
+    for (UserProfile row : rows) {
+      if (row != null && token.equals(row.getPageId()) && seen.add(row.getUserId())) {
+        ranked.add(row);
+      }
+    }
+    for (UserProfile row : rows) {
+      if (row != null && token.equals(row.getNickname()) && seen.add(row.getUserId())) {
+        ranked.add(row);
+      }
+    }
+    for (UserProfile row : rows) {
+      if (row != null && row.getUserId() != null && seen.add(row.getUserId())) {
+        ranked.add(row);
+      }
+    }
+    List<UserSummary> out = new ArrayList<>();
+    for (UserProfile row : ranked) {
+      if (viewerId != null && viewerId.equals(row.getUserId())) {
+        continue;
+      }
+      out.add(toSummary(row));
+      if (out.size() >= SUGGEST_MAX) {
+        break;
+      }
+    }
+    return out;
   }
 
   public UserProfileView me(Long userId) {
@@ -262,10 +357,15 @@ public class UserService {
   private UserProfile requireProfileByPageId(String pageId) {
     UserProfile profile = profileMapper.selectOne(
         Wrappers.<UserProfile>lambdaQuery().eq(UserProfile::getPageId, pageId));
-    if (profile == null) {
-      throw BusinessException.notFound("用户不存在");
+    if (profile != null) {
+      return profile;
     }
-    return profile;
+    List<UserProfile> byNick = profileMapper.selectList(
+        Wrappers.<UserProfile>lambdaQuery().eq(UserProfile::getNickname, pageId));
+    if (byNick != null && byNick.size() == 1) {
+      return byNick.get(0);
+    }
+    throw BusinessException.notFound("用户不存在");
   }
 
   private UserProfile requireProfileByUserId(Long userId) {

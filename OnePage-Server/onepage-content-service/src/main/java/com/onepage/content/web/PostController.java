@@ -140,7 +140,11 @@ public class PostController {
       @PathVariable("postId") long postId,
       @Valid @RequestBody CreateCommentRequest body) {
     FeedDtos.CommentView view = commentService.create(
-        CurrentUser.requireUserId(request), postId, body.content(), body.parentId());
+        CurrentUser.requireUserId(request),
+        postId,
+        body.content(),
+        body.parentId(),
+        body.mentionPageIds());
     return ResponseEntity.status(HttpStatus.CREATED).body(view);
   }
 

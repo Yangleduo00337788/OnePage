@@ -47,12 +47,16 @@ async function load() {
     loading.value = false
     return
   }
-  if (session.me?.pageId === pageId.value) {
+  if (session.me?.pageId === pageId.value || session.me?.nickname === pageId.value) {
     await router.replace('/me')
     return
   }
   try {
     profile.value = await api.userByPageId(pageId.value)
+    if (profile.value?.pageId && profile.value.pageId !== pageId.value) {
+      await router.replace(`/u/${profile.value.pageId}`)
+      return
+    }
   } catch (e) {
     failed.value =
       e instanceof ApiError && (e.status === 404 || e.code === 'NOT_FOUND') ? 'missing' : 'error'
