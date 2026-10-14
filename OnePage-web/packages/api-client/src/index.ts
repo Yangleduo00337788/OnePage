@@ -77,8 +77,30 @@ export type ImMessage = {
   messageId: string
   senderId: string
   msgType: string
-  content: { text?: string; postId?: string; title?: string; coverUrl?: string; authorNickname?: string }
+  content: {
+    text?: string
+    mediaId?: string
+    url?: string
+    postId?: string
+    title?: string
+    coverUrl?: string
+    authorNickname?: string
+  }
   createdAt: string
+}
+
+export type ImSocketFrame = {
+  op: 'connected' | 'pong' | 'message' | 'ack' | 'error'
+  conversationId?: string
+  payload?: ImMessage
+  code?: string
+  detail?: string
+}
+
+/** 同源 `/ws/im`，开发时由 Vite 转到网关，才能带上 Session Cookie。 */
+export function imWebSocketUrl(): string {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.host}/ws/im`
 }
 
 export type ReceivedItem = {
@@ -379,6 +401,11 @@ export const api = {
     request<ImMessage>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
       method: 'POST',
       body: JSON.stringify({ msgType: 'text', content: { text } }),
+    }),
+  sendImageMessage: (conversationId: string, mediaId: string) =>
+    request<ImMessage>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ msgType: 'image', content: { mediaId } }),
     }),
   conversationUnread: () => request<{ count: number }>('/api/v1/conversations/unread-count'),
 }

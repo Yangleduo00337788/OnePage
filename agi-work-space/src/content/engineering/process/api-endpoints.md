@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本私信、分享笔记卡片到私信、获赞/被收藏列表。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答、评论内 @、私信 WebSocket / 图片消息。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** AI 润色/问答、评论内 @。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -187,7 +187,8 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 
 ### POST `/api/v1/uploads/presign`
 
-**Body**：`mimeType`, `sizeBytes`, `purpose`（`avatar` | `cover` | `post_image` | `post_video`）  
+**Body**：`mimeType`, `sizeBytes`, `purpose`（`avatar` | `cover` | `post_image` | `post_video` | `im_image`）  
+`im_image`：仅 jpeg/png/webp/gif，最大 10MB。  
 **Response 200**：`{ "mediaId", "uploadUrl", "objectKey", "expiresAt" }`
 
 ### POST `/api/v1/uploads/complete`
@@ -372,12 +373,29 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/conversations/{id}/messages`
 
-**Body**：`{ "msgType": "text", "content": { "text": "..." } }`  
-**Response 201** 消息。公网只支持 `text`。笔记卡片走 `POST /posts/{id}/share/im`。
+**Body 文本**：`{ "msgType": "text", "content": { "text": "..." } }`  
+**Body 图片**：`{ "msgType": "image", "content": { "mediaId": "..." } }`。`mediaId` 须为本人已 `complete` 的 `purpose=im_image`。服务端写入 `content.url`，不信任客户端 URL。  
+**Response 201** 消息。笔记卡片走 `POST /posts/{id}/share/im`，浏览器不能直接发 `post_card`。
 
 ### WebSocket `WS /ws/im`
 
-尚未实现。社区页用 HTTP 轮询。
+必须登录。浏览器连同源 `/ws/im`（开发时 Vite 转到网关），握手带 `ONEPAGE_SESSION`；网关验 Session 后注入 `X-User-Id` 再 `lb:ws://onepage-message-service`。message-service **不解析 Cookie**。
+
+落库仍走 REST `POST /conversations/{id}/messages`（或 WS 帧 `op=send`，字段同 REST body + `conversationId`）。提交成功后 Redis 频道 `onepage:im:push` 投到发送者与对端本机连接（多实例靠 Redis，不靠单机 Map）。
+
+**服务端 → 浏览器 JSON**
+
+| `op` | 字段 |
+| --- | --- |
+| `connected` | 握手成功 |
+| `pong` | 回应 `ping` |
+| `message` | `conversationId`，`payload` 同 REST 消息项（自己多端和对端都会收到） |
+| `ack` | 仅 WS `send` 成功回给该连接；`conversationId` + `payload` |
+| `error` | `code`，`detail` |
+
+**浏览器 → 服务端 JSON**：`{"op":"ping"}`；`{"op":"send","conversationId","msgType":"text"|"image","content":...}`（字段同 REST）。
+
+社区登录后壳内长连。消息页在线时不轮询；断线约 3 秒轮询 REST 作降级。发图走 presign `im_image` → complete → REST。
 
 ---
 

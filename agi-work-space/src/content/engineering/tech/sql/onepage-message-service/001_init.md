@@ -6,7 +6,7 @@ order: 1
 
 对应 `OnePage-Server/onepage-message-service/db/sql/001_init.sql`。库 `onepage_message`。P2 单聊。
 
-已有环境必须建库并执行。`pair_key` 保证同一对用户只有一条会话。本期消息类型先支持 `text`。WebSocket 尚未接。
+已有环境必须建库并执行。`pair_key` 保证同一对用户只有一条会话。消息类型：`text` / `image` / `post_card`。实时走 `WS /ws/im` + Redis 频道，不改表。
 
 ## 表
 

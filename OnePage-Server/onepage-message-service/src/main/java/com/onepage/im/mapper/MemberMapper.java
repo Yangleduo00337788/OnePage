@@ -3,6 +3,7 @@ package com.onepage.im.mapper;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,13 @@ public interface MemberMapper {
       @Param("conversationId") long conversationId,
       @Param("userId") long userId,
       @Param("now") LocalDateTime now);
+
+  @Select("""
+      SELECT user_id FROM conversation_member
+      WHERE conversation_id = #{conversationId} AND user_id <> #{userId}
+      LIMIT 1
+      """)
+  Long findPeerId(@Param("conversationId") long conversationId, @Param("userId") long userId);
 
   @Update("""
       UPDATE conversation_member

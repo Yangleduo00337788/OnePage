@@ -13,6 +13,11 @@ spring:
     url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_MESSAGE_DB}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
   cloud:
     nacos:
       server-addr: "${NACOS_SERVER_ADDR}"
@@ -31,6 +36,7 @@ spring:
 
 onepage:
   internal-token: ${INTERNAL_TOKEN}
+  media-public-base: ${MEDIA_PUBLIC_BASE}
 
 mybatis-plus:
   configuration:

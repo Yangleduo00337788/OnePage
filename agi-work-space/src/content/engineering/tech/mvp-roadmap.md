@@ -85,7 +85,7 @@ PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 M
 | P4 | 能开播、能看直播 |
 | P5 | 能举报、能基本运维 |
 
-**当前**：P1 主链路已通。P2 关注已落在 user-service。P2 通知已落 `onepage-notification-service`（8084）。P2 私信已落 `onepage-message-service`（8085）：单聊文本 HTTP，社区 `/messages` 约 3 秒轮询；分享笔记卡片走 `POST /posts/{id}/share/im`。获赞/被收藏列表已接。尚未实现：@ 解析、私信 WebSocket、AI、搜索、直播。Outbox 只落库。本地 IDEA 六进程；yml 只引用环境变量。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、`003_category.sql`、`004_post_settings.sql`；user 关注需 `002_follow.sql`；通知需 `onepage-notification-service/db/sql/001_init.sql`；私信需 `onepage-message-service/db/sql/001_init.sql`（并在 `.env` 加 `MESSAGE_PORT`、`MYSQL_MESSAGE_DB`）。
+**当前**：P1 主链路已通。P2 关注已落在 user-service。P2 通知已落 `onepage-notification-service`（8084）。P2 私信已落 `onepage-message-service`（8085）：单聊文本/图片 HTTP、`WS /ws/im`、分享笔记卡片 `POST /posts/{id}/share/im`。获赞/被收藏列表已接。尚未实现：@ 解析、AI、搜索、直播。Outbox 只落库。本地 IDEA 六进程；yml 只引用环境变量。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、`003_category.sql`、`004_post_settings.sql`；user 关注需 `002_follow.sql`；通知需 `onepage-notification-service/db/sql/001_init.sql`；私信需 `onepage-message-service/db/sql/001_init.sql`（并在 `.env` 加 `MESSAGE_PORT`、`MYSQL_MESSAGE_DB`）。message-service 需 Redis 与 `MEDIA_PUBLIC_BASE`。
 
 ## 往下翻
 

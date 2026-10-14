@@ -37,4 +37,7 @@ public final class ImDtos {
   public record SendRequest(String msgType, JsonNode content) {}
 
   public record UnreadCount(long count) {}
+
+  /** Redis 频道里投递到哪个用户；浏览器帧不含 userId。 */
+  public record PushFrame(String userId, String conversationId, MessageItem payload) {}
 }

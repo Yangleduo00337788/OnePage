@@ -24,7 +24,11 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 public class UploadService {
-  private static final Set<String> PURPOSES = Set.of("avatar", "cover", "post_image", "post_video");
+  private static final Set<String> PURPOSES =
+      Set.of("avatar", "cover", "post_image", "post_video", "im_image");
+  private static final Set<String> IM_IMAGE_MIMES =
+      Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
+  private static final long IM_IMAGE_MAX_BYTES = 10L * 1024 * 1024;
   private final MediaAssetMapper mapper;
   private final MinioClient minioClient;
   private final String bucket;
@@ -51,6 +55,14 @@ public class UploadService {
     }
     if (sizeBytes <= 0 || sizeBytes > 200L * 1024 * 1024) {
       throw BusinessException.validation("文件大小不合法");
+    }
+    if ("im_image".equals(purpose)) {
+      if (!IM_IMAGE_MIMES.contains(mimeType)) {
+        throw BusinessException.validation("只支持 jpg / png / webp / gif");
+      }
+      if (sizeBytes > IM_IMAGE_MAX_BYTES) {
+        throw BusinessException.validation("图片不能超过 10MB");
+      }
     }
     long id = IdGenerator.nextId();
     String ext = extension(mimeType);

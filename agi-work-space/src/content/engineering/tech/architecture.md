@@ -21,7 +21,7 @@ order: 1
 - 界面：**shadcn-vue + Tailwind 4**，组件集中在 `packages/ui`。  
 - **站点拆分**：社区 `apps/shell`（本机 5174）与创作者 `apps/app-creator`（本机 5175）是两个前端，入口整页跳转。规划中的 feed / user / im / live 仍可后续用微前端嵌进壳。  
 - 调 API：**带 Cookie**（`credentials: 'include'`），类型由 OpenAPI 生成。  
-- 私信本期：**HTTP** 列表/收发 + 社区页约 3 秒轮询；笔记卡片由分享接口写入。规划中的 **WebSocket** `/ws/im` 尚未接。直播仍规划 WS。
+- 私信本期：**HTTP** 列表/收发（文本 + 图片）+ 登录后 **WebSocket** `/ws/im`（网关升级，Redis 把帧路由到在线连接）。社区消息页在线不轮询，断线约 3 秒 REST 降级。图片走 MinIO `purpose=im_image`。笔记卡片由分享接口写入。直播仍规划 WS。
 
 规划目录：
 
@@ -50,7 +50,7 @@ onepage-auth-service、onepage-user-service、onepage-content-service
 onepage-notification-service、onepage-message-service
 ```
 
-user 含资料、关注、列表；获赞/被收藏由 user 对浏览器、content 查赞藏表。content 含发帖、Feed、赞藏评、分享链接与分享到私信（Feign message 写卡片）。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本与 `post_card`；对端资料 Feign 调 user。社区壳（5174）有接口的走 API，没有的用空态。
+user 含资料、关注、列表；获赞/被收藏由 user 对浏览器、content 查赞藏表。content 含发帖、Feed、赞藏评、分享链接与分享到私信（Feign message 写卡片）。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本、图片、`post_card` 与 `WS /ws/im`（落库后 Redis 推送）；图片 Feign content 核 media；对端资料 Feign 调 user。社区壳（5174）有接口的走 API，没有的用空态。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 
@@ -74,7 +74,7 @@ Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`enti
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
 | Nacos | **3.2.4 Standalone（Java 17）** | 控制台默认账号 `nacos`/`nacos`；命名空间 `public`。四个服务 `server-addr` 必须写 **`"[::1]:8848"`**，不要写 `127.0.0.1`：本机 IPv4 `:8848` 常被 Windows svchost 占用，HTTP 只在 IPv6 `::1`；旁路 `8849` 不是 Discovery 地址 |
-| Redis | **8.0** | Session + 验证码；P0 已用 |
+| Redis | **8.0** | Session + 验证码 + 私信 WS 路由；P0 已用 |
 | MinIO | **RELEASE.2025-02-07T23-21-09Z** | 桶 `onepage-media`。content 启动写公开读；PutBucketCors 在这版常报 NotImplemented，不挡启动。浏览器直传靠 MinIO 环境变量 `MINIO_API_CORS_ALLOW_ORIGIN`（须含 5173 文档、5174 社区、5175 创作者） |
 | Elasticsearch | **9.5.4** | P3 搜索再用；不要用 8.x 客户端硬连 |
 | RocketMQ | **5.5.0** | P1 只写 Outbox，暂不消费 |

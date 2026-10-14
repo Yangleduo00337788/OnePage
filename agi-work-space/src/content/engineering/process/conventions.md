@@ -28,7 +28,7 @@ RD 维护。代码和文档的共同规矩写在这里。
 | --- | --- |
 | 主分支 | `main` |
 | 功能分支 | `feat/<topic>`、`fix/<topic>` |
-| 提交信息 | `feat:` / `fix:` / `docs:` 开头，说明为什么 |
+| 提交信息 | **`type(scope): 变更主要信息`**。type 为 `feat` / `fix` / `docs`；scope 必填（如 `web` `server` `im`）；冒号必须是 ASCII `:`，后面一个空格。正确：`feat(im): 私信改为长连接推送并能发图片`。错误：`feat：…`（全角冒号）、`feat: …`（缺 scope）。 |
 | 评审 | 至少一人 Approve；契约变更必须 @FE @QA |
 
 ## 本地命令

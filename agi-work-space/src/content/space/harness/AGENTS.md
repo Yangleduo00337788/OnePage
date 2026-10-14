@@ -198,7 +198,7 @@ npm run build
 - 未经用户要求不要执行 push。
 - 不要把代理路径、本机文件夹授权提示写进远程 README 当密钥说明。
 
-提交说明风格（与工程规范一致，团队可改）：`feat:` / `fix:` / `docs:` 开头，写原因。
+提交说明（硬性，与 [工程约定](/engineering/process/conventions) 一致）：**`type(scope): 变更主要信息`**。type 为 `feat` / `fix` / `docs`，scope 必填。ASCII 冒号，后面一个空格。正确：`feat(im): 私信改为长连接推送并能发图片`。错误：`feat：…`、`feat: …`（缺 scope）。
 
 ## 10. 工具使用边界
 

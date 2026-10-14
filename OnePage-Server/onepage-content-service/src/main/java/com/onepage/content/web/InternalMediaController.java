@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 给 user-service 查媒体归属。返回 objectKey 和 status，不返回预签名 URL。
+ * 给 user / message 查媒体归属。返回 objectKey、mime 和 status，不返回预签名 URL。
  */
 @RestController
 @RequestMapping("/internal")
@@ -34,8 +34,14 @@ public class InternalMediaController {
       throw BusinessException.unauthorized("内部调用未授权");
     }
     MediaAsset asset = uploadService.require(mediaId);
-    return new MediaInfo(asset.getId(), asset.getOwnerId(), asset.getObjectKey(), asset.getStatus());
+    return new MediaInfo(
+        asset.getId(),
+        asset.getOwnerId(),
+        asset.getObjectKey(),
+        asset.getMimeType(),
+        asset.getStatus());
   }
 
-  public record MediaInfo(Long mediaId, Long ownerId, String objectKey, Integer status) {}
+  public record MediaInfo(
+      Long mediaId, Long ownerId, String objectKey, String mimeType, Integer status) {}
 }

@@ -6,6 +6,24 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-031 私信图片走 MinIO `im_image`，消息里只存 mediaId+url
+
+- **日期：** 2026-10-14
+- **状态：** 已采纳
+- **背景：** DDL 已预留 `msg_type=image`。公网若允许任意 URL 可钓鱼。
+- **决策：** 先 `POST /uploads/presign`（`purpose=im_image`，jpeg/png/webp/gif，≤10MB）再 complete，然后 `POST /conversations/{id}/messages` 只传 `mediaId`。message-service Feign content 核对本人、已就绪、objectKey 前缀 `im_image/`，再写入公开 `url`。列表预览 `[图片]`。
+- **替代：** 复用 `post_image`（否决：和发帖媒体混路径）；浏览器直接传 URL（否决：不可信）。
+- **影响：** content 增加 purpose；message-service 要 `MEDIA_PUBLIC_BASE`。
+
+## DEC-030 私信实时用 WebSocket，轮询只作降级
+
+- **日期：** 2026-10-14
+- **状态：** 已采纳
+- **背景：** DEC-027 先用 HTTP 轮询把单聊发出去。PRD 实时仍要求 WebSocket。
+- **决策：** 浏览器连同源 `WS /ws/im`（Cookie Session）。网关验 Session、注入 `X-User-Id`，`lb:ws://onepage-message-service`。落库仍走 REST；提交后 Redis 频道 `onepage:im:push` 推到发送者与对端在线连接。消息页在线不轮询，断线约 3 秒 REST。图片见 DEC-031。
+- **替代：** 继续只轮询（否决：延迟差）；STOMP/SockJS（否决：契约是裸 `/ws/im`）。
+- **影响：** message-service 增加 Redis 与 websocket 依赖。网关路由 `im-ws` 的 `response-timeout` 为 -1，避免 10 秒掐断长连接。
+
 ## DEC-029 品牌锁用设计稿开本书 + 透明底
 
 - **日期：** 2026-10-14
@@ -27,9 +45,9 @@ POM 维护。每条决策单独一节，新的写在上面。聊天结论当天�
 ## DEC-027 私信第一刀用 HTTP 轮询，不上 WebSocket
 
 - **日期：** 2026-10-13
-- **状态：** 已采纳
+- **状态：** 已被 DEC-030 取代（轮询仅断线降级）
 - **背景：** P2 要能单聊。WebSocket 要网关升级、在线路由和 Redis，会拖住「先能发到」。
-- **决策：** 先做 `onepage-message-service` 的 REST（开会话、列表、拉消息、发文本、未读合计）。社区 `/messages` 约 3 秒轮询。单聊用 `pair_key`（两 userId 升序）UNIQUE。公网消息只 `msgType=text`；笔记卡片见 DEC-028。
+- **决策：** 先做 `onepage-message-service` 的 REST（开会话、列表、拉消息、发文本、未读合计）。社区 `/messages` 约 3 秒轮询。单聊用 `pair_key`（两 userId 升序）UNIQUE。当时公网只 `msgType=text`；图片见 DEC-031，笔记卡片见 DEC-028。
 - **替代：** 同期上 WS（否决：联调面太大）；会话放 content 库（否决：与通知一样要独立进程和库）。
 - **影响：** 契约里 `WS /ws/im` 仍保留为未实现。图片消息另做。
 

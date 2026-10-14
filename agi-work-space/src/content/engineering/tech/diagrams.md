@@ -258,7 +258,7 @@ sequenceDiagram
   AI->>B: 200 带引用片段
 ```
 
-## 9. 时序：私信 HTTP（本期）
+## 9. 时序：私信 HTTP（开会话 / 拉历史 / 发文本）
 
 ```mermaid
 sequenceDiagram
@@ -267,6 +267,7 @@ sequenceDiagram
   participant M as message_service
   participant U as user_service
   participant DB as MySQL
+  participant R as Redis
 
   B->>G: POST /conversations Cookie
   G->>M: X-User-Id
@@ -275,7 +276,8 @@ sequenceDiagram
   M->>B: 201 conversationId
   B->>G: GET messages / POST text
   G->>M: persist / mark read
-  Note over B: 约 3 秒再拉列表和消息
+  M->>R: 频道 onepage:im:push
+  Note over B: 在线由 WS 收；断线约 3 秒轮询
 ```
 
 ## 9c. 时序：分享笔记到私信
@@ -297,7 +299,7 @@ sequenceDiagram
   C->>B: 201 messageId
 ```
 
-## 9b. 时序：私信 WebSocket（尚未实现）
+## 9b. 时序：私信 WebSocket
 
 ```mermaid
 sequenceDiagram
@@ -308,12 +310,15 @@ sequenceDiagram
   participant DB as MySQL
 
   B->>G: WS /ws/im Cookie
-  G->>M: 校验 Session 升级
-  M->>B: connected
-  B->>M: send message
-  M->>DB: persist message
-  M->>R: 路由到对端连接
-  M->>B: ack + push to peer
+  G->>G: Session 写入 X-User-Id
+  G->>M: lb:ws 升级
+  M->>B: op connected
+  B->>G: POST /conversations/{id}/messages
+  G->>M: persist
+  M->>DB: message
+  M->>R: onepage:im:push
+  R->>M: 本机订阅
+  M->>B: op message 发送者与对端
 ```
 
 ## 10. 时序：基础直播（开播 / HLS 观看）

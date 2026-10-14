@@ -9,6 +9,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { api } from '@onepage/api-client'
 import { useSession } from './stores/session'
+import { useImSocket } from './stores/imSocket'
 import { useAuthModal } from './stores/authModal'
 import { useMoreMenu } from './stores/moreMenu'
 import { useTheme } from './stores/theme'
@@ -23,6 +24,7 @@ import MoreMenu from './components/MoreMenu.vue'
 import NoteDetailModal from './components/NoteDetailModal.vue'
 
 const session = useSession()
+const imSocket = useImSocket()
 const auth = useAuthModal()
 const more = useMoreMenu()
 const theme = useTheme()
@@ -31,6 +33,24 @@ const route = useRoute()
 onMounted(() => {
   session.refresh()
   theme.init()
+})
+
+watch(
+  () => session.me?.userId,
+  (userId) => {
+    if (userId) {
+      imSocket.connect()
+    } else {
+      imSocket.disconnect()
+    }
+  },
+  { immediate: true },
+)
+
+imSocket.subscribe((frame) => {
+  if (frame.op === 'message' || frame.op === 'ack') {
+    void session.refreshUnread()
+  }
 })
 
 watch(

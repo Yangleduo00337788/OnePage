@@ -46,6 +46,7 @@
 - Java：遵守 `java-alibaba.md`。`@PathVariable` 必须写名字。内网身份只用网关 `X-User-Id`。yml 只写 `${变量}`，机密不进仓库。
 - 改表先改工作空间 DDL 文档，脚本带表/列注释。
 - 没有用户明确要求时，不要 `git commit` / `git push`，不要改 git config，不要 force push。
+- **提交说明（硬性）：** `type(scope): 变更主要信息`。type 为 `feat` / `fix` / `docs`，**必须带 scope**（如 `web` `server` `im`）。冒号是 ASCII `:`，后面一个空格。对照 [工程约定](agi-work-space/src/content/engineering/process/conventions.md)。正确：`feat(im): 私信改为长连接推送并能发图片`。错误：`feat：…`（全角）、`feat: …`（缺 scope）。
 
 ## 密钥
 

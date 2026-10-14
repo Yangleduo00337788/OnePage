@@ -1,6 +1,6 @@
 <!--
   私信：左会话 GET /conversations，右对话拉/发明文。
-  查询 c=会话 id。他人主页开聊后带这个参数。本期 HTTP，约 3 秒轮询。
+  查询 c=会话 id。他人主页开聊后带这个参数。实时走 WS /ws/im，断线才 3 秒轮询。可发文本和图片。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -10,11 +10,13 @@ import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { useAuthModal } from '../stores/authModal'
 import { useNoteDetail } from '../stores/noteDetail'
+import { useImSocket } from '../stores/imSocket'
 import { useSession } from '../stores/session'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSession()
+const imSocket = useImSocket()
 const auth = useAuthModal()
 const noteDetail = useNoteDetail()
 
@@ -26,8 +28,13 @@ const threadFailed = ref('')
 const loadingThread = ref(false)
 const draft = ref('')
 const sending = ref(false)
+const viewerUrl = ref('')
+const fileEl = ref<HTMLInputElement | null>(null)
 const logEl = ref<HTMLElement | null>(null)
 let poll: ReturnType<typeof setInterval> | null = null
+let unsub: (() => void) | null = null
+const IM_IMAGE_MAX = 10 * 1024 * 1024
+const IM_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
 function previewOf(item: ConversationItem) {
   return item.lastMessage?.text || '暂无消息'
@@ -35,6 +42,10 @@ function previewOf(item: ConversationItem) {
 
 function bubbleText(row: ImMessage) {
   return row.content?.text || ''
+}
+
+function isImage(row: ImMessage) {
+  return row.msgType === 'image' && Boolean(row.content?.url)
 }
 
 function isPostCard(row: ImMessage) {
@@ -115,20 +126,83 @@ function select(id: string) {
   void router.replace({ query: { c: id } })
 }
 
+function ingest(row: ImMessage, conversationId: string) {
+  if (conversationId === activeId.value) {
+    if (!messages.value.some((it) => it.messageId === row.messageId)) {
+      messages.value = messages.value.concat(row)
+      scrollBottom()
+    }
+  }
+  void loadList()
+}
+
 async function send() {
   const text = draft.value.trim()
   if (!text || !activeId.value || sending.value) return
   sending.value = true
+  threadFailed.value = ''
   try {
     const row = await api.sendMessage(activeId.value, text)
     draft.value = ''
-    messages.value = messages.value.concat(row)
-    scrollBottom()
-    await loadList()
+    ingest(row, activeId.value)
   } catch (e) {
     threadFailed.value = e instanceof ApiError ? e.message : '发送失败'
   } finally {
     sending.value = false
+  }
+}
+
+function pickImage() {
+  if (sending.value) return
+  fileEl.value?.click()
+}
+
+async function onImageFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !activeId.value || sending.value) return
+  if (!IM_IMAGE_MIMES.has(file.type)) {
+    threadFailed.value = '只支持 jpg / png / webp / gif'
+    return
+  }
+  if (file.size > IM_IMAGE_MAX) {
+    threadFailed.value = '图片不能超过 10MB'
+    return
+  }
+  sending.value = true
+  threadFailed.value = ''
+  try {
+    const ticket = await api.presign(file.type, file.size, 'im_image')
+    const put = await fetch(ticket.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    })
+    if (!put.ok) throw new Error('直传对象存储失败')
+    await api.completeUpload(ticket.mediaId)
+    const row = await api.sendImageMessage(activeId.value, ticket.mediaId)
+    ingest(row, activeId.value)
+  } catch (e) {
+    threadFailed.value = e instanceof ApiError ? e.message : e instanceof Error ? e.message : '发送失败'
+  } finally {
+    sending.value = false
+  }
+}
+
+function startPoll() {
+  if (poll) return
+  poll = setInterval(() => {
+    if (imSocket.connected) return
+    void loadList()
+    void loadThread({ silent: true })
+  }, 3000)
+}
+
+function stopPoll() {
+  if (poll) {
+    clearInterval(poll)
+    poll = null
   }
 }
 
@@ -169,15 +243,31 @@ onMounted(async () => {
   }
   await loadList()
   await loadThread()
-  poll = setInterval(() => {
-    void loadList()
-    void loadThread({ silent: true })
-  }, 3000)
+  startPoll()
+  unsub = imSocket.subscribe((frame) => {
+    if ((frame.op === 'message' || frame.op === 'ack') && frame.payload && frame.conversationId) {
+      ingest(frame.payload, frame.conversationId)
+      if (frame.conversationId === activeId.value) {
+        void loadThread({ silent: true })
+      }
+    }
+  })
 })
 
 onUnmounted(() => {
-  if (poll) clearInterval(poll)
+  stopPoll()
+  unsub?.()
 })
+
+watch(
+  () => imSocket.connected,
+  (online) => {
+    if (online) {
+      void loadList()
+      void loadThread({ silent: true })
+    }
+  },
+)
 
 watch(activeId, () => {
   void loadThread()
@@ -244,7 +334,15 @@ watch(
             </span>
             <div class="im-msg-body">
               <button
-                v-if="isPostCard(item.row)"
+                v-if="isImage(item.row)"
+                type="button"
+                class="im-pic"
+                @click="viewerUrl = item.row.content.url || ''"
+              >
+                <img :src="item.row.content.url" alt="" />
+              </button>
+              <button
+                v-else-if="isPostCard(item.row)"
                 type="button"
                 class="im-card"
                 @click="openPostCard(item.row)"
@@ -262,6 +360,22 @@ watch(
           </div>
         </div>
         <form class="im-composer" @submit.prevent="send">
+          <input
+            ref="fileEl"
+            class="sr-only"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            @change="onImageFile"
+          />
+          <button
+            type="button"
+            class="im-attach"
+            :disabled="sending"
+            aria-label="发送图片"
+            @click="pickImage"
+          >
+            <Icon name="image" :size="18" />
+          </button>
           <input v-model="draft" class="im-input" maxlength="2000" placeholder="发消息…" />
           <button type="submit" class="im-send" :disabled="!draft.trim() || sending" aria-label="发送">
             <Icon name="send" :size="16" />
@@ -270,5 +384,8 @@ watch(
       </template>
       <EmptyState v-else class="im-empty-wrap" src="/empty-chat.png" title="选择一个会话开始聊天" />
     </div>
+    <button v-if="viewerUrl" type="button" class="im-viewer" aria-label="关闭图片" @click="viewerUrl = ''">
+      <img :src="viewerUrl" alt="" />
+    </button>
   </section>
 </template>

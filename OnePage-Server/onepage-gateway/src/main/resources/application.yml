@@ -47,6 +47,8 @@ spring:
       httpclient:
         connect-timeout: ${GW_CONNECT_TIMEOUT_MS}
         response-timeout: ${GW_RESPONSE_TIMEOUT}
+        websocket:
+          max-frame-payload-length: 65536
       default-filters:
         - name: Retry
           args:
@@ -118,6 +120,14 @@ spring:
             - Path=/api/v1/conversations,/api/v1/conversations/**
           metadata:
             sensitiveHeaders: ""
+        - id: im-ws
+          uri: lb:ws://onepage-message-service
+          predicates:
+            - Path=/ws/im
+          metadata:
+            sensitiveHeaders: ""
+            response-timeout: -1
+            connect-timeout: ${GW_CONNECT_TIMEOUT_MS}
 
 onepage:
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS}
