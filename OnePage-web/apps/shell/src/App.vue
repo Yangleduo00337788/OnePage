@@ -101,7 +101,7 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
     <aside class="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col items-center bg-[var(--sidebar-bg)] px-4 py-5">
       <RouterLink to="/" class="relative mb-6 block h-[72px] w-[220px] overflow-hidden bg-[var(--sidebar-bg)]">
         <img
-          src="/logo-light.png"
+          src="/logo-light.png?v=3"
           alt="ONEPAGE"
           class="logo-mark absolute top-1/2 left-1/2 h-[300%] w-[300%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
         />

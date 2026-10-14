@@ -82,7 +82,7 @@ async function sendCode() {
     <img class="bg" src="/login/bg.jpg?v=3" alt="" />
     <div class="brand">
       <div class="mark" aria-label="一页">
-        <img src="/logo-zh.png?v=2" alt="一页" />
+        <img src="/logo-zh.png?v=4" alt="一页" />
       </div>
       <p class="slogan">记录生活每一页</p>
       <p class="en">Every Day, A New Page</p>

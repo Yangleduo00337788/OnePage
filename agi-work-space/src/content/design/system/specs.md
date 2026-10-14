@@ -29,7 +29,7 @@ UIUE 维护。实现以设计 token 为准，FE 不在组件里另写一套色�
 | 用途 | 约定 |
 | --- | --- |
 | 左栏宽 | 260px，栏内导航选中/悬停胶囊 **130px** |
-| Logo 盒 | 220×72，图 300% 放大裁切，盒底与侧栏同为 `--sidebar-bg`；`logo-light.png` 白底已抠透明，浅色 `multiply` 叠底 |
+| Logo 盒 | 220×72，图 300% 放大裁切，盒底与侧栏同为 `--sidebar-bg`。`logo-light.png` 为 ONEPAGE 字标 + 红折角 + slogan「记录生活每一页」；中文 `logo-zh.png` 为「一页」+ 页角折纸。Favicon 为红底白折页，不再裁字标。 |
 | 导航字 | 16px medium `#1f1f1f` |
 | 导航图标 | Lucide 线框 **24×24**，描边 **1.75px** |
 | 空态插画 | 全站同一套粘土小人（白底、约 180px；弹层/侧栏用 compact 120px）。`empty-me.png` 笔记/收藏/点赞/历史/创作者笔记；`empty-search.png` 搜索无结果；`empty-chat.png` 私信/评论；`empty-notify.png` 通知；`empty-live.png` 直播；`empty-video.png` 视频；`empty-people.png` 关注/好友；`empty-box.png` 通用/活动；`empty-ai.png` 耶耶无会话。组件 `EmptyState.vue`。 |

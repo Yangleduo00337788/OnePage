@@ -105,7 +105,7 @@ function goEdit(postId: string) {
   <div v-else-if="ready" class="admin" :class="{ 'is-collapsed': collapsed }">
     <aside class="nav">
       <div class="nav-mark" aria-label="一页">
-        <img v-if="!collapsed" src="/logo-zh.png?v=2" alt="一页" />
+        <img v-if="!collapsed" src="/logo-zh.png?v=4" alt="一页" />
         <img v-else src="/favicon-32.png" alt="一页" />
       </div>
       <div class="pub">

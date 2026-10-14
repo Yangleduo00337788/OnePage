@@ -13,4 +13,4 @@ order: 30
 | [体验系统](/design/system) | [设计与体验](/design/system/experience)、[视觉规范](/design/system/specs) |
 | [设计交付](/design/handoff) | 切图、标注、开发可开始的勾选 |
 
-FE 以实现 [前端结构](/engineering/frontend) 为准，但**开始开发**应在设计交付勾选完成之后。品牌 Logo 浅色 / 深色在 `public/logo-light.png`、`public/logo-dark.png`，首页与顶栏共用。
+FE 以实现 [前端结构](/engineering/frontend) 为准，但**开始开发**应在设计交付勾选完成之后。品牌 Logo：浅色 / 深色字标 `logo-light.png`、`logo-dark.png`，中文 `logo-zh.png`，地址栏红底折页 favicon。名称与 slogan 不变。

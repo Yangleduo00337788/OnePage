@@ -135,7 +135,7 @@ onUnmounted(() => {
       <div class="relative mx-auto h-[88px] w-[200px]">
         <img
           v-show="logoOk"
-          src="/logo-zh.png?v=2"
+          src="/logo-zh.png?v=4"
           alt="一页"
           class="h-full w-full object-contain"
           @error="logoOk = false"

@@ -26,6 +26,7 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-14 — 换品牌 Logo：字标 ONEPAGE / 一页加红折页角；favicon 改红底白折页。名称与 slogan 未改
 - 2026-10-14 — 获赞/被收藏：`GET /users/me/likes-received` `|favorites-received`，弹层头像+一页号+昵称；他人主页仅计数。分享到私信：`POST /posts/{id}/share/im` 写 `post_card`，详情选好友，消息页出卡片
 - 2026-10-13 — 全站空态接粘土插画：笔记/搜索/私信/通知/直播/视频/关注/通用/耶耶（`empty-*.png` + `EmptyState.vue`）
 - 2026-10-13 — 「我的」/他人主页空态上方改用插画 `empty-me.png`（小人坐本抱红心）

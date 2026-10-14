@@ -245,7 +245,7 @@ function openLegal(kind: 'terms' | 'privacy') {
             <div class="relative h-[132px] w-[220px] bg-[#fafafa]">
               <img
                 v-show="logoOk"
-                src="/logo-zh.png?v=2"
+                src="/logo-zh.png?v=4"
                 alt="一页"
                 class="h-full w-full bg-[#fafafa] object-contain"
                 @error="logoOk = false"

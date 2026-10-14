@@ -27,7 +27,7 @@ UIUE 维护。原则指导所有界面；具体像素看 [视觉规范](/design/
 - 设计稿：
 - 原型：见 [原型与排期](/product/spec/prototypes)
 - 图标 / 插画：
-- 品牌与 Logo：浅色、深色各一份，放在 `public/`，用配置中心「工作空间标识」更换
+- 品牌与 Logo：浅色 `logo-light.png`、深色 `logo-dark.png`、中文 `logo-zh.png`、红底折页 favicon，放在各站 `public/`。名称仍是 ONEPAGE（一页），slogan 仍是「记录生活每一页」/ Every Day, A New Page。工作空间可用配置中心更换。
 
 ## 界面约定
 
