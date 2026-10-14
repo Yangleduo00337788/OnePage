@@ -1,4 +1,4 @@
-<!-- 品牌字标：与社区同一套。纯字、同号、单色，无图标。 -->
+<!-- 品牌锁：与社区同一套设计稿 PNG。 -->
 <script setup lang="ts">
 withDefaults(
   defineProps<{
@@ -11,8 +11,8 @@ withDefaults(
 
 <template>
   <span class="brand-logo" :class="[`is-${size}`, { 'is-mini': mini }]" role="img" aria-label="ONEPAGE">
-    <span v-if="mini">P</span>
-    <span v-else class="word">ONEPAGE</span>
+    <img v-if="mini" class="mark-mini" src="/favicon-32.png?v=19" alt="" />
+    <img v-else class="mark" src="/logo-light.png?v=19" alt="ONEPAGE" />
   </span>
 </template>
 
@@ -20,31 +20,31 @@ withDefaults(
 .brand-logo {
   display: inline-flex;
   align-items: center;
-  color: #ff2442;
-  font-family: 'Plus Jakarta Sans', 'Avenir Next', 'PingFang SC', sans-serif;
-  font-size: 18px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  justify-content: center;
 }
 
-.word {
-  font-size: 1em;
-  font-weight: inherit;
-  letter-spacing: inherit;
+.mark {
+  display: block;
+  height: 30px;
+  width: auto;
+  max-width: 168px;
+  object-fit: contain;
 }
 
-.is-auth {
-  font-size: 24px;
+.mark-mini {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
-.is-hero {
-  font-size: 28px;
+.is-auth .mark {
+  height: 36px;
+  max-width: 240px;
 }
 
-.is-mini {
-  font-size: 20px;
-  letter-spacing: 0;
+.is-hero .mark {
+  height: 42px;
+  max-width: 280px;
 }
 </style>

@@ -1,18 +1,26 @@
-<!-- 社区字标：纯字、同号、单色，不加图标。 -->
+<!-- 品牌锁：透明底设计稿 PNG，深色主题切 logo-dark。 -->
 <script setup lang="ts">
-withDefaults(
+import { computed } from 'vue'
+import { useTheme } from '../stores/theme'
+
+const props = withDefaults(
   defineProps<{
     mini?: boolean
     size?: 'nav' | 'auth' | 'hero'
   }>(),
   { mini: false, size: 'nav' },
 )
+
+const theme = useTheme()
+const src = computed(() => {
+  if (props.mini) return '/favicon-32.png?v=19'
+  return theme.resolved === 'dark' ? '/logo-dark.png?v=19' : '/logo-light.png?v=19'
+})
 </script>
 
 <template>
   <span class="brand-logo" :class="[`is-${size}`, { 'is-mini': mini }]" role="img" aria-label="ONEPAGE">
-    <span v-if="mini">P</span>
-    <span v-else class="word">ONEPAGE</span>
+    <img class="mark" :class="{ 'mark-mini': mini }" :src="src" alt="" />
   </span>
 </template>
 
@@ -20,31 +28,29 @@ withDefaults(
 .brand-logo {
   display: inline-flex;
   align-items: center;
-  color: #ff2442;
-  font-family: 'Plus Jakarta Sans', 'Avenir Next', 'PingFang SC', sans-serif;
-  font-size: 18px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  justify-content: center;
 }
 
-.word {
-  font-size: 1em;
-  font-weight: inherit;
-  letter-spacing: inherit;
+.mark {
+  display: block;
+  height: 30px;
+  width: auto;
+  max-width: 168px;
+  object-fit: contain;
 }
 
-.is-auth {
-  font-size: 24px;
+.mark-mini {
+  width: 28px;
+  height: 28px;
 }
 
-.is-hero {
-  font-size: 28px;
+.is-auth .mark {
+  height: 36px;
+  max-width: 240px;
 }
 
-.is-mini {
-  font-size: 20px;
-  letter-spacing: 0;
+.is-hero .mark {
+  height: 42px;
+  max-width: 280px;
 }
 </style>
