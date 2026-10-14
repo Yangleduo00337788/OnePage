@@ -1033,6 +1033,63 @@ html[data-theme='dark'] .theme-tab.is-on {
   color: #fff;
 }
 
+.im-card {
+  display: flex;
+  width: 196px;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  text-align: left;
+  box-shadow: 0 0 0 1px #ececec;
+}
+
+.im-card img {
+  height: 140px;
+  width: 100%;
+  object-fit: cover;
+  background: #f5f5f5;
+}
+
+.im-card-fallback {
+  display: flex;
+  height: 140px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: #f7f7f7;
+  color: #1f1f1f;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.im-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+
+.im-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.im-card-sub {
+  overflow: hidden;
+  color: #8a8a8a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .im-time {
   margin-top: 4px;
   font-size: 11px;

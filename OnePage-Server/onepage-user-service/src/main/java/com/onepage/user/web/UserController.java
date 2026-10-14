@@ -2,6 +2,7 @@ package com.onepage.user.web;
 
 import com.onepage.common.web.CurrentUser;
 import com.onepage.user.dto.PostCursorPage;
+import com.onepage.user.dto.ReceivedCursorPage;
 import com.onepage.user.dto.UserCursorPage;
 import com.onepage.user.dto.UserProfileView;
 import com.onepage.user.service.UserService;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 对浏览器的资料接口。{@code /me} 一律 {@link CurrentUser#requireUserId}，不要自己读 Session。
  * {@code GET /{pageId}} 与 {@code GET /{pageId}/posts} 公开；已登录时带 {@code X-User-Id} 才能看到自己的仅自己可见笔记。
- * {@code GET /me/favorites} {@code /likes} {@code /history} 仅本人。
+ * {@code GET /me/favorites} {@code /likes} {@code /history} {@code /likes-received} {@code /favorites-received} 仅本人。
  * {@code POST/DELETE /{pageId}/follow} 必须登录；关注/粉丝列表公开。
  * {@code PATCH /me}：局部更新，body 里没传的字段保持原值。
  */
@@ -87,6 +88,22 @@ public class UserController {
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit) {
     return userService.myHistory(CurrentUser.requireUserId(request), cursor, limit);
+  }
+
+  @GetMapping("/me/likes-received")
+  public ReceivedCursorPage likesReceived(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return userService.myLikesReceived(CurrentUser.requireUserId(request), cursor, limit);
+  }
+
+  @GetMapping("/me/favorites-received")
+  public ReceivedCursorPage favoritesReceived(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    return userService.myFavoritesReceived(CurrentUser.requireUserId(request), cursor, limit);
   }
 
   @GetMapping("/{pageId}/following")

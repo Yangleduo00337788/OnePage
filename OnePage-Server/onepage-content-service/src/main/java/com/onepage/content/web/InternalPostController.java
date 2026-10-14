@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 给 user-service 拉某作者主页笔记、本人赞藏浏览。公网走 `/api/v1/users/...`。 */
+/** 给 user-service 拉某作者主页笔记、本人赞藏浏览、作者获赞/被收藏。公网走 `/api/v1/users/...`。 */
 @RestController
 @RequestMapping("/internal")
 public class InternalPostController {
@@ -65,6 +65,26 @@ public class InternalPostController {
       @RequestParam(value = "limit", required = false) Integer limit) {
     assertInternal(request);
     return postService.listHistory(userId, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/likes-received")
+  public FeedDtos.ReceivedPage likesReceived(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.listLikesReceived(userId, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/favorites-received")
+  public FeedDtos.ReceivedPage favoritesReceived(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.listFavoritesReceived(userId, cursor, limit);
   }
 
   private void assertInternal(HttpServletRequest request) {

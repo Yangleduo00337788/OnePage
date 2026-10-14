@@ -21,7 +21,7 @@ order: 1
 - 界面：**shadcn-vue + Tailwind 4**，组件集中在 `packages/ui`。  
 - **站点拆分**：社区 `apps/shell`（本机 5174）与创作者 `apps/app-creator`（本机 5175）是两个前端，入口整页跳转。规划中的 feed / user / im / live 仍可后续用微前端嵌进壳。  
 - 调 API：**带 Cookie**（`credentials: 'include'`），类型由 OpenAPI 生成。  
-- 私信本期：**HTTP** 列表/收发 + 社区页约 3 秒轮询。规划中的 **WebSocket** `/ws/im` 尚未接。直播仍规划 WS。
+- 私信本期：**HTTP** 列表/收发 + 社区页约 3 秒轮询；笔记卡片由分享接口写入。规划中的 **WebSocket** `/ws/im` 尚未接。直播仍规划 WS。
 
 规划目录：
 
@@ -50,7 +50,7 @@ onepage-auth-service、onepage-user-service、onepage-content-service
 onepage-notification-service、onepage-message-service
 ```
 
-user 含资料、关注、列表。content 含发帖、Feed、赞藏评。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本；对端资料 Feign 调 user。社区壳（5174）有接口的走 API，没有的用空态。
+user 含资料、关注、列表；获赞/被收藏由 user 对浏览器、content 查赞藏表。content 含发帖、Feed、赞藏评、分享链接与分享到私信（Feign message 写卡片）。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本与 `post_card`；对端资料 Feign 调 user。社区壳（5174）有接口的走 API，没有的用空态。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 

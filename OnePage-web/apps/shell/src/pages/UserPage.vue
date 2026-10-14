@@ -113,6 +113,13 @@ function report() {
   }, 1600)
 }
 
+function showReceivedHint() {
+  toast.value = '仅作者可见'
+  window.setTimeout(() => {
+    if (toast.value === '仅作者可见') toast.value = ''
+  }, 1600)
+}
+
 function onDocClick(e: MouseEvent) {
   if (!moreWrap.value?.contains(e.target as Node)) moreOpen.value = false
 }
@@ -244,8 +251,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
               粉丝
             </button>
             <span class="mx-3 text-white/30">|</span>
-            <span class="font-semibold tabular-nums text-white">{{ likes }}</span>
-            获赞与收藏
+            <button type="button" class="stat-link" @click="showReceivedHint">
+              <span class="font-semibold tabular-nums text-white">{{ likes }}</span>
+              获赞与收藏
+            </button>
           </p>
         </div>
       </div>

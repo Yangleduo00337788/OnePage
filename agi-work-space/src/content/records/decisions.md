@@ -6,14 +6,23 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-028 获赞列表给互动人；笔记卡片只走分享接口
+
+- **日期：** 2026-10-14
+- **状态：** 已采纳
+- **背景：** PRD 获赞/被收藏是「谁赞了/藏了你」；契约曾写 `CursorPage<PostBrief>`。私信公网若允许任意 `post_card` 会伪造卡片。
+- **决策：** 列表为 `ReceivedItem`（actor + postId/title/时间），仅 `GET /users/me/likes-received` `|favorites-received`。`post_card` 只由 `POST /posts/{id}/share/im` 写入，公网发消息仍只 `text`。
+- **替代：** 列表出帖卡片（否决：对不上 PRD 头像+一页号）；浏览器直接 POST `post_card`（否决：可伪造）。
+- **影响：** 他人主页「获赞与收藏」只展示计数，点开提示仅作者可见。
+
 ## DEC-027 私信第一刀用 HTTP 轮询，不上 WebSocket
 
 - **日期：** 2026-10-13
 - **状态：** 已采纳
 - **背景：** P2 要能单聊。WebSocket 要网关升级、在线路由和 Redis，会拖住「先能发到」。
-- **决策：** 先做 `onepage-message-service` 的 REST（开会话、列表、拉消息、发文本、未读合计）。社区 `/messages` 约 3 秒轮询。单聊用 `pair_key`（两 userId 升序）UNIQUE。本期只 `msgType=text`。
+- **决策：** 先做 `onepage-message-service` 的 REST（开会话、列表、拉消息、发文本、未读合计）。社区 `/messages` 约 3 秒轮询。单聊用 `pair_key`（两 userId 升序）UNIQUE。公网消息只 `msgType=text`；笔记卡片见 DEC-028。
 - **替代：** 同期上 WS（否决：联调面太大）；会话放 content 库（否决：与通知一样要独立进程和库）。
-- **影响：** 契约里 `WS /ws/im` 仍保留为未实现。分享笔记卡片、图片消息另做。
+- **影响：** 契约里 `WS /ws/im` 仍保留为未实现。图片消息另做。
 
 ## DEC-026 不做独立「整体架构」HTML
 

@@ -111,6 +111,19 @@ public class PostController {
     return new ShareLinkResult(postService.shareLink(postId, CurrentUser.requireUserId(request)));
   }
 
+  @PostMapping("/{postId}/share/im")
+  public ResponseEntity<ShareImResult> shareIm(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId,
+      @RequestBody ShareImRequest body) {
+    String messageId = postService.shareIm(
+        CurrentUser.requireUserId(request),
+        postId,
+        body == null ? null : body.conversationId(),
+        body == null ? null : body.targetUserId());
+    return ResponseEntity.status(HttpStatus.CREATED).body(new ShareImResult(messageId));
+  }
+
   @GetMapping("/{postId}/comments")
   public FeedDtos.CommentPage comments(
       HttpServletRequest request,
@@ -145,6 +158,10 @@ public class PostController {
   public record CreateCommentRequest(@NotBlank String content, String parentId, List<String> mentionPageIds) {}
 
   public record ShareLinkResult(String shareUrl) {}
+
+  public record ShareImRequest(String conversationId, String targetUserId) {}
+
+  public record ShareImResult(String messageId) {}
 
   public record VisibilityRequest(String visibility) {}
 }

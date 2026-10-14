@@ -6,8 +6,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.content.client.ImClient;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.dto.InteractionHit;
+import com.onepage.content.dto.ReceivedActorHit;
 import com.onepage.content.entity.MediaAsset;
 import com.onepage.content.entity.OutboxEvent;
 import com.onepage.content.entity.Post;
@@ -23,6 +25,8 @@ import com.onepage.content.mapper.PostLikeMapper;
 import com.onepage.content.mapper.PostMapper;
 import com.onepage.content.mapper.PostMediaMapper;
 import com.onepage.content.mapper.PostViewMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +46,7 @@ import java.util.Set;
  */
 @Service
 public class PostService {
+  private static final Logger log = LoggerFactory.getLogger(PostService.class);
   private static final Set<String> POST_TYPES = Set.of("text", "image", "video", "mixed");
   private static final Set<String> CATEGORIES =
       Set.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐");
@@ -56,8 +62,10 @@ public class PostService {
   private final PostViewMapper postViewMapper;
   private final AuthorLookup authorLookup;
   private final ObjectMapper objectMapper;
+  private final ImClient imClient;
   private final String mediaPublicBase;
   private final String frontendUrl;
+  private final String internalToken;
 
   public PostService(
       PostMapper postMapper,
@@ -70,8 +78,10 @@ public class PostService {
       PostViewMapper postViewMapper,
       AuthorLookup authorLookup,
       ObjectMapper objectMapper,
+      ImClient imClient,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
-      @Value("${onepage.frontend-url}") String frontendUrl) {
+      @Value("${onepage.frontend-url}") String frontendUrl,
+      @Value("${onepage.internal-token}") String internalToken) {
     this.postMapper = postMapper;
     this.postMediaMapper = postMediaMapper;
     this.mediaAssetMapper = mediaAssetMapper;
@@ -82,8 +92,10 @@ public class PostService {
     this.postViewMapper = postViewMapper;
     this.authorLookup = authorLookup;
     this.objectMapper = objectMapper;
+    this.imClient = imClient;
     this.mediaPublicBase = trimSlash(mediaPublicBase);
     this.frontendUrl = trimSlash(frontendUrl);
+    this.internalToken = internalToken;
   }
 
   @Transactional
@@ -282,6 +294,16 @@ public class PostService {
     return listByInteraction(userId, cursor, limit, InteractionKind.HISTORY);
   }
 
+  /** 别人给自己笔记点的赞，按时间倒序。 */
+  public FeedDtos.ReceivedPage listLikesReceived(long authorId, String cursor, Integer limit) {
+    return listReceived(authorId, cursor, limit, true);
+  }
+
+  /** 别人收藏自己笔记，按时间倒序。 */
+  public FeedDtos.ReceivedPage listFavoritesReceived(long authorId, String cursor, Integer limit) {
+    return listReceived(authorId, cursor, limit, false);
+  }
+
   public FeedDtos.CursorPage listByAuthor(long authorId, Long viewerId, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     boolean self = viewerId != null && viewerId == authorId;
@@ -336,6 +358,32 @@ public class PostService {
   public String shareLink(long postId, Long viewerId) {
     requireVisible(postId, viewerId);
     return frontendUrl + "/?post=" + postId;
+  }
+
+  public String shareIm(long userId, long postId, String conversationId, String targetUserId) {
+    Post post = requireVisible(postId, userId);
+    FeedDtos.UserBrief author = authorLookup.brief(post.getAuthorId());
+    String title = blankToEmpty(post.getTitle()).isBlank() ? excerpt(post.getBody()) : post.getTitle().trim();
+    Map<String, String> card = new LinkedHashMap<>();
+    card.put("postId", String.valueOf(post.getId()));
+    card.put("title", title);
+    card.put("coverUrl", blankToEmpty(firstCoverUrl(post.getId())));
+    card.put("authorNickname", author == null || author.nickname() == null ? "" : author.nickname());
+    try {
+      ImClient.ShareResult result = imClient.shareCard(
+          internalToken,
+          String.valueOf(userId),
+          new ImClient.ShareCardRequest(conversationId, targetUserId, card));
+      if (result == null || !StringUtils.hasText(result.messageId())) {
+        throw BusinessException.validation("私信发送失败");
+      }
+      return result.messageId();
+    } catch (BusinessException ex) {
+      throw ex;
+    } catch (RuntimeException ex) {
+      log.warn("share im failed postId={} userId={}", postId, userId, ex);
+      throw BusinessException.validation("私信发送失败");
+    }
   }
 
   public Post requirePublished(long postId) {
@@ -444,6 +492,48 @@ public class PostService {
         .or(inner -> inner.eq(Post::getPublishedAt, at).lt(Post::getId, id)));
   }
 
+  private FeedDtos.ReceivedPage listReceived(long authorId, String cursor, Integer limit, boolean likes) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    LocalDateTime cursorAt = null;
+    Long cursorPostId = null;
+    Long cursorUserId = null;
+    if (StringUtils.hasText(cursor)) {
+      long[] parsed = parseReceivedCursor(cursor);
+      cursorAt = LocalDateTime.ofInstant(Instant.ofEpochMilli(parsed[0]), ZoneId.systemDefault());
+      cursorPostId = parsed[1];
+      cursorUserId = parsed[2];
+    }
+    List<ReceivedActorHit> hits = likes
+        ? likeMapper.pageReceived(authorId, cursorAt, cursorPostId, cursorUserId, size + 1)
+        : favoriteMapper.pageReceived(authorId, cursorAt, cursorPostId, cursorUserId, size + 1);
+    if (hits == null) {
+      hits = List.of();
+    }
+    boolean hasMore = hits.size() > size;
+    if (hasMore) {
+      hits = hits.subList(0, size);
+    }
+    List<FeedDtos.ReceivedHit> items = new ArrayList<>();
+    for (ReceivedActorHit hit : hits) {
+      if (hit.getUserId() == null || hit.getPostId() == null) {
+        continue;
+      }
+      items.add(new FeedDtos.ReceivedHit(
+          String.valueOf(hit.getUserId()),
+          String.valueOf(hit.getPostId()),
+          blankToEmpty(hit.getTitle()),
+          iso(hit.getAt())));
+    }
+    String next = null;
+    if (hasMore && !hits.isEmpty()) {
+      ReceivedActorHit last = hits.getLast();
+      if (last.getAt() != null && last.getPostId() != null && last.getUserId() != null) {
+        next = epochMilli(last.getAt()) + "_" + last.getPostId() + "_" + last.getUserId();
+      }
+    }
+    return new FeedDtos.ReceivedPage(items, next, hasMore);
+  }
+
   private static long[] parseCursor(String cursor) {
     String[] parts = cursor.split("_", 2);
     if (parts.length != 2) {
@@ -451,6 +541,18 @@ public class PostService {
     }
     try {
       return new long[] {Long.parseLong(parts[0]), Long.parseLong(parts[1])};
+    } catch (NumberFormatException ex) {
+      throw BusinessException.validation("cursor 不合法");
+    }
+  }
+
+  private static long[] parseReceivedCursor(String cursor) {
+    String[] parts = cursor.split("_", 3);
+    if (parts.length != 3) {
+      throw BusinessException.validation("cursor 不合法");
+    }
+    try {
+      return new long[] {Long.parseLong(parts[0]), Long.parseLong(parts[1]), Long.parseLong(parts[2])};
     } catch (NumberFormatException ex) {
       throw BusinessException.validation("cursor 不合法");
     }

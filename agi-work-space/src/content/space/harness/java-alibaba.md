@@ -194,7 +194,7 @@ ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约�
 | 推荐 | 字符集 utf8mb4；时间列与现网脚本一致 |
 | 禁止 | 在循环里一条条查能改成 in / 一次 join 的（N+1） |
 
-ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。P2 通知库 `onepage_notification`，须执行 `onepage-notification-service/db/sql/001_init.sql`；投递在事务提交后 Feign，失败不回滚赞藏关注。P2 私信库 `onepage_message`，须执行 `onepage-message-service/db/sql/001_init.sql`；本期 HTTP 文本，不做 WS。
+ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。P2 通知库 `onepage_notification`，须执行 `onepage-notification-service/db/sql/001_init.sql`；投递在事务提交后 Feign，失败不回滚赞藏关注。P2 私信库 `onepage_message`，须执行 `onepage-message-service/db/sql/001_init.sql`；本期 HTTP 文本 + 分享 `post_card`，不做 WS。获赞列表 Feign content JOIN `post_like`/`post_favorite`，不要新建表。
 
 ---
 

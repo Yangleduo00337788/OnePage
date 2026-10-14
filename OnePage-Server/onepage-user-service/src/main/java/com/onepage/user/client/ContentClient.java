@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
+
 /** 通过 Nacos 发现 content-service：改头像核对媒体归属；主页笔记与本人赞藏浏览走内部列表。 */
 @FeignClient(name = "onepage-content-service")
 public interface ContentClient {
@@ -44,5 +46,23 @@ public interface ContentClient {
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit);
 
+  @GetMapping("/internal/users/{userId}/likes-received")
+  ReceivedPage listLikesReceived(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
+
+  @GetMapping("/internal/users/{userId}/favorites-received")
+  ReceivedPage listFavoritesReceived(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
+
   record MediaInfo(Long mediaId, Long ownerId, String objectKey, Integer status) {}
+
+  record ReceivedHit(String userId, String postId, String postTitle, String createdAt) {}
+
+  record ReceivedPage(List<ReceivedHit> items, String nextCursor, boolean hasMore) {}
 }

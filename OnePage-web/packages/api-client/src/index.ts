@@ -77,7 +77,14 @@ export type ImMessage = {
   messageId: string
   senderId: string
   msgType: string
-  content: { text?: string }
+  content: { text?: string; postId?: string; title?: string; coverUrl?: string; authorNickname?: string }
+  createdAt: string
+}
+
+export type ReceivedItem = {
+  actor: UserBrief
+  postId: string
+  postTitle: string
   createdAt: string
 }
 
@@ -209,6 +216,12 @@ export const api = {
     request<CursorPage<PostBrief>>(`/api/v1/users/me/likes${cursorQuery(cursor, limit)}`),
   myHistory: (cursor?: string, limit?: number) =>
     request<CursorPage<PostBrief>>(`/api/v1/users/me/history${cursorQuery(cursor, limit)}`),
+  likesReceived: (cursor?: string, limit?: number) =>
+    request<CursorPage<ReceivedItem>>(`/api/v1/users/me/likes-received${cursorQuery(cursor, limit)}`),
+  favoritesReceived: (cursor?: string, limit?: number) =>
+    request<CursorPage<ReceivedItem>>(
+      `/api/v1/users/me/favorites-received${cursorQuery(cursor, limit)}`,
+    ),
   userFollowing: (pageId: string, cursor?: string, limit?: number) =>
     request<CursorPage<UserBrief>>(`/api/v1/users/${encodeURIComponent(pageId)}/following${cursorQuery(cursor, limit)}`),
   userFollowers: (pageId: string, cursor?: string, limit?: number) =>
@@ -279,6 +292,11 @@ export const api = {
   viewPost: (postId: string) => request<void>(`/api/v1/posts/${postId}/view`, { method: 'POST' }),
   shareLink: (postId: string) =>
     request<{ shareUrl: string }>(`/api/v1/posts/${postId}/share/link`, { method: 'POST' }),
+  shareIm: (postId: string, body: { conversationId?: string; targetUserId?: string }) =>
+    request<{ messageId: string }>(`/api/v1/posts/${postId}/share/im`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   exploreFeed: (cursor?: string, limit?: number, category?: string) => {
     const q = new URLSearchParams()
     if (cursor) q.set('cursor', cursor)

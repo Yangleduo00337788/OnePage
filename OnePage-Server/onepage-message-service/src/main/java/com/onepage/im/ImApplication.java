@@ -8,7 +8,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * 私信（默认 8085）。公网只认网关 {@code X-User-Id}，不解析 Cookie。
- * 本期只做 HTTP 会话与文本消息，WebSocket 尚未接。
+ * 本期 HTTP 会话、文本与分享笔记卡片，WebSocket 尚未接。
  */
 @EnableDiscoveryClient
 @EnableFeignClients

@@ -172,6 +172,8 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | post_id | BIGINT | UK(user_id, post_id) |
 | created_at | DATETIME(3) | |
 
+获赞列表：`post_like` JOIN `post`，`post.author_id = 当前用户`，不新建表。
+
 ### post_favorite
 
 | 字段 | 类型 | 说明 |
@@ -179,6 +181,8 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | user_id | BIGINT | |
 | post_id | BIGINT | UK(user_id, post_id) |
 | created_at | DATETIME(3) | |
+
+被收藏列表：`post_favorite` JOIN `post`，`post.author_id = 当前用户`。
 
 ### comment
 

@@ -278,6 +278,25 @@ sequenceDiagram
   Note over B: 约 3 秒再拉列表和消息
 ```
 
+## 9c. 时序：分享笔记到私信
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant G as Gateway
+  participant C as content_service
+  participant M as message_service
+  participant DB as MySQL
+
+  B->>G: POST /posts/{id}/share/im Cookie
+  G->>C: X-User-Id
+  C->>C: 笔记对分享者可见
+  C->>M: Feign share-card + token + X-User-Id
+  M->>DB: 开会话（若无）+ message post_card
+  M->>C: messageId
+  C->>B: 201 messageId
+```
+
 ## 9b. 时序：私信 WebSocket（尚未实现）
 
 ```mermaid

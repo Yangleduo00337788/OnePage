@@ -9,12 +9,14 @@ import { api, ApiError, type ConversationItem, type ImMessage } from '@onepage/a
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { useAuthModal } from '../stores/authModal'
+import { useNoteDetail } from '../stores/noteDetail'
 import { useSession } from '../stores/session'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSession()
 const auth = useAuthModal()
+const noteDetail = useNoteDetail()
 
 const list = ref<ConversationItem[]>([])
 const listFailed = ref('')
@@ -33,6 +35,22 @@ function previewOf(item: ConversationItem) {
 
 function bubbleText(row: ImMessage) {
   return row.content?.text || ''
+}
+
+function isPostCard(row: ImMessage) {
+  return row.msgType === 'post_card' && Boolean(row.content?.postId)
+}
+
+function openPostCard(row: ImMessage) {
+  const id = row.content?.postId
+  if (!id) return
+  noteDetail.show({
+    id,
+    title: row.content?.title || '笔记',
+    author: row.content?.authorNickname || '',
+    likes: '0',
+    image: row.content?.coverUrl || '',
+  })
 }
 
 function timeText(raw: string) {
@@ -225,7 +243,20 @@ watch(
               <span v-else>{{ item.face.letter }}</span>
             </span>
             <div class="im-msg-body">
-              <p class="im-bubble">{{ bubbleText(item.row) }}</p>
+              <button
+                v-if="isPostCard(item.row)"
+                type="button"
+                class="im-card"
+                @click="openPostCard(item.row)"
+              >
+                <img v-if="item.row.content.coverUrl" :src="item.row.content.coverUrl" alt="" />
+                <span v-else class="im-card-fallback">{{ item.row.content.title || '笔记' }}</span>
+                <span class="im-card-meta">
+                  <span class="im-card-title">{{ item.row.content.title || '笔记' }}</span>
+                  <span class="im-card-sub">{{ item.row.content.authorNickname || '笔记' }}</span>
+                </span>
+              </button>
+              <p v-else class="im-bubble">{{ bubbleText(item.row) }}</p>
               <span class="im-time">{{ timeText(item.row.createdAt) }}</span>
             </div>
           </div>

@@ -9,6 +9,8 @@ import com.onepage.user.client.ContentClient;
 import com.onepage.user.client.NotificationClient;
 import com.onepage.user.dto.FollowHit;
 import com.onepage.user.dto.PostCursorPage;
+import com.onepage.user.dto.ReceivedCursorPage;
+import com.onepage.user.dto.ReceivedItemView;
 import com.onepage.user.dto.UserBriefView;
 import com.onepage.user.dto.UserCursorPage;
 import com.onepage.user.dto.UserProfileView;
@@ -155,6 +157,14 @@ public class UserService {
 
   public PostCursorPage myHistory(long userId, String cursor, Integer limit) {
     return contentClient.listHistory(internalToken, userId, cursor, limit);
+  }
+
+  public ReceivedCursorPage myLikesReceived(long userId, String cursor, Integer limit) {
+    return hydrateReceived(contentClient.listLikesReceived(internalToken, userId, cursor, limit), userId);
+  }
+
+  public ReceivedCursorPage myFavoritesReceived(long userId, String cursor, Integer limit) {
+    return hydrateReceived(contentClient.listFavoritesReceived(internalToken, userId, cursor, limit), userId);
   }
 
   public UserProfileView updateMe(Long userId, String nickname, String bio, Integer gender,
@@ -335,6 +345,50 @@ public class UserService {
       }
     }
     return new UserCursorPage(items, next, hasMore);
+  }
+
+  private ReceivedCursorPage hydrateReceived(ContentClient.ReceivedPage page, long viewerId) {
+    if (page == null || page.items() == null || page.items().isEmpty()) {
+      return new ReceivedCursorPage(List.of(), page == null ? null : page.nextCursor(), page != null && page.hasMore());
+    }
+    List<Long> ids = new ArrayList<>();
+    for (ContentClient.ReceivedHit hit : page.items()) {
+      if (hit == null || !StringUtils.hasText(hit.userId())) {
+        continue;
+      }
+      try {
+        ids.add(Long.parseLong(hit.userId()));
+      } catch (NumberFormatException ignored) {
+        // skip
+      }
+    }
+    Map<Long, UserProfile> byId = ids.isEmpty()
+        ? Map.of()
+        : profileMapper.selectBatchIds(ids).stream()
+            .collect(Collectors.toMap(UserProfile::getUserId, Function.identity(), (a, b) -> a));
+    Set<Long> mine = new HashSet<>(listFolloweeIds(viewerId));
+    List<ReceivedItemView> items = new ArrayList<>();
+    for (ContentClient.ReceivedHit hit : page.items()) {
+      if (hit == null || !StringUtils.hasText(hit.userId())) {
+        continue;
+      }
+      long actorId;
+      try {
+        actorId = Long.parseLong(hit.userId());
+      } catch (NumberFormatException ex) {
+        continue;
+      }
+      UserProfile profile = byId.get(actorId);
+      UserBriefView actor = profile == null
+          ? new UserBriefView(hit.userId(), "", "用户", "", mine.contains(actorId))
+          : toBrief(profile, mine.contains(actorId));
+      items.add(new ReceivedItemView(
+          actor,
+          hit.postId() == null ? "" : hit.postId(),
+          hit.postTitle() == null ? "" : hit.postTitle(),
+          hit.createdAt() == null ? "" : hit.createdAt()));
+    }
+    return new ReceivedCursorPage(items, page.nextCursor(), page.hasMore());
   }
 
   private UserBriefView toBrief(UserProfile profile, boolean followedByMe) {

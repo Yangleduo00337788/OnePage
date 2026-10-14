@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 /**
  * 单聊。pair_key 保证同一对用户只有一条会话。
- * 文本写入 content JSON 的 text 字段。本期不做 WS。
+ * 文本写入 content JSON 的 text 字段；笔记卡片走内部 sharePostCard。本期不做 WS。
  */
 @Service
 public class ImService {
@@ -175,21 +175,52 @@ public class ImService {
     if (text.length() > TEXT_MAX) {
       throw BusinessException.validation("文本过长");
     }
-    long id = IdGenerator.nextId();
-    LocalDateTime now = LocalDateTime.now();
     String payload;
     try {
       payload = objectMapper.writeValueAsString(Map.of("text", text));
     } catch (Exception ex) {
       throw BusinessException.validation("消息序列化失败");
     }
-    messageMapper.insert(id, conversationId, userId, "text", payload, now);
+    return persist(userId, conversationId, "text", payload);
+  }
+
+  public ImDtos.MessageItem sharePostCard(
+      long senderId, String conversationIdRaw, String targetUserIdRaw, JsonNode content) {
+    if (content == null || !StringUtils.hasText(textOf(content, "postId"))) {
+      throw BusinessException.validation("笔记卡片不完整");
+    }
+    long conversationId;
+    if (StringUtils.hasText(conversationIdRaw)) {
+      conversationId = parseId(conversationIdRaw, "conversationId");
+    } else if (StringUtils.hasText(targetUserIdRaw)) {
+      conversationId = Long.parseLong(open(senderId, targetUserIdRaw).conversationId());
+    } else {
+      throw BusinessException.validation("请选择好友");
+    }
+    requireMember(conversationId, senderId);
+    String payload;
+    try {
+      payload = objectMapper.writeValueAsString(Map.of(
+          "postId", textOf(content, "postId"),
+          "title", textOf(content, "title"),
+          "coverUrl", textOf(content, "coverUrl"),
+          "authorNickname", textOf(content, "authorNickname")));
+    } catch (Exception ex) {
+      throw BusinessException.validation("消息序列化失败");
+    }
+    return persist(senderId, conversationId, "post_card", payload);
+  }
+
+  private ImDtos.MessageItem persist(long senderId, long conversationId, String msgType, String payload) {
+    long id = IdGenerator.nextId();
+    LocalDateTime now = LocalDateTime.now();
+    messageMapper.insert(id, conversationId, senderId, msgType, payload, now);
     conversationMapper.touch(conversationId, now);
-    memberMapper.markRead(conversationId, userId, id);
+    memberMapper.markRead(conversationId, senderId, id);
     return new ImDtos.MessageItem(
         String.valueOf(id),
-        String.valueOf(userId),
-        "text",
+        String.valueOf(senderId),
+        msgType,
         parseJson(payload),
         iso(now));
   }
@@ -256,7 +287,19 @@ public class ImService {
   private String preview(String raw) {
     JsonNode node = parseJson(raw);
     JsonNode text = node.get("text");
-    return text == null || text.isNull() ? "" : text.asText();
+    if (text != null && text.isTextual() && StringUtils.hasText(text.asText())) {
+      return text.asText();
+    }
+    JsonNode title = node.get("title");
+    if (title != null && title.isTextual() && StringUtils.hasText(title.asText())) {
+      return "[笔记] " + title.asText();
+    }
+    return "";
+  }
+
+  private static String textOf(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    return value == null || !value.isTextual() ? "" : value.asText().trim();
   }
 
   private static String iso(LocalDateTime time) {

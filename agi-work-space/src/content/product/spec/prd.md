@@ -178,15 +178,15 @@ PC **侧栏文案**以 [视觉规范](/design/system/specs) 为准（首页、�
 
 ### 互动
 - [ ] REQ-C1～C3：赞藏、多级评论与评赞、链接分享
-- [ ] REQ-C4：私信分享卡片（P2 一并验）
+- [x] REQ-C4：私信分享卡片（`POST /posts/{id}/share/im`，`post_card`）
 
 ### 用户与关系
 - [ ] REQ-D2：资料与一页号不可改
-- [x] REQ-D1、D4：关注、我的 Tab 与历史（获赞/被收藏列表 REQ-D3 未做）
+- [x] REQ-D1、D3、D4：关注、我的 Tab 与历史、获赞/被收藏列表（仅作者）
 
 ### 消息
 - [x] REQ-E1：通知分栏、未读、赞评关注投递（评论内 @ 未解析）
-- [x] REQ-E2：私信基本收发（HTTP 文本；WebSocket / 笔记卡片未做）
+- [x] REQ-E2：私信基本收发（HTTP 文本 + 笔记卡片；WebSocket 未做）
 
 ### 搜索与 AI
 - [ ] REQ-F1、F2：搜索与助手问答

@@ -81,4 +81,8 @@ public final class FeedDtos {
       String createdAt) {}
 
   public record CommentPage(List<CommentView> items, long total) {}
+
+  public record ReceivedHit(String userId, String postId, String postTitle, String createdAt) {}
+
+  public record ReceivedPage(List<ReceivedHit> items, String nextCursor, boolean hasMore) {}
 }

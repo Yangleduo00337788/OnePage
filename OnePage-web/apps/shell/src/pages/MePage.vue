@@ -1,7 +1,7 @@
 <!--
   「我的」页：资料展示 + 编辑弹窗 + 头像/封面上传。
   笔记 Tab GET /users/{pageId}/posts；收藏/点赞/历史走 /users/me/favorites|likes|history。
-  点关注/粉丝数字打开关注列表。
+  点关注/粉丝数字打开关注列表；点获赞与收藏打开获赞/被收藏列表。
   未登录会被拉去首页并打开登录弹窗，redirect 仍是 /me。
 -->
 <script setup lang="ts">
@@ -15,6 +15,7 @@ import ImageCropDialog from '@onepage/image-crop'
 import Icon from '../components/Icon.vue'
 import SearchBox from '../components/SearchBox.vue'
 import FollowListModal from '../components/FollowListModal.vue'
+import ReceivedListModal from '../components/ReceivedListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
 
 const GENDERS = [
@@ -73,6 +74,7 @@ const crop = ref<{ purpose: 'avatar' | 'cover'; src: string; name: string } | nu
 const listTab = ref<(typeof ME_TABS)[number]>('笔记')
 const tabDir = ref<'next' | 'prev'>('next')
 const relation = ref<'following' | 'followers' | null>(null)
+const receivedOpen = ref(false)
 
 function onTabEmpty() {
   if (listTab.value === '笔记') {
@@ -333,10 +335,12 @@ async function logout() {
               粉丝
             </button>
             <span class="mx-3 text-white/30">|</span>
-            <span class="font-semibold tabular-nums text-white">{{
-              (session.me.stats.likeReceivedCount ?? 0) + (session.me.stats.favoriteReceivedCount ?? 0)
-            }}</span>
-            获赞与收藏
+            <button type="button" class="stat-link" @click="receivedOpen = true">
+              <span class="font-semibold tabular-nums text-white">{{
+                (session.me.stats.likeReceivedCount ?? 0) + (session.me.stats.favoriteReceivedCount ?? 0)
+              }}</span>
+              获赞与收藏
+            </button>
           </p>
         </div>
       </div>
@@ -384,6 +388,7 @@ async function logout() {
       :kind="relation || 'following'"
       @close="relation = null"
     />
+    <ReceivedListModal :open="receivedOpen" @close="receivedOpen = false" />
 
     <Teleport to="body">
       <div

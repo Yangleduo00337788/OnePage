@@ -44,6 +44,10 @@ const liked = ref(false)
 const saved = ref(false)
 const moreOpen = ref(false)
 const shareOpen = ref(false)
+type SharePeer = { userId: string; pageId: string; nickname: string; avatarUrl: string; conversationId?: string }
+const sharePeers = ref<SharePeer[]>([])
+const shareLoading = ref(false)
+const shareBusy = ref('')
 const draft = ref('')
 const toast = ref('')
 const comments = ref<Comment[]>([])
@@ -708,9 +712,74 @@ async function copyLink() {
   shareOpen.value = false
 }
 
+async function loadSharePeers() {
+  shareLoading.value = true
+  sharePeers.value = []
+  try {
+    const conv = await api.conversations()
+    const seen = new Set<string>()
+    const rows: SharePeer[] = []
+    for (const it of conv.items || []) {
+      if (!it.peer?.userId || seen.has(it.peer.userId)) continue
+      seen.add(it.peer.userId)
+      rows.push({
+        userId: it.peer.userId,
+        pageId: it.peer.pageId,
+        nickname: it.peer.nickname,
+        avatarUrl: it.peer.avatarUrl,
+        conversationId: it.conversationId,
+      })
+    }
+    if (session.me) {
+      const fol = await api.userFollowing(session.me.pageId, undefined, 50)
+      for (const u of fol.items) {
+        if (!u.userId || seen.has(u.userId) || u.userId === session.me.userId) continue
+        seen.add(u.userId)
+        rows.push({
+          userId: u.userId,
+          pageId: u.pageId,
+          nickname: u.nickname,
+          avatarUrl: u.avatarUrl,
+        })
+      }
+    }
+    sharePeers.value = rows
+  } catch (e) {
+    if (needLogin(e)) shareOpen.value = false
+  } finally {
+    shareLoading.value = false
+  }
+}
+
+async function shareTo(peer: SharePeer) {
+  const id = detail.note?.id || ''
+  if (!id || shareBusy.value) return
+  shareBusy.value = peer.userId
+  try {
+    await api.shareIm(
+      id,
+      peer.conversationId ? { conversationId: peer.conversationId } : { targetUserId: peer.userId },
+    )
+    flash('已发送')
+    shareOpen.value = false
+  } catch (e) {
+    if (needLogin(e)) {
+      shareOpen.value = false
+      return
+    }
+    flash(e instanceof ApiError ? e.message : '发送失败')
+  } finally {
+    shareBusy.value = ''
+  }
+}
+
 function onDocClick(e: MouseEvent) {
   if (!moreWrap.value?.contains(e.target as Node)) moreOpen.value = false
 }
+
+watch(shareOpen, (on) => {
+  if (on) void loadSharePeers()
+})
 
 watch(moreOpen, async (on) => {
   if (on) {
@@ -1105,14 +1174,29 @@ watch(moreOpen, async (on) => {
       <div v-if="shareOpen" class="absolute inset-0 z-30 flex items-center justify-center bg-black/25" @click.self="shareOpen = false">
         <div class="flex h-[420px] w-[360px] flex-col rounded-[20px] bg-white shadow-[0_16px_48px_rgba(0,0,0,0.16)]">
           <p class="py-4 text-center text-[16px] font-medium">分享至</p>
-          <EmptyState compact src="/empty-people.png" title="暂无好友" />
-          <div class="flex justify-center gap-16 border-t border-[#f2f2f2] py-6">
-            <button type="button" class="flex flex-col items-center gap-2 text-[13px] text-[#1f1f1f]" @click="flash('私信能力即将接入'); shareOpen = false">
-              <span class="flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f5]">
-                <Icon name="send" :size="22" />
+          <div class="min-h-0 flex-1 overflow-y-auto px-2">
+            <p v-if="shareLoading" class="py-10 text-center text-[13px] text-[#8a8a8a]">加载中…</p>
+            <EmptyState v-else-if="!sharePeers.length" compact src="/empty-people.png" title="暂无好友" />
+            <button
+              v-for="peer in sharePeers"
+              :key="peer.userId"
+              type="button"
+              class="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left hover:bg-[#f7f7f7]"
+              :disabled="Boolean(shareBusy)"
+              @click="shareTo(peer)"
+            >
+              <img v-if="peer.avatarUrl" :src="peer.avatarUrl" alt="" class="h-11 w-11 rounded-full object-cover" />
+              <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f2f2f2] text-[14px] text-[#8a8a8a]">
+                {{ (peer.nickname || '一').slice(0, 1) }}
               </span>
-              私信好友
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-[15px] font-medium">{{ peer.nickname }}</span>
+                <span class="mt-0.5 block truncate text-[12px] text-[#8a8a8a]">{{ peer.pageId }}</span>
+              </span>
+              <span class="text-[12px] text-[#ff2442]">{{ shareBusy === peer.userId ? '…' : '发送' }}</span>
             </button>
+          </div>
+          <div class="flex justify-center gap-16 border-t border-[#f2f2f2] py-6">
             <button type="button" class="flex flex-col items-center gap-2 text-[13px] text-[#1f1f1f]" @click="copyLink">
               <span class="flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f5]">
                 <Icon name="link" :size="22" />
