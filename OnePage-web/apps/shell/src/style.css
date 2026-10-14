@@ -8,7 +8,8 @@
   --muted: #8a8a8a;
   --line: #ececec;
   --bg: #ffffff;
-  --sidebar: 260px;
+  --sidebar: 190px;
+  --nav-pill: 140px;
   --sidebar-bg: #fafafa;
   font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   color: var(--ink);
@@ -112,17 +113,9 @@ button {
   background: #f2f2f2;
 }
 
-.logo-mark {
-  mix-blend-mode: multiply;
-}
-
-html[data-theme='dark'] .logo-mark {
-  mix-blend-mode: screen;
-}
-
 .nav-login {
   display: flex;
-  width: 130px;
+  width: var(--nav-pill);
   height: 44px;
   align-items: center;
   justify-content: center;

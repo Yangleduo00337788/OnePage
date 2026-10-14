@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import Icon from '../components/Icon.vue'
+import BrandLogo from '../components/BrandLogo.vue'
 import { LEGAL } from '../data/legal'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
@@ -13,7 +14,6 @@ import { openCreatorSite } from '../creatorSite'
 type Sheet = 'terms' | 'privacy' | 'help' | 'creator'
 type Toy = { id: string; title: string; icon: string; x: number; y: number; rot: number; z: number; tint: string }
 
-const logoOk = ref(true)
 const sheet = ref<Sheet | null>(null)
 const session = useSession()
 const auth = useAuthModal()
@@ -132,18 +132,7 @@ onUnmounted(() => {
 <template>
   <article class="about-page">
     <header class="about-hero">
-      <div class="relative mx-auto h-[88px] w-[200px]">
-        <img
-          v-show="logoOk"
-          src="/logo-zh.png?v=4"
-          alt="一页"
-          class="h-full w-full object-contain"
-          @error="logoOk = false"
-        />
-        <p v-if="!logoOk" class="flex h-full flex-col items-center justify-center">
-          <span class="text-[32px] font-semibold tracking-widest">一页</span>
-        </p>
-      </div>
+      <div class="mx-auto flex justify-center"><BrandLogo size="hero" /></div>
       <p class="mt-2 text-[12px] tracking-[0.16em] text-[#8a8a8a]">Every Day, A New Page</p>
       <h1 class="mt-6 text-[22px] font-semibold text-[#1f1f1f]">关于我们</h1>
       <p class="mx-auto mt-3 max-w-[520px] text-[15px] leading-7 text-[#555]">

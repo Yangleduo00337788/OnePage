@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
+import BrandLogo from './BrandLogo.vue'
 
 const community = import.meta.env.VITE_COMMUNITY_ORIGIN || 'http://localhost:5174'
 
@@ -81,9 +82,7 @@ async function sendCode() {
   <div class="page">
     <img class="bg" src="/login/bg.jpg?v=3" alt="" />
     <div class="brand">
-      <div class="mark" aria-label="一页">
-        <img src="/logo-zh.png?v=4" alt="一页" />
-      </div>
+      <BrandLogo size="hero" />
       <p class="slogan">记录生活每一页</p>
       <p class="en">Every Day, A New Page</p>
     </div>
@@ -151,25 +150,6 @@ async function sendCode() {
   position: relative;
   z-index: 1;
   padding: 48px 40px;
-}
-
-.mark {
-  position: relative;
-  overflow: hidden;
-  width: 180px;
-  height: 64px;
-}
-
-.mark img {
-  position: absolute;
-  top: 50%;
-  left: 40%;
-  width: 260%;
-  max-width: none;
-  height: 260%;
-  object-fit: contain;
-  transform: translate(-50%, -50%);
-  mix-blend-mode: multiply;
 }
 
 .slogan {

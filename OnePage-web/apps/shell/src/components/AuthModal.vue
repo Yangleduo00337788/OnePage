@@ -10,6 +10,7 @@ import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 import { LEGAL } from '../data/legal'
 import Icon from './Icon.vue'
+import BrandLogo from './BrandLogo.vue'
 
 const auth = useAuthModal()
 const session = useSession()
@@ -30,7 +31,6 @@ const cooldown = ref(0)
 const agreed = ref(false)
 const resetting = ref(false)
 const legal = ref<null | 'terms' | 'privacy'>(null)
-const logoOk = ref(true)
 let cooldownTimer: ReturnType<typeof setInterval> | undefined
 
 onUnmounted(() => {
@@ -242,19 +242,7 @@ function openLegal(kind: 'terms' | 'privacy') {
             <span class="pointer-events-none absolute top-12 right-10 h-2 w-2 rounded-full bg-[#ff2442]/40" />
             <span class="pointer-events-none absolute top-24 left-8 h-1.5 w-1.5 rounded-full bg-[#1f1f1f]/15" />
             <span class="pointer-events-none absolute bottom-16 left-12 h-8 w-8 rounded-full border border-[#ff2442]/15" />
-            <div class="relative h-[132px] w-[220px] bg-[#fafafa]">
-              <img
-                v-show="logoOk"
-                src="/logo-zh.png?v=4"
-                alt="一页"
-                class="h-full w-full bg-[#fafafa] object-contain"
-                @error="logoOk = false"
-              />
-              <p v-if="!logoOk" class="flex h-full flex-col items-center justify-center">
-                <span class="text-[36px] font-semibold tracking-widest">一页</span>
-                <span class="mt-1 text-[11px] tracking-[0.12em] text-[#8a8a8a]">Every Day, A New Page</span>
-              </p>
-            </div>
+            <div class="relative"><BrandLogo size="auth" /></div>
             <div class="relative mt-3 flex flex-wrap justify-center gap-2">
               <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">记录生活</span>
               <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">耶耶 AI</span>

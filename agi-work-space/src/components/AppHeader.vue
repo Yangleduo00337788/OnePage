@@ -23,8 +23,8 @@ const { logoLightSrc, logoDarkSrc } = useBranding()
       <Menu class="size-4" />
     </Button>
     <RouterLink to="/" class="flex shrink-0 items-center gap-2" :aria-label="t('product')">
-      <img :src="logoLightSrc" :alt="t('product')" class="h-7 w-auto dark:hidden" />
-      <img :src="logoDarkSrc" :alt="t('product')" class="hidden h-7 w-auto dark:block" />
+      <img :src="logoLightSrc" :alt="t('product')" class="h-8 w-auto dark:hidden" />
+      <img :src="logoDarkSrc" :alt="t('product')" class="hidden h-8 w-auto dark:block" />
       <span class="text-[13px] font-medium tracking-wide text-muted-foreground">{{ t('workspaceMark') }}</span>
     </RouterLink>
     <DocBreadcrumb />

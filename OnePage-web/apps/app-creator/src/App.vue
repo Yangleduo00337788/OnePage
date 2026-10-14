@@ -3,6 +3,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { api, type UserProfile } from '@onepage/api-client'
 import Icon from './Icon.vue'
+import BrandLogo from './BrandLogo.vue'
 import CreatorHome, { type PageId, type PublishKind } from './CreatorHome.vue'
 import CreatorLogin from './CreatorLogin.vue'
 
@@ -104,9 +105,8 @@ function goEdit(postId: string) {
   <CreatorLogin v-if="ready && !me" @done="onLoggedIn" />
   <div v-else-if="ready" class="admin" :class="{ 'is-collapsed': collapsed }">
     <aside class="nav">
-      <div class="nav-mark" aria-label="一页">
-        <img v-if="!collapsed" src="/logo-zh.png?v=4" alt="一页" />
-        <img v-else src="/favicon-32.png" alt="一页" />
+      <div class="nav-mark">
+        <BrandLogo :mini="collapsed" />
       </div>
       <div class="pub">
         <button type="button" class="pub-btn" :title="collapsed ? '发布笔记' : undefined" @click="goPublish()">
@@ -281,37 +281,14 @@ button {
 }
 
 .nav-mark {
-  position: relative;
-  overflow: hidden;
-  height: 64px;
-  margin: 0 4px 8px;
-}
-
-.nav-mark img {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 260%;
-  max-width: none;
-  height: 260%;
-  object-fit: contain;
-  transform: translate(-50%, -50%);
-  mix-blend-mode: multiply;
+  display: flex;
+  margin: 0 auto 16px;
+  align-items: center;
+  justify-content: center;
 }
 
 .is-collapsed .nav-mark {
-  width: 36px;
-  height: 36px;
   margin: 0 0 16px;
-}
-
-.is-collapsed .nav-mark img {
-  top: 0;
-  left: 0;
-  width: 36px;
-  height: 36px;
-  transform: none;
-  mix-blend-mode: normal;
 }
 
 .pub {

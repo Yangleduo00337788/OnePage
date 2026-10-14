@@ -1,5 +1,5 @@
 <!--
-  产品壳：左侧 260px 导航常驻，右侧 header + RouterView 换页。
+  产品壳：左侧 190px 导航常驻，右侧 header + RouterView 换页。
   <script setup>：组合式写法，顶层变量直接给模板用，不必 return。
   onMounted：DOM 挂上后拉一次 /users/me 和主题。
   watch 路由：换页关掉「更多」，避免面板留在错误位置。
@@ -16,6 +16,7 @@ import { useNoteDetail } from './stores/noteDetail'
 import { noteFromPost } from './data/home'
 import { openCreatorSite } from './creatorSite'
 import Icon from './components/Icon.vue'
+import BrandLogo from './components/BrandLogo.vue'
 import SearchBox from './components/SearchBox.vue'
 import AuthModal from './components/AuthModal.vue'
 import MoreMenu from './components/MoreMenu.vue'
@@ -98,21 +99,15 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
 
 <template>
   <div class="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-    <aside class="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col items-center bg-[var(--sidebar-bg)] px-4 py-5">
-      <RouterLink to="/" class="relative mb-6 block h-[72px] w-[220px] overflow-hidden bg-[var(--sidebar-bg)]">
-        <img
-          src="/logo-light.png?v=3"
-          alt="ONEPAGE"
-          class="logo-mark absolute top-1/2 left-1/2 h-[300%] w-[300%] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
-        />
-      </RouterLink>
+    <aside class="fixed inset-y-0 left-0 z-20 flex w-[var(--sidebar)] flex-col items-center bg-[var(--sidebar-bg)] px-2.5 py-5">
+      <RouterLink to="/" class="mb-5 inline-flex" aria-label="ONEPAGE"><BrandLogo /></RouterLink>
 
       <nav class="flex w-full flex-col items-center space-y-1 text-[16px] font-medium text-[#1f1f1f]">
         <RouterLink
           v-for="item in nav"
           :key="item.label"
           :to="item.to"
-          class="flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
+          class="flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
           :class="active(item) ? 'bg-[#f2f2f2]' : ''"
           @click="onNav(item)"
         >
@@ -146,7 +141,7 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
         <RouterLink
           v-else
           :to="meNav.to"
-          class="flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
+          class="flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
           :class="active(meNav) ? 'bg-[#f2f2f2]' : ''"
         >
           <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
@@ -160,7 +155,7 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
         <button
           ref="moreBtn"
           type="button"
-          class="nav-pill nav-more flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5"
+          class="nav-pill nav-more flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
           :class="more.open ? 'is-on' : ''"
           @click.stop="more.toggleFrom(moreBtn)"
         >
@@ -171,7 +166,7 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
         </button>
         <RouterLink
           :to="about.to"
-          class="flex w-[130px] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
+          class="flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
           :class="route.path === about.to ? 'bg-[#f2f2f2]' : ''"
         >
           <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
@@ -182,7 +177,7 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
       </nav>
     </aside>
 
-    <div class="ml-[260px] min-h-screen bg-[var(--bg)]">
+    <div class="ml-[var(--sidebar)] min-h-screen bg-[var(--bg)]">
       <header
         v-if="!hideTopBar"
         class="sticky top-0 z-10 flex h-[72px] items-center overflow-visible bg-[var(--bg)] px-8"
