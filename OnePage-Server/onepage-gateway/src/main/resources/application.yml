@@ -120,6 +120,18 @@ spring:
             - Path=/api/v1/conversations,/api/v1/conversations/**
           metadata:
             sensitiveHeaders: ""
+        - id: reports
+          uri: lb://onepage-moderation-service
+          predicates:
+            - Path=/api/v1/reports,/api/v1/reports/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: ops
+          uri: lb://onepage-moderation-service
+          predicates:
+            - Path=/api/v1/ops,/api/v1/ops/**
+          metadata:
+            sensitiveHeaders: ""
         - id: im-ws
           uri: lb:ws://onepage-message-service
           predicates:

@@ -9,6 +9,7 @@ import com.onepage.auth.mapper.AuthOauthBindingMapper;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.common.ops.OpsStaffAllowlist;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 /**
  * 登录注册编排：写 auth 库、调 user-service 建档、再把 userId 放进 HttpSession（Redis）。
@@ -31,6 +33,7 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final UserClient userClient;
   private final String internalToken;
+  private final Set<Long> opsStaffIds;
 
   public AuthService(
       AuthAccountMapper accountMapper,
@@ -38,13 +41,15 @@ public class AuthService {
       SmsService smsService,
       PasswordEncoder passwordEncoder,
       UserClient userClient,
-      @Value("${onepage.internal-token}") String internalToken) {
+      @Value("${onepage.internal-token}") String internalToken,
+      @Value("${onepage.ops-staff-user-ids:}") String opsStaffUserIds) {
     this.accountMapper = accountMapper;
     this.oauthMapper = oauthMapper;
     this.smsService = smsService;
     this.passwordEncoder = passwordEncoder;
     this.userClient = userClient;
     this.internalToken = internalToken;
+    this.opsStaffIds = OpsStaffAllowlist.parse(opsStaffUserIds);
   }
 
   /** scene 必须和校验时同一个词，否则 Redis key 对不上。 */
@@ -60,10 +65,18 @@ public class AuthService {
    * 短信登录允许「没注册就当场建号」，减少一步注册。
    */
   @Transactional
-  public UserSummary smsLogin(String phone, String code, HttpServletRequest request) {
+  public UserSummary smsLogin(String phone, String code, HttpServletRequest request, boolean opsOnly) {
     smsService.verify(phone, "login", code);
     AuthAccount account = accountMapper.selectOne(
         Wrappers.<AuthAccount>lambdaQuery().eq(AuthAccount::getPhone, phone));
+    if (opsOnly) {
+      if (account == null) {
+        throw BusinessException.forbidden("不是运营员工");
+      }
+      assertActive(account);
+      OpsStaffAllowlist.requireStaff(opsStaffIds, account.getId());
+      return loginSession(account.getId(), request);
+    }
     if (account == null) {
       account = newAccount(phone, null, null);
       accountMapper.insert(account);
@@ -95,13 +108,16 @@ public class AuthService {
   }
 
   /** {@code passwordEncoder.matches}：明文对 BCrypt 哈希，不能用 {@code equals}。 */
-  public UserSummary passwordLogin(String account, String password, HttpServletRequest request) {
+  public UserSummary passwordLogin(String account, String password, HttpServletRequest request, boolean opsOnly) {
     AuthAccount row = findByAccount(account);
     if (row == null || !StringUtils.hasText(row.getPasswordHash())
         || !passwordEncoder.matches(password, row.getPasswordHash())) {
       throw BusinessException.unauthorized("账号或密码不正确");
     }
     assertActive(row);
+    if (opsOnly) {
+      OpsStaffAllowlist.requireStaff(opsStaffIds, row.getId());
+    }
     return loginSession(row.getId(), request);
   }
 
@@ -241,6 +257,20 @@ public class AuthService {
     if (!letter || !digit) {
       throw BusinessException.validation("密码需 8～32 位，并同时包含字母和数字");
     }
+  }
+
+  /** 运营封禁：status=1 后不能再登录。账号不存在 404。 */
+  public void freeze(long userId) {
+    AuthAccount account = accountMapper.selectById(userId);
+    if (account == null) {
+      throw BusinessException.notFound("账号不存在");
+    }
+    if (account.getStatus() != null && account.getStatus() != 0) {
+      return;
+    }
+    account.setStatus(1);
+    account.setUpdatedAt(LocalDateTime.now());
+    accountMapper.updateById(account);
   }
 
   private void assertActive(AuthAccount account) {

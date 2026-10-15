@@ -20,5 +20,6 @@ order: 5
 | [004_post_settings](/engineering/tech/sql/onepage-content-service/004_post_settings) | `onepage-content-service/db/sql/004_post_settings.sql` |
 | [onepage-notification-service / 001_init](/engineering/tech/sql/onepage-notification-service/001_init) | `onepage-notification-service/db/sql/001_init.sql` |
 | [onepage-message-service / 001_init](/engineering/tech/sql/onepage-message-service/001_init) | `onepage-message-service/db/sql/001_init.sql` |
+| [onepage-moderation-service / 001_init](/engineering/tech/sql/onepage-moderation-service/001_init) | `onepage-moderation-service/db/sql/001_init.sql` |
 | [00-databases](/engineering/tech/sql/docker/00-databases) | `docker/mysql/init/00-databases.sql` |
 | [01-tables](/engineering/tech/sql/docker/01-tables) | `docker/mysql/init/01-tables.sql` |

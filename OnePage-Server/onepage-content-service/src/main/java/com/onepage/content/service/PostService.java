@@ -275,6 +275,24 @@ public class PostService {
     writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
   }
 
+  /** 运营下架：不校验作者，已删则当作成功。 */
+  @Transactional
+  public void opsTakedown(long postId) {
+    Post post = postMapper.selectById(postId);
+    if (post == null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (post.getDeletedAt() != null) {
+      return;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    post.setStatus("deleted");
+    post.setDeletedAt(now);
+    post.setUpdatedAt(now);
+    postMapper.updateById(post);
+    writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
+  }
+
   public FeedDtos.CursorPage listMine(long userId, String cursor, Integer limit) {
     return listByAuthor(userId, userId, cursor, limit);
   }

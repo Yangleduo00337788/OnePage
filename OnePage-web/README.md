@@ -1,11 +1,11 @@
-# ONEPAGE Web（P0）
+# ONEPAGE Web
 
-P0 只有 `apps/shell`：首页、登录、注册、个人资料与头像/封面上传。
+社区 `apps/shell`（5174）、创作者 `apps/app-creator`（5175）、运营 `apps/app-ops`（5176）。
 
 ```bash
 pnpm install
-# 复制 apps/shell/.env.example 为 apps/shell/.env
-pnpm dev
+pnpm dev          # 社区 + 创作者
+pnpm dev:ops      # 运营后台 http://localhost:5176
 ```
 
-浏览器打开 `http://localhost:5173`。`/api` 代理目标来自环境变量 `VITE_DEV_PROXY_TARGET`。
+`/api` 代理目标来自 `VITE_DEV_PROXY_TARGET`。运营站不挂社区导航。

@@ -289,9 +289,13 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | reporter_id | BIGINT | |
 | target_type | VARCHAR(16) | `post` / `user` |
 | target_id | BIGINT | |
-| reason_code | VARCHAR(32) | 枚举由 PM 定 |
+| reason_code | VARCHAR(32) | 原因码 |
 | detail | VARCHAR(1000) 可空 | |
 | status | TINYINT | 0 待处理 1 已处理 |
+| handler_id | BIGINT 可空 | 处理人 |
+| handle_action | VARCHAR(16) 可空 | dismiss / takedown / ban |
+| handle_note | VARCHAR(500) 可空 | |
+| handled_at | DATETIME(3) 可空 | |
 | created_at | DATETIME(3) | |
 
 ## onepage_live

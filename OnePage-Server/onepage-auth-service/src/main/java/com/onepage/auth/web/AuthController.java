@@ -52,8 +52,11 @@ public class AuthController {
 
   /** 短信登录：校验码 → 无账号则创建 → 写 Session。 */
   @PostMapping("/sms/login")
-  public UserSummary smsLogin(@Valid @RequestBody SmsLoginRequest body, HttpServletRequest request) {
-    return authService.smsLogin(body.phone(), body.code(), request);
+  public UserSummary smsLogin(
+      @Valid @RequestBody SmsLoginRequest body,
+      @RequestParam(value = "audience", required = false) String audience,
+      HttpServletRequest request) {
+    return authService.smsLogin(body.phone(), body.code(), request, opsAudience(audience));
   }
 
   /** 注册成功用 201 Created，和「已有账号再登录」的 200 区分。 */
@@ -64,8 +67,11 @@ public class AuthController {
   }
 
   @PostMapping("/login")
-  public UserSummary login(@Valid @RequestBody LoginRequest body, HttpServletRequest request) {
-    return authService.passwordLogin(body.account(), body.password(), request);
+  public UserSummary login(
+      @Valid @RequestBody LoginRequest body,
+      @RequestParam(value = "audience", required = false) String audience,
+      HttpServletRequest request) {
+    return authService.passwordLogin(body.account(), body.password(), request, opsAudience(audience));
   }
 
   /** 实际清 Session 在网关完成；这里保留给直连本端口时用。 */
@@ -112,6 +118,10 @@ public class AuthController {
     return ResponseEntity.status(HttpStatus.FOUND)
         .location(URI.create(frontendUrl + "/"))
         .build();
+  }
+
+  private static boolean opsAudience(String audience) {
+    return "ops".equals(audience);
   }
 
   public record SmsSendRequest(@NotBlank String phone, @NotBlank String scene) {}

@@ -56,7 +56,7 @@ public class MinioConfig {
   /**
    * 本机不少 MinIO 发行版不实现 PutBucketCors（会报 NotImplemented）。
    * 失败时不阻断启动；请在 MinIO 进程加 {@code MINIO_API_CORS_ALLOW_ORIGIN}，
-   * 源要覆盖文档 5173、社区 5174、创作者 5175。
+   * 源要覆盖文档 5173、社区 5174、创作者 5175、运营 5176。
    */
   private void applyBrowserCors(MinioClient client, String bucket) {
     List<String> origins = List.of(
@@ -65,7 +65,9 @@ public class MinioConfig {
         "http://localhost:5174",
         "http://127.0.0.1:5174",
         "http://localhost:5175",
-        "http://127.0.0.1:5175");
+        "http://127.0.0.1:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176");
     CORSConfiguration cors = new CORSConfiguration(List.of(
         new CORSConfiguration.CORSRule(
             List.of("*"),
@@ -79,7 +81,7 @@ public class MinioConfig {
     } catch (Exception ex) {
       log.warn(
           "MinIO 未接受桶 CORS（{}）。浏览器直传请给 MinIO 设置 MINIO_API_CORS_ALLOW_ORIGIN="
-              + "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175",
+              + "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175,http://localhost:5176,http://127.0.0.1:5176",
           ex.getMessage());
     }
   }

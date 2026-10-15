@@ -15,6 +15,7 @@ flowchart TB
   subgraph fe [OnePage_web]
     Modal[AuthModal 社区登录]
     CreatorLogin[CreatorLogin 创作者站]
+    OpsLogin[OpsLogin 运营后台]
     Me[MePage 资料]
     More[MoreMenu 设置密码]
     Sess[session store]
@@ -34,11 +35,13 @@ flowchart TB
   end
   Browser --> Modal
   Browser --> CreatorLogin
+  Browser --> OpsLogin
   Browser --> Me
   Browser --> More
   More --> Sess
   Modal --> Sess
   CreatorLogin --> Vite
+  OpsLogin --> Vite
   Me --> Sess
   Sess --> Vite
   Vite --> GW
@@ -54,6 +57,7 @@ flowchart TB
 | --- | --- |
 | AuthModal | 社区站登录（短信 / 账密）、注册、找回密码、协议勾选 |
 | CreatorLogin | 创作者独立登录页（短信/账密）；与社区同一 Session，不注册 |
+| OpsLogin | 运营独立登录；`audience=ops`；须在 `OPS_STAFF_USER_IDS` 内，非员工 403 不种 Session；不注册、不短信开户 |
 | MePage | 已登录设密 / 改密；资料不展示手机号邮箱 |
 | Gateway | 公开：发码、短信登录、账密登录、注册、OAuth、找回密码。其余要 Session。登出在网关 `invalidate` WebSession |
 | auth | `auth_account`、验证码、密码哈希、种 Session |

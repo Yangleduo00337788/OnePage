@@ -129,6 +129,17 @@ export type CommentView = {
   createdAt: string
 }
 
+export type OpsReport = {
+  reportId: string
+  targetType: 'post' | 'user'
+  targetId: string
+  reasonCode: string
+  detail: string
+  status: 'pending' | 'done'
+  reporter?: UserBrief
+  createdAt: string
+}
+
 export type UserProfile = UserSummary & {
   coverUrl: string
   bio: string
@@ -195,13 +206,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ phone, scene }),
     }),
-  smsLogin: (phone: string, code: string) =>
-    request<UserSummary>('/api/v1/auth/sms/login', {
+  smsLogin: (phone: string, code: string, audience?: 'ops') =>
+    request<UserSummary>(`/api/v1/auth/sms/login${audience === 'ops' ? '?audience=ops' : ''}`, {
       method: 'POST',
       body: JSON.stringify({ phone, code }),
     }),
-  login: (account: string, password: string) =>
-    request<UserSummary>('/api/v1/auth/login', {
+  login: (account: string, password: string, audience?: 'ops') =>
+    request<UserSummary>(`/api/v1/auth/login${audience === 'ops' ? '?audience=ops' : ''}`, {
       method: 'POST',
       body: JSON.stringify({ account, password }),
     }),
@@ -410,4 +421,18 @@ export const api = {
       body: JSON.stringify({ msgType: 'image', content: { mediaId } }),
     }),
   conversationUnread: () => request<{ count: number }>('/api/v1/conversations/unread-count'),
+  opsMe: () => request<UserSummary>('/api/v1/ops/me'),
+  opsReports: (status?: 'pending' | 'done', cursor?: string, limit?: number) => {
+    const q = new URLSearchParams()
+    if (status) q.set('status', status)
+    if (cursor) q.set('cursor', cursor)
+    if (limit) q.set('limit', String(limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsReport>>(`/api/v1/ops/reports${suffix}`)
+  },
+  opsResolveReport: (reportId: string, body: { action: 'dismiss' | 'takedown' | 'ban'; note?: string }) =>
+    request<{ reportId: string; status: string }>(
+      `/api/v1/ops/reports/${encodeURIComponent(reportId)}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
 }

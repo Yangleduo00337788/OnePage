@@ -26,6 +26,13 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-15 — DEC-035：运营登录强制 `OPS_STAFF_USER_IDS`（空则拒绝）；`audience=ops`；`GET /ops/me`
+- 2026-10-15 — `env.example` 与本地 `.env` 每个键补了中文注释（端口 / 库名 / CORS / mock 短信等）
+- 2026-10-15 — 治理服务 `onepage-moderation-service`（8086）：`POST /reports`、`GET/PATCH /ops/reports`；下架走 content，冻结走 auth。须执行 `001_init.sql`
+- 2026-10-15 — 网关 CORS / MinIO 源补 5176；运营 Vite 代理去掉 Origin，避免未改 `.env` 时发短信 403
+- 2026-10-15 — 运营后台壳已落地 `apps/app-ops`（:5176）：独立登录、工单页；`GET/PATCH /api/v1/ops/reports` 已接治理服务
+- 2026-10-15 — DEC-034：第三站运营后台 `apps/app-ops`（:5176）；后端用已规划的 moderation-service + `/api/v1/ops`，不拆 admin 服务。P5 再建，本期只定名
+
 - 2026-10-14 — 详情评论底栏高度固定；点输入四钮向右折叠，发送为 20px 红胶囊
 - 2026-10-14 — 评论 @ 联想：`GET /users/me/suggest`，避开 `/{pageId}` 误匹配；输入框上方出人
 - 2026-10-14 — 评论 @：正文/`mentionPageIds` 解析一页号或昵称，投递 `mention`；找不到的 token 忽略

@@ -194,7 +194,7 @@ ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约�
 | 推荐 | 字符集 utf8mb4；时间列与现网脚本一致 |
 | 禁止 | 在循环里一条条查能改成 in / 一次 join 的（N+1） |
 
-ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。P2 通知库 `onepage_notification`，须执行 `onepage-notification-service/db/sql/001_init.sql`；投递在事务提交后 Feign，失败不回滚赞藏关注。P2 私信库 `onepage_message`，须执行 `onepage-message-service/db/sql/001_init.sql`；本期 HTTP 文本 + 分享 `post_card`，不做 WS。获赞列表 Feign content JOIN `post_like`/`post_favorite`，不要新建表。
+ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` 必须执行，缺 `category` 推荐流会 500。P2 关注表在 `onepage_user`，已有库须执行 `002_follow.sql`。P2 通知库 `onepage_notification`，须执行 `onepage-notification-service/db/sql/001_init.sql`；投递在事务提交后 Feign，失败不回滚赞藏关注。P2 私信库 `onepage_message`，须执行 `onepage-message-service/db/sql/001_init.sql`；本期 HTTP 文本 + 分享 `post_card`，不做 WS。获赞列表 Feign content JOIN `post_like`/`post_favorite`，不要新建表。P5 治理库 `onepage_moderation`，须执行 `onepage-moderation-service/db/sql/001_init.sql`；下架 Feign content，冻结 Feign auth，不要在 moderation 库改帖/账号。
 
 ---
 
@@ -215,7 +215,7 @@ ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` �
 
 | 级别 | 约定 |
 | --- | --- |
-| 必须 | 只扩现有模块：`onepage-common` / `gateway` / `auth` / `user` / `content`。新服务先改 [路线图](/engineering/tech/mvp-roadmap) |
+| 必须 | 只扩现有模块：`onepage-common` / `gateway` / `auth` / `user` / `content` / `notification` / `message` / `moderation`。新服务先改 [路线图](/engineering/tech/mvp-roadmap) |
 | 必须 | 应用分层：`web` → `service` → `mapper`；`web` 不直接堆 SQL |
 | 必须 | 依赖方向：service 可调 Feign `client`，不要循环依赖 |
 | 必须 | 配置：`application.yml` 占位符 + `env.example` 键对齐 |
@@ -223,7 +223,7 @@ ONEPAGE：P1 社交表在 `onepage_content`（DEC-023）。`003_category.sql` �
 | 推荐 | 二方库不要随便升级 BOM 外版本 |
 | 推荐 | 日志、Jackson、校验与 Boot 默认一致，不要每个服务复制一套 |
 
-本地启动顺序与地址见 [技术架构](/engineering/tech/architecture)：user → auth → content → gateway。
+本地启动顺序与地址见 [技术架构](/engineering/tech/architecture)：user → auth → content → notification → message → moderation → gateway。
 
 ---
 

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -85,6 +86,12 @@ public class InternalPostController {
       @RequestParam(value = "limit", required = false) Integer limit) {
     assertInternal(request);
     return postService.listFavoritesReceived(userId, cursor, limit);
+  }
+
+  @PostMapping("/posts/{postId}/takedown")
+  public void takedown(HttpServletRequest request, @PathVariable("postId") long postId) {
+    assertInternal(request);
+    postService.opsTakedown(postId);
   }
 
   private void assertInternal(HttpServletRequest request) {

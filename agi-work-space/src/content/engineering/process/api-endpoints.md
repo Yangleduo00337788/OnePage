@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** AI 润色/问答。P5 治理：`POST /reports`、`GET/PATCH /ops/reports` 已落 moderation-service。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -21,7 +21,7 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 | 赞藏 / 评论 | P1 | `## Reactions` · `## Comments` |
 | 通知 / 私信 | P2 | `## Notifications` · `## Conversations` |
 | 搜索 / AI | P3 | `## Search` · `## AI` |
-| 直播 / 举报 | P4–P5 | `## Live` · `## Reports` |
+| 直播 / 举报 / 运营 | P4–P5 | `## Live` · `## Reports` · `## Ops` |
 
 下面几个 JSON 形状会反复出现。
 
@@ -86,6 +86,7 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 
 ### POST `/api/v1/auth/sms/login`
 
+**Query**：`audience` 可选。`ops` 时须在 `OPS_STAFF_USER_IDS` 内，否则 403 且不种 Cookie、不自动开户。  
 **Body**：`phone`, `code`  
 **Response 200**：`{ "userId", "pageId", "nickname", "avatarUrl" }`（并 Set-Cookie）
 
@@ -97,8 +98,9 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 
 ### POST `/api/v1/auth/login`
 
-账密登录。**Body**：`account`（手机或邮箱）, `password`  
-**Response 200**：用户摘要 + Cookie
+账密登录。**Query**：`audience` 可选，`ops` 时仅白名单员工。  
+**Body**：`account`（手机或邮箱）, `password`  
+**Response 200**：用户摘要 + Cookie。非员工运营登录 403，不种 Cookie。
 
 ### POST `/api/v1/auth/logout`
 
@@ -439,8 +441,43 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ### POST `/api/v1/reports`
 
-**Body**：`targetType`（post/user）, `targetId`, `reasonCode`, `detail?`  
+**Body**：`targetType`（post/user）, `targetId`, `reasonCode`, `detail?`
 **Response 201**：`{ "reportId" }`
+
+社区用户提交。处理走下面 Ops，不要把员工接口暴露给社区站。
+
+---
+
+## Ops（P5，运营后台；`onepage-moderation-service` 8086）
+
+员工 Session。非员工 403。名单 `OPS_STAFF_USER_IDS`（空则全部 403）。网关前缀 `/api/v1/ops/**` → moderation-service。运营站登录须带 `audience=ops`（DEC-035）。
+
+### GET `/api/v1/ops/me`
+
+已登录员工。**Response**：`UserSummary`。非员工或未配名单 403。运营壳进站先调这个，不要只看社区 Session。
+
+### GET `/api/v1/ops/reports`
+
+**Query**：`status` pending/done，`cursor`，`limit`
+
+**Response**：`CursorPage<OpsReport>`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| reportId | string | |
+| targetType | string | post / user |
+| targetId | string | |
+| reasonCode | string | |
+| detail | string | 可空 |
+| status | string | pending / done |
+| reporter | UserBrief | 可空 |
+| createdAt | string | ISO-8601 |
+
+### PATCH `/api/v1/ops/reports/{reportId}`
+
+**Body**：`action` dismiss / takedown / ban，`note?`
+
+**Response**：`{ reportId, status }`。takedown 由 content 内部下架帖；ban 由 auth 冻结账号（`status=1`）。忽略只改工单状态。员工名单见上，空则拒绝。
 
 ---
 

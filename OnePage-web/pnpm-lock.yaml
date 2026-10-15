@@ -33,6 +33,28 @@ importers:
         specifier: ^2.2.10
         version: 2.2.12(typescript@5.9.3)
 
+  apps/app-ops:
+    dependencies:
+      '@onepage/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.43(typescript@5.9.3)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^5.2.3
+        version: 5.2.4(vite@6.4.4(jiti@2.7.0)(lightningcss@1.32.0))(vue@3.5.43(typescript@5.9.3))
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.4
+        version: 6.4.4(jiti@2.7.0)(lightningcss@1.32.0)
+      vue-tsc:
+        specifier: ^2.2.10
+        version: 2.2.12(typescript@5.9.3)
+
   apps/shell:
     dependencies:
       '@onepage/api-client':

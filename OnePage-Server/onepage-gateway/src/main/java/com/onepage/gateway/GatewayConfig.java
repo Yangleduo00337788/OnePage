@@ -24,7 +24,7 @@ import java.util.List;
 public class GatewayConfig {
 
   /**
-   * 浏览器跨域。文档站 5173、社区 5174、创作者 5175 与 API 8080 不同源，必须 CORS。
+   * 浏览器跨域。文档 5173、社区 5174、创作者 5175、运营 5176 与 API 8080 不同源，必须 CORS。
    * {@code setAllowCredentials(true)} 才能带 Cookie；此时不能写 {@code *} 源，必须白名单。
    * {@code @Value} 从 yml 占位符读取，值来自环境变量 {@code CORS_ALLOWED_ORIGINS}。
    */

@@ -6,6 +6,28 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-035 运营登录强制 `OPS_STAFF_USER_IDS`，空名单拒绝
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳
+- **背景：** 运营站曾与社区共用登录，白名单为空时任意已登录用户可进 `/ops`。社区账号误进运营会下架/冻结。
+- **决策：** 员工名单只放环境变量 `OPS_STAFF_USER_IDS`（userId 逗号分隔，不写死 Java）。空名单 = 无人可进。运营登录走 `POST /auth/login?audience=ops` 与 `POST /auth/sms/login?audience=ops`：非员工 403 且不种 Session；运营短信登录不自动开户。壳进站先 `GET /ops/me`。`/ops/**` 再拦一次。社区/创作者登录不加 `audience`，不受影响。
+- **替代：** 前端一页号名单（否决：可绕）；空名单开发放行（否决：本机也会串站）；独立 admin 用户库（否决：DEC-034 不拆 admin 服务）。
+- **影响：** 本机必须把员工 `userId` 填进 `.env` 并重启 auth / moderation / gateway。见 [API 明细](/engineering/process/api-endpoints)。
+
+## DEC-034 第三站叫运营后台 `app-ops`，后端不拆 admin 服务
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳（先定名与边界，P5 再建模块）
+- **背景：** 产品前端已拆社区 `apps/shell`（:5174）和创作者 `apps/app-creator`（:5175）。还缺给内部人员审帖、处理举报、下架/封禁的界面。创作者中心是 C 端作者工作台，不能兼做运营。若再拆一个 `onepage-admin-service`，容易变成跨域写库的上帝服务。
+- **决策：**
+  - **前端第三站：** 中文 **运营后台**；目录 `OnePage-web/apps/app-ops`；包 `@onepage/app-ops`；本机 **5176**。独立站点、独立登录页（无注册），入口不挂社区侧栏。上线用内网或独立 host（如 `ops.`），不要和社区同域公开入口。
+  - **后端不新建 `onepage-admin-service`。** 治理进程沿用路线图已有的 **`onepage-moderation-service`**（库 `onepage_moderation`）：举报单、处理记录、员工权限校验。下架帖、改可见、封禁账号仍由 **content / user 执行**（Feign），谁的表谁改。网关给运营站单独前缀 **`/api/v1/ops/**`**，验 Session 且必须是员工（staff），不要只靠前端藏入口。
+  - **员工身份：** 同一套 `ONEPAGE_SESSION`；员工以 `OPS_STAFF_USER_IDS` 为准（DEC-035，空名单拒绝）。禁止公开注册成员工。创作者审核 Tab 只是作者看自己的帖状态，不是运营后台。
+  - **P5 范围：** 举报列表 + 待处理/已处理 + 下架/封禁。分类、活动、推荐位等 CMS 仍放对应领域服务的 ops 接口，不另起 admin 进程。章程里「完整运营后台」仍是非目标。
+- **替代：** 把运营页塞进创作者站（否决：受众和威胁模型不同）；`apps/app-admin` + `onepage-admin-service`（否决：admin 与创作者「后台」混名，服务会变成聚合层）；只做 moderation 前端名叫 `app-moderation`（否决：以后不止举报）。
+- **影响：** 端口规划 5173 文档 / 5174 社区 / 5175 创作者 / **5176 运营**。`CORS_ALLOWED_ORIGINS` 与 MinIO 源须含 5176。见 [路线图](/engineering/tech/mvp-roadmap)、[前端结构](/engineering/frontend)。
+
 ## DEC-033 评论 @ 先联想再选定，不要只靠事后解析
 
 - **日期：** 2026-10-14
