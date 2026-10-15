@@ -142,7 +142,7 @@ flowchart TB
 | --- | --- | --- |
 | shell | `/`, `/login`, `/settings` | `/api/v1/auth/**` |
 | app-creator | 独立站 `/`（本机 :5175；壳 `/creator` 只跳转） | 创作者数据（content `/posts/mine` 等） |
-| app-ops | 独立站 `/`（本机 :5176，P5；不挂社区导航） | `/api/v1/ops/**` → moderation + Feign content/user |
+| app-ops | 独立站 `/`（本机 :5176，P5；不挂社区导航） | `/api/v1/ops/**` → moderation + Feign content/user/auth/message |
 | app-feed | `/explore`, `/post/:id`, `/create` | posts, comments, reactions |
 | app-user | `/u/:pageId` | users, follows |
 | app-im | `/messages` | conversations, `WS /ws/im` |

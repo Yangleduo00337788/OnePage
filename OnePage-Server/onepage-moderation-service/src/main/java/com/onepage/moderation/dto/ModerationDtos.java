@@ -116,4 +116,24 @@ public final class ModerationDtos {
       String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
 
   public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
+
+  public record OpsImPeer(String userId, String pageId, String nickname, String avatarUrl) {}
+
+  public record OpsConversationRow(
+      String conversationId, OpsImPeer left, OpsImPeer right, String preview, String updatedAt) {}
+
+  public record OpsConversationPage(List<OpsConversationRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsImMessageRow(
+      String messageId,
+      String conversationId,
+      OpsImPeer sender,
+      String msgType,
+      String preview,
+      String imageUrl,
+      String postId,
+      boolean hidden,
+      String createdAt) {}
+
+  public record OpsImMessagePage(List<OpsImMessageRow> items, String nextCursor, boolean hasMore) {}
 }

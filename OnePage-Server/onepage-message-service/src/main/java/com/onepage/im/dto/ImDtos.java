@@ -38,6 +38,28 @@ public final class ImDtos {
 
   public record UnreadCount(long count) {}
 
+  public record OpsConversationRow(
+      String conversationId,
+      UserBrief left,
+      UserBrief right,
+      String preview,
+      String updatedAt) {}
+
+  public record OpsConversationPage(List<OpsConversationRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsMessageRow(
+      String messageId,
+      String conversationId,
+      UserBrief sender,
+      String msgType,
+      String preview,
+      String imageUrl,
+      String postId,
+      boolean hidden,
+      String createdAt) {}
+
+  public record OpsMessagePage(List<OpsMessageRow> items, String nextCursor, boolean hasMore) {}
+
   /** Redis 频道里投递到哪个用户；浏览器帧不含 userId。 */
   public record PushFrame(String userId, String conversationId, MessageItem payload) {}
 }

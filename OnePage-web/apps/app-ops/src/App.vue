@@ -13,11 +13,13 @@ import OpsComments from './OpsComments.vue'
 import OpsCategories from './OpsCategories.vue'
 import OpsCampaigns from './OpsCampaigns.vue'
 import OpsTopics from './OpsTopics.vue'
+import OpsMessages from './OpsMessages.vue'
 
 export type PageId =
   | 'home'
   | 'reports'
   | 'users'
+  | 'im'
   | 'posts'
   | 'comments'
   | 'categories'
@@ -35,6 +37,7 @@ const groups: NavGroup[] = [
     children: [
       { id: 'reports', label: '工单', icon: 'flag' },
       { id: 'users', label: '用户', icon: 'users' },
+      { id: 'im', label: '私信', icon: 'message-square' },
     ],
   },
   {
@@ -205,6 +208,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsHome v-if="page === 'home'" @open="openPage($event as PageId)" />
       <OpsReports v-else-if="page === 'reports'" />
       <OpsUsers v-else-if="page === 'users'" />
+      <OpsMessages v-else-if="page === 'im'" />
       <OpsPosts v-else-if="page === 'posts'" />
       <OpsComments v-else-if="page === 'comments'" />
       <OpsCategories v-else-if="page === 'categories'" />

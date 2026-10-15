@@ -9,6 +9,7 @@ public class MessageHit {
   private String msgType;
   private String content;
   private LocalDateTime createdAt;
+  private LocalDateTime deletedAt;
 
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
@@ -22,4 +23,6 @@ public class MessageHit {
   public void setContent(String content) { this.content = content; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+  public LocalDateTime getDeletedAt() { return deletedAt; }
+  public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

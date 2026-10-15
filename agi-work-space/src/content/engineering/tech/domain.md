@@ -14,7 +14,7 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 | 用户 | onepage-user-service | 用户、资料、一页号、关注边 |
 | 内容 | onepage-content-service | 笔记、媒体、草稿、浏览历史 |
 | 社交 | onepage-social-service | 赞、藏、评论、分享 |
-| 私信 | onepage-message-service | 会话、消息 |
+| 私信 | onepage-message-service | 会话、消息；运营隐藏用 `deleted_at` |
 | 通知 | onepage-notification-service | 通知收件箱 |
 | 检索 | onepage-search-service | 索引文档、查询 |
 | 智能 | onepage-ai-service | 生成任务、审计 |

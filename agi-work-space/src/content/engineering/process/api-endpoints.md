@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单与用户冻结已落 moderation-service。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单/用户/笔记/评论/目录 CRUD、私信巡查已落 moderation-service（隐藏走 Feign message）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -554,6 +554,22 @@ Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
 ### POST `/api/v1/ops/users/{userId}/unfreeze`
 
 **Response**：`OpsUser`。解冻把 auth `status` 改回 0。
+
+### GET `/api/v1/ops/conversations`
+
+**Query**：`q` 可空（用户 ID 或会话 ID，须为数字），`cursor`（`epochMilli_conversationId`），`limit`。  
+**Response**：`CursorPage<OpsConversationRow>`：`conversationId` `left` `right`（`OpsImPeer`：userId/pageId/nickname/avatarUrl）`preview` `updatedAt`。
+
+### GET `/api/v1/ops/conversations/{conversationId}/messages`
+
+**Query**：`hidden` yes/no（可空=全部含已隐藏），`cursor`（上一页最小 messageId），`limit`。  
+**Response**：`CursorPage<OpsImMessageRow>`：`messageId` `conversationId` `sender` `msgType` `preview` `imageUrl` `postId` `hidden` `createdAt`。
+
+### POST `/api/v1/ops/messages/{messageId}/hide`
+
+### POST `/api/v1/ops/messages/{messageId}/restore`
+
+**Response 204**。隐藏写 `message.deleted_at`，社区会话/未读不再出现该条。内网 Feign **POST**，不要 PATCH。已有库须执行 `002_ops_hide.sql`。
 
 ---
 

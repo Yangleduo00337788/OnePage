@@ -49,7 +49,7 @@ order: 3
 | `/live/**` | 直播 |
 | `/reports/**` | 用户提交举报（P5，moderation） |
 | `/catalog/**` | 公开目录（分类/活动/话题） |
-| `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记/评论/分类活动话题 CRUD；content+auth Feign） |
+| `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记/评论/分类活动话题 CRUD/私信巡查；content+auth+message Feign） |
 
 完整路径列表见 [API 明细](/engineering/process/api-endpoints)。
 

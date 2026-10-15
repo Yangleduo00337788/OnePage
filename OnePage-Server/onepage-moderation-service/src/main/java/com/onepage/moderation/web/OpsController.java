@@ -286,4 +286,45 @@ public class OpsController {
     staffGuard.requireStaff(actorId);
     return moderationService.freezeUser(actorId, targetId, false);
   }
+
+  @GetMapping("/conversations")
+  public ModerationDtos.OpsConversationPage conversations(
+      HttpServletRequest request,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsConversations(q, cursor, limit);
+  }
+
+  @GetMapping("/conversations/{conversationId}/messages")
+  public ModerationDtos.OpsImMessagePage conversationMessages(
+      HttpServletRequest request,
+      @PathVariable("conversationId") long conversationId,
+      @RequestParam(value = "hidden", required = false) String hidden,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsImMessages(conversationId, hidden, cursor, limit);
+  }
+
+  @PostMapping("/messages/{messageId}/hide")
+  public ResponseEntity<Void> hideMessage(
+      HttpServletRequest request, @PathVariable("messageId") long messageId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.hideImMessage(messageId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/messages/{messageId}/restore")
+  public ResponseEntity<Void> restoreMessage(
+      HttpServletRequest request, @PathVariable("messageId") long messageId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.restoreImMessage(messageId);
+    return ResponseEntity.noContent().build();
+  }
 }

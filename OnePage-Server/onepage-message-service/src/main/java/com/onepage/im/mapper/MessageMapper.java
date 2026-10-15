@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.scripting.xmltags.XMLLanguageDriver;
 
 import java.time.LocalDateTime;
@@ -28,9 +29,10 @@ public interface MessageMapper {
   @Lang(XMLLanguageDriver.class)
   @Select("""
       <script>
-      SELECT id, conversation_id, sender_id, msg_type, CAST(content AS CHAR) AS content, created_at
+      SELECT id, conversation_id, sender_id, msg_type, CAST(content AS CHAR) AS content, created_at, deleted_at
       FROM message
       WHERE conversation_id = #{conversationId}
+        AND deleted_at IS NULL
         <if test="beforeId != null">
           AND id &lt; #{beforeId}
         </if>
@@ -49,10 +51,49 @@ public interface MessageMapper {
         FROM conversation_member me
         JOIN message um ON um.conversation_id = me.conversation_id
           AND um.sender_id <> me.user_id
+          AND um.deleted_at IS NULL
           AND um.id > IFNULL(me.last_read_message_id, 0)
         WHERE me.user_id = #{userId}
         GROUP BY me.conversation_id
       ) t
       """)
   long countUnread(@Param("userId") long userId);
+
+  @Select("""
+      SELECT id, conversation_id, sender_id, msg_type, CAST(content AS CHAR) AS content, created_at, deleted_at
+      FROM message
+      WHERE id = #{id}
+      """)
+  MessageHit findById(@Param("id") long id);
+
+  @Update("UPDATE message SET deleted_at = #{at} WHERE id = #{id}")
+  int hide(@Param("id") long id, @Param("at") LocalDateTime at);
+
+  @Update("UPDATE message SET deleted_at = NULL WHERE id = #{id}")
+  int restore(@Param("id") long id);
+
+  @Lang(XMLLanguageDriver.class)
+  @Select("""
+      <script>
+      SELECT id, conversation_id, sender_id, msg_type, CAST(content AS CHAR) AS content, created_at, deleted_at
+      FROM message
+      WHERE conversation_id = #{conversationId}
+        <if test="hidden == 'yes'">
+          AND deleted_at IS NOT NULL
+        </if>
+        <if test="hidden == 'no'">
+          AND deleted_at IS NULL
+        </if>
+        <if test="beforeId != null">
+          AND id &lt; #{beforeId}
+        </if>
+      ORDER BY id DESC
+      LIMIT #{limit}
+      </script>
+      """)
+  List<MessageHit> opsPage(
+      @Param("conversationId") long conversationId,
+      @Param("hidden") String hidden,
+      @Param("beforeId") Long beforeId,
+      @Param("limit") int limit);
 }

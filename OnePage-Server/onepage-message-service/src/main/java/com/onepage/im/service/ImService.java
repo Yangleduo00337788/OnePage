@@ -10,6 +10,7 @@ import com.onepage.im.client.UserClient;
 import com.onepage.im.dto.ConversationHit;
 import com.onepage.im.dto.ImDtos;
 import com.onepage.im.dto.MessageHit;
+import com.onepage.im.dto.OpsConversationHit;
 import com.onepage.im.mapper.ConversationMapper;
 import com.onepage.im.mapper.MemberMapper;
 import com.onepage.im.mapper.MessageMapper;
@@ -23,7 +24,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -307,6 +310,126 @@ public class ImService {
     return new ImDtos.UnreadCount(messageMapper.countUnread(userId));
   }
 
+  public ImDtos.OpsConversationPage opsConversations(String q, String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    Long filterId = parseOptionalId(q);
+    LocalDateTime beforeUpdated = null;
+    Long beforeId = null;
+    if (StringUtils.hasText(cursor)) {
+      String[] parts = cursor.split("_", 2);
+      if (parts.length != 2) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+      try {
+        beforeUpdated = LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(parts[0])), ZoneId.systemDefault());
+        beforeId = Long.parseLong(parts[1]);
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+    }
+    List<OpsConversationHit> rows = conversationMapper.opsPage(filterId, beforeUpdated, beforeId, size + 1);
+    if (rows == null) {
+      rows = List.of();
+    }
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    LinkedHashSet<Long> ids = new LinkedHashSet<>();
+    for (OpsConversationHit hit : rows) {
+      if (hit.getLeftId() != null) {
+        ids.add(hit.getLeftId());
+      }
+      if (hit.getRightId() != null) {
+        ids.add(hit.getRightId());
+      }
+    }
+    Map<Long, UserSummary> users = loadUsers(ids);
+    List<ImDtos.OpsConversationRow> items = new ArrayList<>();
+    for (OpsConversationHit hit : rows) {
+      items.add(new ImDtos.OpsConversationRow(
+          String.valueOf(hit.getConversationId()),
+          opsBrief(users, hit.getLeftId()),
+          opsBrief(users, hit.getRightId()),
+          preview(hit.getLastContent()),
+          iso(hit.getUpdatedAt())));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty()) {
+      OpsConversationHit last = rows.getLast();
+      if (last.getUpdatedAt() != null && last.getConversationId() != null) {
+        next = epochMilli(last.getUpdatedAt()) + "_" + last.getConversationId();
+      }
+    }
+    return new ImDtos.OpsConversationPage(items, next, hasMore);
+  }
+
+  public ImDtos.OpsMessagePage opsMessages(long conversationId, String hidden, String cursor, Integer limit) {
+    if (conversationMapper.findId(conversationId) == null) {
+      throw BusinessException.notFound("会话不存在");
+    }
+    int size = limit == null ? 30 : Math.min(Math.max(limit, 1), 50);
+    Long beforeId = parseOptionalId(cursor);
+    List<MessageHit> rows = messageMapper.opsPage(conversationId, hidden, beforeId, size + 1);
+    if (rows == null) {
+      rows = List.of();
+    }
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    LinkedHashSet<Long> ids = new LinkedHashSet<>();
+    for (MessageHit row : rows) {
+      if (row.getSenderId() != null) {
+        ids.add(row.getSenderId());
+      }
+    }
+    Map<Long, UserSummary> users = loadUsers(ids);
+    List<ImDtos.OpsMessageRow> items = new ArrayList<>();
+    for (MessageHit row : rows) {
+      JsonNode body = parseJson(row.getContent());
+      items.add(new ImDtos.OpsMessageRow(
+          String.valueOf(row.getId()),
+          String.valueOf(row.getConversationId()),
+          opsBrief(users, row.getSenderId()),
+          row.getMsgType() == null ? "text" : row.getMsgType(),
+          preview(row.getContent()),
+          textOf(body, "url"),
+          textOf(body, "postId"),
+          row.getDeletedAt() != null,
+          iso(row.getCreatedAt())));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty() && rows.getLast().getId() != null) {
+      next = String.valueOf(rows.getLast().getId());
+    }
+    return new ImDtos.OpsMessagePage(items, next, hasMore);
+  }
+
+  @Transactional
+  public void opsHide(long messageId) {
+    MessageHit row = messageMapper.findById(messageId);
+    if (row == null) {
+      throw BusinessException.notFound("消息不存在");
+    }
+    if (row.getDeletedAt() != null) {
+      return;
+    }
+    messageMapper.hide(messageId, LocalDateTime.now());
+  }
+
+  @Transactional
+  public void opsRestore(long messageId) {
+    MessageHit row = messageMapper.findById(messageId);
+    if (row == null) {
+      throw BusinessException.notFound("消息不存在");
+    }
+    if (row.getDeletedAt() == null) {
+      return;
+    }
+    messageMapper.restore(messageId);
+  }
+
   private void requireMember(long conversationId, long userId) {
     if (conversationMapper.requireMember(conversationId, userId) == null) {
       throw BusinessException.notFound("会话不存在");
@@ -338,6 +461,32 @@ public class ImService {
 
   private static String pairKey(long a, long b) {
     return a < b ? a + "_" + b : b + "_" + a;
+  }
+
+  private ImDtos.UserBrief opsBrief(Map<Long, UserSummary> users, Long userId) {
+    if (userId == null) {
+      return new ImDtos.UserBrief("", "", "用户", "");
+    }
+    UserSummary row = users.get(userId);
+    if (row == null) {
+      return new ImDtos.UserBrief(String.valueOf(userId), "", "用户", "");
+    }
+    return new ImDtos.UserBrief(row.userId(), row.pageId(), row.nickname(), row.avatarUrl());
+  }
+
+  private static Long parseOptionalId(String raw) {
+    if (!StringUtils.hasText(raw)) {
+      return null;
+    }
+    try {
+      return Long.parseLong(raw.trim());
+    } catch (NumberFormatException ex) {
+      throw BusinessException.validation("只支持用户 ID 或会话 ID");
+    }
+  }
+
+  private static String epochMilli(LocalDateTime time) {
+    return String.valueOf(time.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
   }
 
   private static long parseId(String raw, String field) {

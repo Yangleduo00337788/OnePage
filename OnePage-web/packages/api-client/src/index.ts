@@ -229,6 +229,33 @@ export type OpsTopic = {
   enabled: boolean
 }
 
+export type OpsImPeer = {
+  userId: string
+  pageId: string
+  nickname: string
+  avatarUrl: string
+}
+
+export type OpsConversationRow = {
+  conversationId: string
+  left: OpsImPeer
+  right: OpsImPeer
+  preview: string
+  updatedAt: string
+}
+
+export type OpsImMessageRow = {
+  messageId: string
+  conversationId: string
+  sender: OpsImPeer
+  msgType: string
+  preview: string
+  imageUrl: string
+  postId: string
+  hidden: boolean
+  createdAt: string
+}
+
 export type OpsCatalog = {
   categories: OpsCategory[]
   campaigns: OpsCampaign[]
@@ -685,4 +712,29 @@ export const api = {
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
   opsUnfreezeUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/unfreeze`, { method: 'POST' }),
+  opsConversations: (opts?: { q?: string; cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.q) q.set('q', opts.q)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsConversationRow>>(`/api/v1/ops/conversations${suffix}`)
+  },
+  opsConversationMessages: (
+    conversationId: string,
+    opts?: { hidden?: 'yes' | 'no'; cursor?: string; limit?: number },
+  ) => {
+    const q = new URLSearchParams()
+    if (opts?.hidden) q.set('hidden', opts.hidden)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsImMessageRow>>(
+      `/api/v1/ops/conversations/${encodeURIComponent(conversationId)}/messages${suffix}`,
+    )
+  },
+  opsHideImMessage: (messageId: string) =>
+    request<void>(`/api/v1/ops/messages/${encodeURIComponent(messageId)}/hide`, { method: 'POST' }),
+  opsRestoreImMessage: (messageId: string) =>
+    request<void>(`/api/v1/ops/messages/${encodeURIComponent(messageId)}/restore`, { method: 'POST' }),
 }

@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS message (
   msg_type VARCHAR(16) NOT NULL COMMENT 'text / image / post_card / live_card',
   content JSON NOT NULL COMMENT '文本或卡片',
   created_at DATETIME(3) NOT NULL COMMENT '发送时间',
+  deleted_at DATETIME(3) NULL COMMENT '运营隐藏时间，空则对用户可见',
   PRIMARY KEY (id),
   KEY idx_conv_id (conversation_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='私信消息';

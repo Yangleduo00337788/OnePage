@@ -281,6 +281,7 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | msg_type | VARCHAR(16) | `text` / `image` / `post_card` / `live_card` |
 | content | JSON | 文本或卡片 payload |
 | created_at | DATETIME(3) | 索引 (conversation_id, id) |
+| deleted_at | DATETIME(3) 可空 | 运营隐藏；用户列表/未读忽略该行 |
 
 ## onepage_notification
 

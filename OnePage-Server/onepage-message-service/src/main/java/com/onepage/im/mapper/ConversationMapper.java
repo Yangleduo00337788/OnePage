@@ -1,11 +1,14 @@
 package com.onepage.im.mapper;
 
 import com.onepage.im.dto.ConversationHit;
+import com.onepage.im.dto.OpsConversationHit;
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.scripting.xmltags.XMLLanguageDriver;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,15 +51,56 @@ public interface ConversationMapper {
         (SELECT COUNT(*) FROM message um
           WHERE um.conversation_id = c.id
             AND um.sender_id <> #{userId}
+            AND um.deleted_at IS NULL
             AND um.id > IFNULL(me.last_read_message_id, 0)
         ) AS unreadCount
       FROM conversation c
       JOIN conversation_member me ON me.conversation_id = c.id AND me.user_id = #{userId}
       JOIN conversation_member peer ON peer.conversation_id = c.id AND peer.user_id <> #{userId}
       LEFT JOIN message lm ON lm.id = (
-        SELECT MAX(id) FROM message WHERE conversation_id = c.id
+        SELECT MAX(id) FROM message WHERE conversation_id = c.id AND deleted_at IS NULL
       )
       ORDER BY c.updated_at DESC, c.id DESC
       """)
   List<ConversationHit> listForUser(@Param("userId") long userId);
+
+  @Select("SELECT id FROM conversation WHERE id = #{id}")
+  Long findId(@Param("id") long id);
+
+  @Lang(XMLLanguageDriver.class)
+  @Select("""
+      <script>
+      SELECT
+        c.id AS conversationId,
+        a.user_id AS leftId,
+        b.user_id AS rightId,
+        c.updated_at AS updatedAt,
+        lm.id AS lastMessageId,
+        lm.msg_type AS lastMsgType,
+        CAST(lm.content AS CHAR) AS lastContent
+      FROM conversation c
+      JOIN conversation_member a ON a.conversation_id = c.id
+      JOIN conversation_member b ON b.conversation_id = c.id AND b.user_id &gt; a.user_id
+      LEFT JOIN message lm ON lm.id = (
+        SELECT MAX(id) FROM message WHERE conversation_id = c.id
+      )
+      WHERE 1 = 1
+        <if test="userId != null">
+          AND (a.user_id = #{userId} OR b.user_id = #{userId} OR c.id = #{userId})
+        </if>
+        <if test="beforeUpdated != null">
+          AND (
+            c.updated_at &lt; #{beforeUpdated}
+            OR (c.updated_at = #{beforeUpdated} AND c.id &lt; #{beforeId})
+          )
+        </if>
+      ORDER BY c.updated_at DESC, c.id DESC
+      LIMIT #{limit}
+      </script>
+      """)
+  List<OpsConversationHit> opsPage(
+      @Param("userId") Long userId,
+      @Param("beforeUpdated") LocalDateTime beforeUpdated,
+      @Param("beforeId") Long beforeId,
+      @Param("limit") int limit);
 }

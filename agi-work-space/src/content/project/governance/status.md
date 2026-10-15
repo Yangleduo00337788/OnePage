@@ -18,7 +18,7 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 ## 正在做
 
 - 关注、通知（含评论 @）、私信文本/图片、`WS /ws/im`、分享笔记卡片、获赞/被收藏列表已接。搜索/直播/耶耶仍空态
-- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需 `onepage_notification` 的 `001_init.sql`（8084）；私信需 `onepage_message` 的 `001_init.sql`，另起 `ImApplication`（8085）
+- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需 `onepage_notification` 的 `001_init.sql`（8084）；私信需 `onepage_message` 的 `001_init.sql`，已有库另执行 `002_ops_hide.sql`，另起 `ImApplication`（8085）
 
 ## 阻塞
 
@@ -26,6 +26,7 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-15 — 运营私信巡查：`GET /ops/conversations` 与消息隐藏/恢复；须执行 `002_ops_hide.sql`
 - 2026-10-15 — 治理改活动/分类/话题内网改 POST，避开 Feign PATCH 被 JDK 拒绝
 - 2026-10-15 — 运营封面直传改走 Vite 同源代理，避免 MinIO CORS；封面 URL 去掉预签名 query，避免 cover_url 超长 500
 - 2026-10-15 — 运营活动封面裁完立刻预览；整站隐藏滚动条

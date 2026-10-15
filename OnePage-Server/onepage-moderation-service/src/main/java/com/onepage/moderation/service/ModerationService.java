@@ -6,6 +6,7 @@ import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.moderation.client.AuthClient;
 import com.onepage.moderation.client.ContentClient;
+import com.onepage.moderation.client.MessageClient;
 import com.onepage.moderation.client.UserClient;
 import com.onepage.moderation.dto.ModerationDtos;
 import com.onepage.moderation.entity.Report;
@@ -45,6 +46,7 @@ public class ModerationService {
   private final UserClient userClient;
   private final ContentClient contentClient;
   private final AuthClient authClient;
+  private final MessageClient messageClient;
   private final StaffGuard staffGuard;
   private final String internalToken;
 
@@ -53,12 +55,14 @@ public class ModerationService {
       UserClient userClient,
       ContentClient contentClient,
       AuthClient authClient,
+      MessageClient messageClient,
       StaffGuard staffGuard,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
     this.userClient = userClient;
     this.contentClient = contentClient;
     this.authClient = authClient;
+    this.messageClient = messageClient;
     this.staffGuard = staffGuard;
     this.internalToken = internalToken;
   }
@@ -571,6 +575,71 @@ public class ModerationService {
         row.getHandleNote() == null ? "" : row.getHandleNote(),
         iso(row.getCreatedAt()),
         iso(row.getHandledAt()));
+  }
+
+  public ModerationDtos.OpsConversationPage opsConversations(String q, String cursor, Integer limit) {
+    MessageClient.OpsConversationPage page = messageClient.conversations(internalToken, q, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsConversationPage(List.of(), null, false);
+    }
+    List<ModerationDtos.OpsConversationRow> items = new ArrayList<>();
+    for (MessageClient.OpsConversationRow row : page.items()) {
+      if (row == null) {
+        continue;
+      }
+      items.add(new ModerationDtos.OpsConversationRow(
+          row.conversationId(),
+          imPeer(row.left()),
+          imPeer(row.right()),
+          row.preview() == null ? "" : row.preview(),
+          row.updatedAt() == null ? "" : row.updatedAt()));
+    }
+    return new ModerationDtos.OpsConversationPage(items, page.nextCursor(), page.hasMore());
+  }
+
+  public ModerationDtos.OpsImMessagePage opsImMessages(
+      long conversationId, String hidden, String cursor, Integer limit) {
+    MessageClient.OpsMessagePage page =
+        messageClient.messages(internalToken, conversationId, hidden, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsImMessagePage(List.of(), null, false);
+    }
+    List<ModerationDtos.OpsImMessageRow> items = new ArrayList<>();
+    for (MessageClient.OpsMessageRow row : page.items()) {
+      if (row == null) {
+        continue;
+      }
+      items.add(new ModerationDtos.OpsImMessageRow(
+          row.messageId(),
+          row.conversationId(),
+          imPeer(row.sender()),
+          row.msgType() == null ? "text" : row.msgType(),
+          row.preview() == null ? "" : row.preview(),
+          row.imageUrl() == null ? "" : row.imageUrl(),
+          row.postId() == null ? "" : row.postId(),
+          row.hidden(),
+          row.createdAt() == null ? "" : row.createdAt()));
+    }
+    return new ModerationDtos.OpsImMessagePage(items, page.nextCursor(), page.hasMore());
+  }
+
+  public void hideImMessage(long messageId) {
+    messageClient.hide(internalToken, messageId);
+  }
+
+  public void restoreImMessage(long messageId) {
+    messageClient.restore(internalToken, messageId);
+  }
+
+  private static ModerationDtos.OpsImPeer imPeer(MessageClient.UserBrief row) {
+    if (row == null) {
+      return new ModerationDtos.OpsImPeer("", "", "用户", "");
+    }
+    return new ModerationDtos.OpsImPeer(
+        row.userId() == null ? "" : row.userId(),
+        row.pageId() == null ? "" : row.pageId(),
+        row.nickname() == null ? "用户" : row.nickname(),
+        row.avatarUrl() == null ? "" : row.avatarUrl());
   }
 
   private void assertCanPunishUser(long actorId, long targetId) {
