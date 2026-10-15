@@ -468,22 +468,32 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 | targetType | string | post / user |
 | targetId | string | |
 | targetTitle | string | 笔记标题或用户昵称，可空 |
-| targetPageId | string | 被举报用户的一页号，笔记可空 |
+| targetPageId | string | 作者或被举报用户的一页号，可空 |
+| authorId | string | 笔记作者，用户工单为空 |
+| takenDown | boolean | 笔记是否已下架 |
 | reasonCode | string | |
 | detail | string | 可空 |
 | status | string | pending / done |
 | reporter | UserBrief | 可空 |
 | handler | UserBrief | 已处理才有 |
-| handleAction | string | dismiss / takedown / ban |
+| handleAction | string | dismiss / takedown / restore / ban / unban |
 | handleNote | string | |
 | createdAt | string | ISO-8601 |
 | handledAt | string | 已处理才有 |
 
 ### PATCH `/api/v1/ops/reports/{reportId}`
 
-**Body**：`action` dismiss / takedown / ban，`note?`
+**Body**：`action` dismiss / takedown / restore / ban / unban，`note?`
 
-**Response**：`{ reportId, status }`。takedown 由 content 内部下架帖；ban 由 **auth** `status=1` 冻结（不是 user-service）。不能冻结员工或自己。
+**Response**：`{ reportId, status }`。takedown / restore 由 content 内部下架或恢复；ban 由 **auth** `status=1` 冻结（帖举报同时下架该帖）；unban 解冻作者或被举报用户。不能冻结员工或自己。已处理工单仍可 restore / ban / unban / takedown，dismiss 不行。
+
+### GET `/api/v1/ops/posts/{postId}`
+
+员工预览。已下架也返回正文和媒体。**Response**：`OpsPostView`（含 `takenDown`、`media[]`）。
+
+### GET `/api/v1/ops/users/{userId}`
+
+**Response**：`OpsUser`。
 
 ### GET `/api/v1/ops/users`
 

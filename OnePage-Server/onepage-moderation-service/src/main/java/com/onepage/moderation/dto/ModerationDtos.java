@@ -22,6 +22,8 @@ public final class ModerationDtos {
       String targetId,
       String targetTitle,
       String targetPageId,
+      String authorId,
+      boolean takenDown,
       String reasonCode,
       String detail,
       String status,
@@ -31,6 +33,24 @@ public final class ModerationDtos {
       String handleNote,
       String createdAt,
       String handledAt) {}
+
+  public record OpsPostView(
+      String postId,
+      UserSummary author,
+      String title,
+      String body,
+      String coverUrl,
+      String postType,
+      String category,
+      boolean original,
+      String contentKind,
+      String eventTitle,
+      String visibility,
+      List<ContentMedia> media,
+      boolean takenDown,
+      String publishedAt) {}
+
+  public record ContentMedia(String mediaId, String url, String mimeType, String role) {}
 
   public record OpsUser(
       String userId,

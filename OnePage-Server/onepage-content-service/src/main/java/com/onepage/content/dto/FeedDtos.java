@@ -87,5 +87,22 @@ public final class FeedDtos {
   public record ReceivedPage(List<ReceivedHit> items, String nextCursor, boolean hasMore) {}
 
   /** 治理工单用的笔记摘要。已下架也返回标题。 */
-  public record OpsPostBrief(String postId, String title, String authorId) {}
+  public record OpsPostBrief(String postId, String title, String authorId, boolean takenDown) {}
+
+  /** 运营预览：已下架也能看正文和媒体。 */
+  public record OpsPostView(
+      String postId,
+      UserBrief author,
+      String title,
+      String body,
+      String coverUrl,
+      String postType,
+      String category,
+      boolean original,
+      String contentKind,
+      String eventTitle,
+      String visibility,
+      List<MediaItem> media,
+      boolean takenDown,
+      String publishedAt) {}
 }

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS report (
   detail VARCHAR(1000) NULL COMMENT '补充说明',
   status TINYINT NOT NULL DEFAULT 0 COMMENT '0 待处理 1 已处理',
   handler_id BIGINT NULL COMMENT '处理人 userId',
-  handle_action VARCHAR(16) NULL COMMENT 'dismiss / takedown / ban',
+  handle_action VARCHAR(16) NULL COMMENT 'dismiss / takedown / restore / ban / unban',
   handle_note VARCHAR(500) NULL COMMENT '处理备注',
   handled_at DATETIME(3) NULL COMMENT '处理时间',
   created_at DATETIME(3) NOT NULL COMMENT '提交时间',

@@ -70,6 +70,24 @@ public class OpsController {
     return moderationService.resolve(userId, reportId, body);
   }
 
+  @GetMapping("/posts/{postId}")
+  public ModerationDtos.OpsPostView post(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsPost(postId);
+  }
+
+  @GetMapping("/users/{userId}")
+  public ModerationDtos.OpsUser user(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.getUser(targetId);
+  }
+
   @GetMapping("/users")
   public List<ModerationDtos.OpsUser> users(
       HttpServletRequest request,

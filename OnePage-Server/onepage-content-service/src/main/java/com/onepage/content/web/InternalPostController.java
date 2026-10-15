@@ -96,10 +96,22 @@ public class InternalPostController {
     return postService.opsBriefs(ids);
   }
 
+  @GetMapping("/posts/{postId}/ops")
+  public FeedDtos.OpsPostView opsDetail(HttpServletRequest request, @PathVariable("postId") long postId) {
+    assertInternal(request);
+    return postService.opsDetail(postId);
+  }
+
   @PostMapping("/posts/{postId}/takedown")
   public void takedown(HttpServletRequest request, @PathVariable("postId") long postId) {
     assertInternal(request);
     postService.opsTakedown(postId);
+  }
+
+  @PostMapping("/posts/{postId}/restore")
+  public void restore(HttpServletRequest request, @PathVariable("postId") long postId) {
+    assertInternal(request);
+    postService.opsRestore(postId);
   }
 
   private void assertInternal(HttpServletRequest request) {

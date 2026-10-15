@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-037 运营后台是完整治理台：站内预览 + 下架/恢复 + 封禁/解冻
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳
+- **背景：** 工单对象曾链到社区 `?note=`。待处理帖举报只露出忽略/下架，运营无法在站内审帖，也无法恢复或封禁作者。产品要求运营端是项目全局控制。
+- **决策：** `app-ops` 是 **完整治理台**，不是 CMS。工单点对象标题在运营站弹层预览（`GET /ops/posts/{id}` 已下架也能看；用户 `GET /ops/users/{id}`），**不要跳社区**。`PATCH /ops/reports/{id}` action：`dismiss` / `takedown` / `restore` / `ban` / `unban`。帖举报的 `ban` = 下架该帖并冻结作者；`restore` 由 content 清 `deleted_at`。已处理工单仍可恢复/再处置（`dismiss` 除外）。分类、活动、推荐位仍不进 moderation 进程（DEC-034 的 CMS 非目标不变）。
+- **替代：** 新开 admin 上帝服务（否决）；运营点开社区详情（否决：已下架帖社区 404，且离开工单上下文）。
+- **影响：** 见 [API 明细](/engineering/process/api-endpoints)、[体验](/design/system/experience)。
+
 ## DEC-036 封禁账号走 auth 冻结，不走 user 库
 
 - **日期：** 2026-10-15
@@ -33,7 +42,7 @@ POM 维护。每条决策单独一节，新的写在上面。聊天结论当天�
   - **前端第三站：** 中文 **运营后台**；目录 `OnePage-web/apps/app-ops`；包 `@onepage/app-ops`；本机 **5176**。独立站点、独立登录页（无注册），入口不挂社区侧栏。上线用内网或独立 host（如 `ops.`），不要和社区同域公开入口。
   - **后端不新建 `onepage-admin-service`。** 治理进程沿用路线图已有的 **`onepage-moderation-service`**（库 `onepage_moderation`）：举报单、处理记录、员工权限校验。下架帖由 **content** 执行；冻结/解冻账号由 **auth**（`status=1/0`），不要再写 user 库改登录态。网关给运营站单独前缀 **`/api/v1/ops/**`**，验 Session 且必须是员工（staff），不要只靠前端藏入口。
   - **员工身份：** 同一套 `ONEPAGE_SESSION`；员工以 `OPS_STAFF_USER_IDS` 为准（DEC-035，空名单拒绝）。禁止公开注册成员工。创作者审核 Tab 只是作者看自己的帖状态，不是运营后台。
-  - **P5 范围：** 举报列表 + 待处理/已处理 + 下架/封禁。分类、活动、推荐位等 CMS 仍放对应领域服务的 ops 接口，不另起 admin 进程。章程里「完整运营后台」仍是非目标。
+  - **P5 范围：** 完整治理台（工单站内预览、忽略/下架/恢复、封禁/解冻作者，DEC-037）。分类、活动、推荐位等 CMS 仍放对应领域服务的 ops 接口，不另起 admin 进程。章程里「完整运营后台」指 CMS，不是指治理缺动作。
 - **替代：** 把运营页塞进创作者站（否决：受众和威胁模型不同）；`apps/app-admin` + `onepage-admin-service`（否决：admin 与创作者「后台」混名，服务会变成聚合层）；只做 moderation 前端名叫 `app-moderation`（否决：以后不止举报）。
 - **影响：** 端口规划 5173 文档 / 5174 社区 / 5175 创作者 / **5176 运营**。`CORS_ALLOWED_ORIGINS` 与 MinIO 源须含 5176。见 [路线图](/engineering/tech/mvp-roadmap)、[前端结构](/engineering/frontend)。
 

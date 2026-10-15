@@ -34,7 +34,11 @@ onMounted(async () => {
       <div class="stats">
         <button type="button" class="stat" @click="emit('open', 'reports')">
           <span class="n">工单</span>
-          <span class="l">打开举报列表</span>
+          <span class="l">预览、下架、封禁</span>
+        </button>
+        <button type="button" class="stat" @click="emit('open', 'users')">
+          <span class="n">用户</span>
+          <span class="l">冻结 / 解冻</span>
         </button>
         <div class="stat is-plain">
           <span class="n">{{ serviceReady ? '通' : '未' }}</span>

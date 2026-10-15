@@ -293,7 +293,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | detail | VARCHAR(1000) 可空 | |
 | status | TINYINT | 0 待处理 1 已处理 |
 | handler_id | BIGINT 可空 | 处理人 |
-| handle_action | VARCHAR(16) 可空 | dismiss / takedown / ban |
+| handle_action | VARCHAR(16) 可空 | dismiss / takedown / restore / ban / unban |
 | handle_note | VARCHAR(500) 可空 | |
 | handled_at | DATETIME(3) 可空 | |
 | created_at | DATETIME(3) | |

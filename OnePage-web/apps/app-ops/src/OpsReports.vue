@@ -1,9 +1,10 @@
 <!-- 举报工单：待处理 / 已处理。翻页、备注、对象标题。 -->
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { api, ApiError, REPORT_REASONS, type OpsReport } from '@onepage/api-client'
+import { api, ApiError, REPORT_REASONS, type OpsPostView, type OpsReport, type OpsResolveAction, type OpsUser } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
+import OpsTargetPreview from './OpsTargetPreview.vue'
 
 type Tab = 'pending' | 'done'
 
@@ -17,8 +18,12 @@ const loading = ref(false)
 const failed = ref('')
 const toast = ref('')
 const busyId = ref('')
-
-const community = import.meta.env.VITE_COMMUNITY_ORIGIN || 'http://localhost:5174'
+const previewOpen = ref(false)
+const previewKind = ref<'post' | 'user'>('post')
+const previewPost = ref<OpsPostView | null>(null)
+const previewUser = ref<OpsUser | null>(null)
+const previewLoading = ref(false)
+const previewError = ref('')
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'pending', label: '待处理' },
@@ -32,7 +37,9 @@ const reasonLabel: Record<string, string> = Object.fromEntries(
 const actionLabel: Record<string, string> = {
   dismiss: '忽略',
   takedown: '下架',
+  restore: '恢复',
   ban: '封禁',
+  unban: '解冻',
 }
 
 function flash(text: string) {
@@ -47,14 +54,28 @@ function targetLabel(item: OpsReport) {
   return item.targetType === 'post' ? `笔记 ${item.targetId}` : `用户 ${item.targetId}`
 }
 
-function targetHref(item: OpsReport) {
-  if (item.targetType === 'user' && item.targetPageId) {
-    return `${community}/u/${item.targetPageId}`
+async function openTarget(item: OpsReport) {
+  previewOpen.value = true
+  previewKind.value = item.targetType
+  previewPost.value = null
+  previewUser.value = null
+  previewError.value = ''
+  previewLoading.value = true
+  try {
+    if (item.targetType === 'post') {
+      previewPost.value = await api.opsPost(item.targetId)
+    } else {
+      previewUser.value = await api.opsUser(item.targetId)
+    }
+  } catch (e) {
+    previewError.value = e instanceof ApiError ? e.message : '预览失败'
+  } finally {
+    previewLoading.value = false
   }
-  if (item.targetType === 'post') {
-    return `${community}/?note=${item.targetId}`
-  }
-  return ''
+}
+
+function closePreview() {
+  previewOpen.value = false
 }
 
 function clock(iso: string) {
@@ -100,11 +121,12 @@ async function load(reset: boolean) {
   }
 }
 
-async function resolve(item: OpsReport, action: 'dismiss' | 'takedown' | 'ban') {
+async function resolve(item: OpsReport, action: OpsResolveAction) {
   busyId.value = item.reportId
   try {
     await api.opsResolveReport(item.reportId, { action, note: note.value.trim() || undefined })
-    flash(action === 'dismiss' ? '已忽略' : action === 'ban' ? '已封禁' : '已下架')
+    flash(actionLabel[action] ? `已${actionLabel[action]}` : '已处理')
+    closePreview()
     await load(true)
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
@@ -139,11 +161,10 @@ watch(tab, () => load(true))
         </label>
       </div>
       <input
-        v-if="tab === 'pending'"
         v-model="note"
         class="note"
         maxlength="500"
-        placeholder="处理备注（可选，随下架/封禁/忽略一起提交）"
+        placeholder="处理备注（可选，随忽略/下架/恢复/封禁/解冻一起提交）"
       />
 
       <p v-if="toast" class="toast">{{ toast }}</p>
@@ -167,16 +188,14 @@ watch(tab, () => load(true))
             <th>举报人</th>
             <th>时间</th>
             <th v-if="tab === 'done'">处理</th>
-            <th v-if="tab === 'pending'" />
+            <th />
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in items" :key="item.reportId">
             <td>
-              <a v-if="targetHref(item)" class="link" :href="targetHref(item)" target="_blank" rel="noreferrer">
-                {{ targetLabel(item) }}
-              </a>
-              <span v-else>{{ targetLabel(item) }}</span>
+              <button type="button" class="link" @click="openTarget(item)">{{ targetLabel(item) }}</button>
+              <span v-if="item.targetType === 'post' && item.takenDown" class="tag">已下架</span>
             </td>
             <td>{{ reasonLabel[item.reasonCode] || item.reasonCode }}</td>
             <td class="detail">{{ item.detail || '—' }}</td>
@@ -187,12 +206,17 @@ watch(tab, () => load(true))
               <span v-if="item.handler?.nickname"> · {{ item.handler.nickname }}</span>
               <span v-if="item.handleNote"> · {{ item.handleNote }}</span>
             </td>
-            <td v-if="tab === 'pending'" class="acts">
-              <button type="button" :disabled="busyId === item.reportId" @click="resolve(item, 'dismiss')">
+            <td class="acts">
+              <button
+                v-if="tab === 'pending'"
+                type="button"
+                :disabled="busyId === item.reportId"
+                @click="resolve(item, 'dismiss')"
+              >
                 忽略
               </button>
               <button
-                v-if="item.targetType === 'post'"
+                v-if="item.targetType === 'post' && !item.takenDown"
                 type="button"
                 class="danger"
                 :disabled="busyId === item.reportId"
@@ -201,13 +225,23 @@ watch(tab, () => load(true))
                 下架
               </button>
               <button
-                v-if="item.targetType === 'user'"
+                v-if="item.targetType === 'post' && item.takenDown"
+                type="button"
+                :disabled="busyId === item.reportId"
+                @click="resolve(item, 'restore')"
+              >
+                恢复
+              </button>
+              <button
                 type="button"
                 class="danger"
                 :disabled="busyId === item.reportId"
                 @click="resolve(item, 'ban')"
               >
-                封禁
+                {{ item.targetType === 'post' ? '封禁作者' : '封禁' }}
+              </button>
+              <button type="button" :disabled="busyId === item.reportId" @click="resolve(item, 'unban')">
+                {{ item.targetType === 'post' ? '解冻作者' : '解冻' }}
               </button>
             </td>
           </tr>
@@ -217,6 +251,15 @@ watch(tab, () => load(true))
         {{ loading ? '加载中…' : '加载更多' }}
       </button>
     </section>
+    <OpsTargetPreview
+      v-if="previewOpen"
+      :kind="previewKind"
+      :post="previewPost"
+      :user="previewUser"
+      :loading="previewLoading"
+      :error="previewError"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -341,12 +384,20 @@ th {
 }
 
 .link {
+  padding: 0;
   color: #1f1f1f;
   text-decoration: none;
+  background: none;
 }
 
 .link:hover {
   color: #ff2442;
+}
+
+.tag {
+  margin-left: 8px;
+  color: #ff2442;
+  font-size: 12px;
 }
 
 .acts {

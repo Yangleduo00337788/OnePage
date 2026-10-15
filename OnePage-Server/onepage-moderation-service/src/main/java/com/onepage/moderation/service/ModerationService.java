@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class ModerationService {
   private static final Logger log = LoggerFactory.getLogger(ModerationService.class);
   private static final Set<String> TARGETS = Set.of("post", "user");
-  private static final Set<String> ACTIONS = Set.of("dismiss", "takedown", "ban");
+  private static final Set<String> ACTIONS = Set.of("dismiss", "takedown", "restore", "ban", "unban");
   private static final Set<String> REASONS = Set.of("spam", "porn", "abuse", "illegal", "other");
   private static final int STATUS_PENDING = 0;
   private static final int STATUS_DONE = 1;
@@ -119,8 +119,8 @@ public class ModerationService {
     if (hasMore) {
       rows = rows.subList(0, size);
     }
-    Map<Long, UserSummary> people = loadPeople(rows);
     Map<Long, ContentClient.PostBrief> posts = loadPosts(rows);
+    Map<Long, UserSummary> people = loadPeople(rows, posts);
     List<ModerationDtos.OpsReport> items = new ArrayList<>();
     for (Report row : rows) {
       items.add(toView(row, people, posts));
@@ -142,7 +142,7 @@ public class ModerationService {
     }
     String action = body.action().trim();
     if (!ACTIONS.contains(action)) {
-      throw BusinessException.validation("action 须为 dismiss / takedown / ban");
+      throw BusinessException.validation("action 须为 dismiss / takedown / restore / ban / unban");
     }
     String note = blankToNull(body.note());
     if (note != null && note.length() > 500) {
@@ -152,21 +152,11 @@ public class ModerationService {
     if (row == null) {
       throw BusinessException.notFound("工单不存在");
     }
-    if (row.getStatus() != null && row.getStatus() == STATUS_DONE) {
+    boolean alreadyDone = row.getStatus() != null && row.getStatus() == STATUS_DONE;
+    if (alreadyDone && "dismiss".equals(action)) {
       throw BusinessException.conflict("工单已处理");
     }
-    if ("takedown".equals(action)) {
-      if (!"post".equals(row.getTargetType())) {
-        throw BusinessException.validation("下架只能用于笔记");
-      }
-      contentClient.takedown(internalToken, row.getTargetId());
-    } else if ("ban".equals(action)) {
-      if (!"user".equals(row.getTargetType())) {
-        throw BusinessException.validation("封禁只能用于用户");
-      }
-      assertCanPunishUser(handlerId, row.getTargetId());
-      authClient.freeze(internalToken, row.getTargetId());
-    }
+    applyAction(handlerId, row, action);
     LocalDateTime now = LocalDateTime.now();
     row.setStatus(STATUS_DONE);
     row.setHandlerId(handlerId);
@@ -176,6 +166,53 @@ public class ModerationService {
     mapper.updateById(row);
     log.warn("ops report {} action {} by {}", reportId, action, handlerId);
     return new ModerationDtos.ResolveResult(String.valueOf(reportId), "done");
+  }
+
+  public ModerationDtos.OpsPostView opsPost(long postId) {
+    ContentClient.OpsPostView raw = contentClient.opsPost(internalToken, postId);
+    if (raw == null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    List<ModerationDtos.ContentMedia> media = new ArrayList<>();
+    if (raw.media() != null) {
+      for (ContentClient.MediaItem item : raw.media()) {
+        if (item == null) {
+          continue;
+        }
+        media.add(new ModerationDtos.ContentMedia(item.mediaId(), item.url(), item.mimeType(), item.role()));
+      }
+    }
+    return new ModerationDtos.OpsPostView(
+        raw.postId(),
+        raw.author(),
+        raw.title() == null ? "" : raw.title(),
+        raw.body() == null ? "" : raw.body(),
+        raw.coverUrl() == null ? "" : raw.coverUrl(),
+        raw.postType() == null ? "" : raw.postType(),
+        raw.category() == null ? "" : raw.category(),
+        raw.original(),
+        raw.contentKind() == null ? "" : raw.contentKind(),
+        raw.eventTitle() == null ? "" : raw.eventTitle(),
+        raw.visibility() == null ? "" : raw.visibility(),
+        media,
+        raw.takenDown(),
+        raw.publishedAt() == null ? "" : raw.publishedAt());
+  }
+
+  public ModerationDtos.OpsUser getUser(long targetId) {
+    List<UserSummary> briefs = userClient.briefs(internalToken, List.of(targetId));
+    UserSummary brief = briefs == null || briefs.isEmpty() ? null : briefs.get(0);
+    boolean frozen = false;
+    try {
+      AuthClient.FreezeStatus st = authClient.freezeStatus(internalToken, targetId);
+      frozen = st != null && st.frozen();
+    } catch (RuntimeException ex) {
+      log.warn("ops freeze-status {} failed", targetId);
+    }
+    if (brief == null) {
+      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", frozen);
+    }
+    return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
   }
 
   public List<ModerationDtos.OpsUser> searchUsers(String q) {
@@ -218,7 +255,55 @@ public class ModerationService {
     return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
   }
 
-  private Map<Long, UserSummary> loadPeople(List<Report> rows) {
+  private void applyAction(long handlerId, Report row, String action) {
+    if ("dismiss".equals(action)) {
+      return;
+    }
+    if ("takedown".equals(action)) {
+      requirePost(row);
+      contentClient.takedown(internalToken, row.getTargetId());
+      return;
+    }
+    if ("restore".equals(action)) {
+      requirePost(row);
+      contentClient.restore(internalToken, row.getTargetId());
+      return;
+    }
+    long punishId = punishUserId(row);
+    assertCanPunishUser(handlerId, punishId);
+    if ("ban".equals(action)) {
+      if ("post".equals(row.getTargetType())) {
+        contentClient.takedown(internalToken, row.getTargetId());
+      }
+      authClient.freeze(internalToken, punishId);
+      return;
+    }
+    authClient.unfreeze(internalToken, punishId);
+  }
+
+  private void requirePost(Report row) {
+    if (!"post".equals(row.getTargetType())) {
+      throw BusinessException.validation("该动作只能用于笔记");
+    }
+  }
+
+  private long punishUserId(Report row) {
+    if ("user".equals(row.getTargetType())) {
+      return row.getTargetId();
+    }
+    requirePost(row);
+    List<ContentClient.PostBrief> list = contentClient.postBriefs(internalToken, List.of(row.getTargetId()));
+    if (list == null || list.isEmpty() || !StringUtils.hasText(list.get(0).authorId())) {
+      throw BusinessException.notFound("找不到笔记作者");
+    }
+    try {
+      return Long.parseLong(list.get(0).authorId());
+    } catch (NumberFormatException ex) {
+      throw BusinessException.notFound("找不到笔记作者");
+    }
+  }
+
+  private Map<Long, UserSummary> loadPeople(List<Report> rows, Map<Long, ContentClient.PostBrief> posts) {
     Set<Long> ids = new LinkedHashSet<>();
     for (Report row : rows) {
       if (row.getReporterId() != null) {
@@ -229,6 +314,15 @@ public class ModerationService {
       }
       if ("user".equals(row.getTargetType()) && row.getTargetId() != null) {
         ids.add(row.getTargetId());
+      }
+    }
+    for (ContentClient.PostBrief brief : posts.values()) {
+      if (brief != null && StringUtils.hasText(brief.authorId())) {
+        try {
+          ids.add(Long.parseLong(brief.authorId()));
+        } catch (NumberFormatException ignored) {
+          // skip
+        }
       }
     }
     if (ids.isEmpty()) {
@@ -268,10 +362,24 @@ public class ModerationService {
       Report row, Map<Long, UserSummary> people, Map<Long, ContentClient.PostBrief> posts) {
     String title = "";
     String pageId = "";
+    String authorId = "";
+    boolean takenDown = false;
     if ("post".equals(row.getTargetType())) {
       ContentClient.PostBrief brief = posts.get(row.getTargetId());
       if (brief != null) {
         title = brief.title() == null ? "" : brief.title();
+        authorId = brief.authorId() == null ? "" : brief.authorId();
+        takenDown = brief.takenDown();
+        if (StringUtils.hasText(authorId)) {
+          try {
+            UserSummary author = people.get(Long.parseLong(authorId));
+            if (author != null && author.pageId() != null) {
+              pageId = author.pageId();
+            }
+          } catch (NumberFormatException ignored) {
+            // skip
+          }
+        }
       }
     } else if ("user".equals(row.getTargetType())) {
       UserSummary target = people.get(row.getTargetId());
@@ -286,6 +394,8 @@ public class ModerationService {
         String.valueOf(row.getTargetId()),
         title,
         pageId,
+        authorId,
+        takenDown,
         row.getReasonCode(),
         row.getDetail() == null ? "" : row.getDetail(),
         row.getStatus() != null && row.getStatus() == STATUS_DONE ? "done" : "pending",

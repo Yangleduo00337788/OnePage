@@ -145,6 +145,8 @@ export type OpsReport = {
   targetId: string
   targetTitle?: string
   targetPageId?: string
+  authorId?: string
+  takenDown?: boolean
   reasonCode: string
   detail: string
   status: 'pending' | 'done'
@@ -154,6 +156,25 @@ export type OpsReport = {
   handleNote?: string
   createdAt: string
   handledAt?: string
+}
+
+export type OpsResolveAction = 'dismiss' | 'takedown' | 'restore' | 'ban' | 'unban'
+
+export type OpsPostView = {
+  postId: string
+  author?: UserBrief
+  title: string
+  body: string
+  coverUrl: string
+  postType: string
+  category: string
+  original: boolean
+  contentKind: string
+  eventTitle: string
+  visibility: string
+  media: { mediaId: string; url: string; mimeType: string; role: string }[]
+  takenDown: boolean
+  publishedAt: string
 }
 
 export type OpsUser = {
@@ -464,11 +485,15 @@ export const api = {
     const suffix = q.toString() ? `?${q}` : ''
     return request<CursorPage<OpsReport>>(`/api/v1/ops/reports${suffix}`)
   },
-  opsResolveReport: (reportId: string, body: { action: 'dismiss' | 'takedown' | 'ban'; note?: string }) =>
+  opsResolveReport: (reportId: string, body: { action: OpsResolveAction; note?: string }) =>
     request<{ reportId: string; status: string }>(
       `/api/v1/ops/reports/${encodeURIComponent(reportId)}`,
       { method: 'PATCH', body: JSON.stringify(body) },
     ),
+  opsPost: (postId: string) =>
+    request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}`),
+  opsUser: (userId: string) =>
+    request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}`),
   opsUsers: (q: string) =>
     request<OpsUser[]>(`/api/v1/ops/users?q=${encodeURIComponent(q)}`),
   opsFreezeUser: (userId: string) =>

@@ -297,9 +297,48 @@ public class PostService {
         continue;
       }
       String title = post.getTitle() == null ? "" : post.getTitle();
-      out.add(new FeedDtos.OpsPostBrief(String.valueOf(id), title, String.valueOf(post.getAuthorId())));
+      String authorId = post.getAuthorId() == null ? "" : String.valueOf(post.getAuthorId());
+      out.add(new FeedDtos.OpsPostBrief(String.valueOf(id), title, authorId, post.getDeletedAt() != null));
     }
     return out;
+  }
+
+  /** 运营预览：不校验可见性，已下架也返回。 */
+  public FeedDtos.OpsPostView opsDetail(long postId) {
+    Post post = postMapper.selectById(postId);
+    if (post == null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    List<PostMedia> links = postMediaMapper.selectList(
+        Wrappers.<PostMedia>lambdaQuery().eq(PostMedia::getPostId, postId).orderByAsc(PostMedia::getSortOrder));
+    List<FeedDtos.MediaItem> media = new ArrayList<>();
+    for (PostMedia link : links) {
+      MediaAsset asset = mediaAssetMapper.selectById(link.getMediaId());
+      if (asset == null) {
+        continue;
+      }
+      media.add(new FeedDtos.MediaItem(
+          String.valueOf(asset.getId()),
+          publicUrl(asset.getObjectKey()),
+          asset.getMimeType(),
+          link.getRole()));
+    }
+    String cover = media.isEmpty() ? "" : media.getFirst().url();
+    return new FeedDtos.OpsPostView(
+        String.valueOf(post.getId()),
+        authorLookup.brief(post.getAuthorId()),
+        post.getTitle() == null ? "" : post.getTitle(),
+        post.getBody() == null ? "" : post.getBody(),
+        cover,
+        post.getPostType(),
+        post.getCategory() == null ? "" : post.getCategory(),
+        originalOf(post),
+        blankToEmpty(post.getContentKind()),
+        blankToEmpty(post.getEventTitle()),
+        visLabel(post.getVisibility()),
+        media,
+        post.getDeletedAt() != null,
+        iso(post.getPublishedAt()));
   }
 
   /** 运营下架：不校验作者，已删则当作成功。 */
@@ -318,6 +357,24 @@ public class PostService {
     post.setUpdatedAt(now);
     postMapper.updateById(post);
     writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
+  }
+
+  /** 运营恢复：已在线则当作成功。 */
+  @Transactional
+  public void opsRestore(long postId) {
+    Post post = postMapper.selectById(postId);
+    if (post == null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (post.getDeletedAt() == null) {
+      return;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    post.setStatus("published");
+    post.setDeletedAt(null);
+    post.setUpdatedAt(now);
+    postMapper.updateById(post);
+    writeOutbox("post", String.valueOf(postId), "post.restored", Map.of("postId", String.valueOf(postId)));
   }
 
   public FeedDtos.CursorPage listMine(long userId, String cursor, Integer limit) {
