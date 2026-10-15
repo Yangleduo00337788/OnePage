@@ -107,12 +107,6 @@ public class InternalPostController {
     return postService.opsPage(q, taken, cursor, limit);
   }
 
-  @GetMapping("/catalog/ops")
-  public FeedDtos.OpsCatalog opsCatalog(HttpServletRequest request) {
-    assertInternal(request);
-    return postService.opsCatalog();
-  }
-
   @GetMapping("/posts/{postId}/ops")
   public FeedDtos.OpsPostView opsDetail(HttpServletRequest request, @PathVariable("postId") long postId) {
     assertInternal(request);

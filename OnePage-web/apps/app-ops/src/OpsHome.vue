@@ -1,37 +1,115 @@
-<!-- 运营工作台：入口对齐已落地能力。 -->
+<!-- 工作台：数字卡片 + ECharts。 -->
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { api, ApiError } from '@onepage/api-client'
+import { computed, onMounted, ref } from 'vue'
+import { api, ApiError, type OpsOverview } from '@onepage/api-client'
+import type { EChartsCoreOption } from 'echarts/core'
+import OpsChart from './OpsChart.vue'
 
 const emit = defineEmits<{ open: [string] }>()
 
-const serviceReady = ref(false)
-const note = ref('正在探测治理接口…')
+const data = ref<OpsOverview | null>(null)
+const note = ref('正在加载概览…')
 
 onMounted(async () => {
   try {
-    await api.opsReports('pending', undefined, 1)
-    serviceReady.value = true
-    note.value = '治理服务已接通。下面只列当前真实能力，直播 / 搜索 / AI 上线后再进菜单。'
+    data.value = await api.opsOverview()
+    note.value = '社区用户、笔记、评论与工单；分类 / 活动 / 话题来自内容目录。直播 / 搜索 / AI 未上线不计。'
   } catch (e) {
-    serviceReady.value = false
-    if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
-      note.value = '治理接口不可用。确认 ModerationApplication 已启动。'
-    } else if (e instanceof ApiError && e.status === 403) {
+    data.value = null
+    if (e instanceof ApiError && e.status === 403) {
       note.value = '当前账号没有运营权限。'
     } else {
-      note.value = e instanceof ApiError ? e.message : '治理接口不可用'
+      note.value = e instanceof ApiError ? e.message : '概览不可用'
     }
   }
 })
 
-const cards: { id: string; title: string; desc: string }[] = [
-  { id: 'reports', title: '举报工单', desc: '预览、忽略、下架、封禁' },
-  { id: 'users', title: '用户', desc: '搜人、冻结、解冻' },
-  { id: 'posts', title: '笔记', desc: '全站列表、下架、恢复' },
-  { id: 'comments', title: '评论', desc: '隐藏、恢复' },
-  { id: 'catalog', title: '分类与活动', desc: '发帖目录只读' },
+const cards: { id: string; title: string; key: keyof OpsOverview }[] = [
+  { id: 'users', title: '社区用户', key: 'communityUsers' },
+  { id: 'posts', title: '在线笔记', key: 'postsLive' },
+  { id: 'posts', title: '已下架', key: 'postsDown' },
+  { id: 'comments', title: '评论', key: 'comments' },
+  { id: 'reports', title: '待处理工单', key: 'reportsPending' },
+  { id: 'reports', title: '已处理工单', key: 'reportsDone' },
+  { id: 'categories', title: '分类', key: 'categories' },
+  { id: 'campaigns', title: '活动', key: 'campaigns' },
+  { id: 'topics', title: '话题', key: 'topics' },
 ]
+
+const pieTooltip = {
+  trigger: 'item' as const,
+  formatter: '{b} {c}（{d}%）',
+}
+
+const postOption = computed<EChartsCoreOption>(() => {
+  const live = data.value?.postsLive ?? 0
+  const down = data.value?.postsDown ?? 0
+  return {
+    color: ['#ff2442', '#e8e8e8'],
+    tooltip: pieTooltip,
+    legend: { bottom: 0, icon: 'circle', itemWidth: 8, itemHeight: 8, textStyle: { color: '#8a8a8a', fontSize: 12 } },
+    series: [
+      {
+        type: 'pie',
+        radius: ['48%', '70%'],
+        avoidLabelOverlap: true,
+        label: { show: false },
+        data: [
+          { name: '在线', value: live },
+          { name: '已下架', value: down },
+        ],
+      },
+    ],
+  }
+})
+
+const reportOption = computed<EChartsCoreOption>(() => {
+  const pending = data.value?.reportsPending ?? 0
+  const done = data.value?.reportsDone ?? 0
+  return {
+    color: ['#ff2442', '#e8e8e8'],
+    tooltip: pieTooltip,
+    legend: { bottom: 0, icon: 'circle', itemWidth: 8, itemHeight: 8, textStyle: { color: '#8a8a8a', fontSize: 12 } },
+    series: [
+      {
+        type: 'pie',
+        radius: ['48%', '70%'],
+        label: { show: false },
+        data: [
+          { name: '待处理', value: pending },
+          { name: '已处理', value: done },
+        ],
+      },
+    ],
+  }
+})
+
+const catalogOption = computed<EChartsCoreOption>(() => ({
+  color: ['#ff2442'],
+  tooltip: { trigger: 'axis' },
+  grid: { left: 48, right: 16, top: 16, bottom: 28 },
+  xAxis: {
+    type: 'category',
+    data: ['分类', '活动', '话题'],
+    axisLine: { lineStyle: { color: '#eee' } },
+    axisLabel: { color: '#8a8a8a' },
+    axisTick: { show: false },
+  },
+  yAxis: {
+    type: 'value',
+    minInterval: 1,
+    splitLine: { lineStyle: { color: '#f2f2f2' } },
+    axisLabel: { color: '#8a8a8a' },
+  },
+  series: [
+    {
+      type: 'bar',
+      barWidth: 22,
+      itemStyle: { borderRadius: [8, 8, 0, 0] },
+      data: [data.value?.categories ?? 0, data.value?.campaigns ?? 0, data.value?.topics ?? 0],
+    },
+  ],
+}))
 </script>
 
 <template>
@@ -39,17 +117,33 @@ const cards: { id: string; title: string; desc: string }[] = [
     <section class="card">
       <h1>工作台</h1>
       <p class="lead">{{ note }}</p>
-      <div class="stats">
-        <button v-for="item in cards" :key="item.id" type="button" class="stat" @click="emit('open', item.id)">
-          <span class="n">{{ item.title }}</span>
-          <span class="l">{{ item.desc }}</span>
+      <div v-if="data" class="stats">
+        <button
+          v-for="item in cards"
+          :key="item.key"
+          type="button"
+          class="stat"
+          @click="emit('open', item.id)"
+        >
+          <span class="n">{{ data[item.key] }}</span>
+          <span class="l">{{ item.title }}</span>
         </button>
-        <div class="stat is-plain">
-          <span class="n">{{ serviceReady ? '通' : '未' }}</span>
-          <span class="l">治理接口</span>
-        </div>
       </div>
     </section>
+    <div v-if="data" class="charts">
+      <section class="card">
+        <h2>笔记状态</h2>
+        <OpsChart :option="postOption" />
+      </section>
+      <section class="card">
+        <h2>工单处理</h2>
+        <OpsChart :option="reportOption" />
+      </section>
+      <section class="card">
+        <h2>内容目录</h2>
+        <OpsChart :option="catalogOption" />
+      </section>
+    </div>
   </div>
 </template>
 
@@ -69,6 +163,12 @@ const cards: { id: string; title: string; desc: string }[] = [
 h1 {
   margin: 0;
   font-size: 18px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -98,12 +198,12 @@ h1 {
   text-align: left;
 }
 
-.stat:not(.is-plain):hover {
+.stat:hover {
   background: #eee;
 }
 
 .n {
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 650;
   color: #1f1f1f;
 }
@@ -111,5 +211,18 @@ h1 {
 .l {
   font-size: 13px;
   color: #8a8a8a;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .charts {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

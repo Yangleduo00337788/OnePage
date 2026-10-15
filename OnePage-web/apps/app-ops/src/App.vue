@@ -10,18 +10,49 @@ import OpsReports from './OpsReports.vue'
 import OpsUsers from './OpsUsers.vue'
 import OpsPosts from './OpsPosts.vue'
 import OpsComments from './OpsComments.vue'
-import OpsCatalog from './OpsCatalog.vue'
+import OpsCategories from './OpsCategories.vue'
+import OpsCampaigns from './OpsCampaigns.vue'
+import OpsTopics from './OpsTopics.vue'
 
-export type PageId = 'home' | 'reports' | 'users' | 'posts' | 'comments' | 'catalog'
+export type PageId =
+  | 'home'
+  | 'reports'
+  | 'users'
+  | 'posts'
+  | 'comments'
+  | 'categories'
+  | 'campaigns'
+  | 'topics'
 
-const navGov: { id: PageId; label: string; icon: string }[] = [
-  { id: 'reports', label: '举报工单', icon: 'flag' },
-  { id: 'users', label: '用户', icon: 'users' },
-  { id: 'posts', label: '笔记', icon: 'sticky-note' },
-  { id: 'comments', label: '评论', icon: 'message-square' },
+type NavItem = { id: PageId; label: string; icon: string }
+type NavGroup = { id: string; label: string; icon: string; children: NavItem[] }
+
+const groups: NavGroup[] = [
+  {
+    id: 'gov',
+    label: '治理',
+    icon: 'flag',
+    children: [
+      { id: 'reports', label: '工单', icon: 'flag' },
+      { id: 'users', label: '用户', icon: 'users' },
+    ],
+  },
+  {
+    id: 'content',
+    label: '内容',
+    icon: 'layout-grid',
+    children: [
+      { id: 'posts', label: '笔记', icon: 'sticky-note' },
+      { id: 'comments', label: '评论', icon: 'message-square' },
+      { id: 'categories', label: '分类', icon: 'layout-grid' },
+      { id: 'campaigns', label: '活动', icon: 'calendar' },
+      { id: 'topics', label: '话题', icon: 'hash' },
+    ],
+  },
 ]
 
 const page = ref<PageId>('home')
+const openGroups = ref<Record<string, boolean>>({ gov: true, content: true })
 const collapsed = ref(localStorage.getItem('onepage.ops.navCollapsed') === '1')
 const me = ref<UserProfile | null>(null)
 const ready = ref(false)
@@ -53,6 +84,24 @@ function onDocClick(e: MouseEvent) {
 
 function openPage(id: PageId) {
   page.value = id
+  for (const group of groups) {
+    if (group.children.some((item) => item.id === id)) {
+      openGroups.value[group.id] = true
+    }
+  }
+}
+
+function groupActive(group: NavGroup) {
+  return group.children.some((item) => item.id === page.value)
+}
+
+function toggleGroup(id: string) {
+  if (collapsed.value) {
+    setCollapsed(false)
+    openGroups.value[id] = true
+    return
+  }
+  openGroups.value[id] = !openGroups.value[id]
 }
 
 function setCollapsed(next: boolean) {
@@ -93,30 +142,37 @@ function onLoggedIn(profile: UserProfile) {
           <Icon name="house" :size="20" />
           <span v-if="!collapsed">工作台</span>
         </button>
-        <p v-if="!collapsed" class="nav-label">治理</p>
-        <button
-          v-for="item in navGov"
-          :key="item.id"
-          type="button"
-          class="nav-item"
-          :class="{ 'is-on': page === item.id }"
-          :title="collapsed ? item.label : undefined"
-          @click="openPage(item.id)"
-        >
-          <Icon :name="item.icon" :size="20" />
-          <span v-if="!collapsed">{{ item.label }}</span>
-        </button>
-        <p v-if="!collapsed" class="nav-label">目录</p>
-        <button
-          type="button"
-          class="nav-item"
-          :class="{ 'is-on': page === 'catalog' }"
-          :title="collapsed ? '分类与活动' : undefined"
-          @click="openPage('catalog')"
-        >
-          <Icon name="layout-grid" :size="20" />
-          <span v-if="!collapsed">分类与活动</span>
-        </button>
+        <div v-for="group in groups" :key="group.id" class="nav-group">
+          <button
+            type="button"
+            class="nav-item"
+            :class="{ 'is-on': groupActive(group) }"
+            :title="collapsed ? group.label : undefined"
+            @click="toggleGroup(group.id)"
+          >
+            <Icon :name="group.icon" :size="20" />
+            <span v-if="!collapsed">{{ group.label }}</span>
+            <Icon
+              v-if="!collapsed"
+              name="chevron-down"
+              :size="14"
+              class="chev"
+              :class="{ 'is-open': openGroups[group.id] }"
+            />
+          </button>
+          <div v-if="!collapsed && openGroups[group.id]" class="sub">
+            <button
+              v-for="item in group.children"
+              :key="item.id"
+              type="button"
+              class="sub-item"
+              :class="{ 'is-on': page === item.id }"
+              @click="openPage(item.id)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
       </nav>
 
       <button
@@ -151,18 +207,33 @@ function onLoggedIn(profile: UserProfile) {
       <OpsUsers v-else-if="page === 'users'" />
       <OpsPosts v-else-if="page === 'posts'" />
       <OpsComments v-else-if="page === 'comments'" />
-      <OpsCatalog v-else />
+      <OpsCategories v-else-if="page === 'categories'" />
+      <OpsCampaigns v-else-if="page === 'campaigns'" />
+      <OpsTopics v-else-if="page === 'topics'" />
     </div>
   </div>
 </template>
 
 <style>
 html,
-body {
+body,
+#app {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background: rgb(248, 248, 248);
   font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  scrollbar-width: none;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 button {
@@ -176,7 +247,8 @@ button {
 <style scoped>
 .admin {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   color: #1f1f1f;
   background: rgb(248, 248, 248);
 }
@@ -216,10 +288,9 @@ button {
   overflow: auto;
 }
 
-.nav-label {
-  margin: 12px 16px 4px;
-  color: #8a8a8a;
-  font-size: 12px;
+.nav-group {
+  display: flex;
+  flex-direction: column;
 }
 
 .nav-item {
@@ -235,6 +306,7 @@ button {
   font-size: 14px;
   font-weight: 400;
   line-height: 1;
+  text-align: left;
 }
 
 .nav-item :deep(svg) {
@@ -249,9 +321,17 @@ button {
 }
 
 .nav-item:hover,
-.nav-item.is-on {
+.nav-item.is-on,
+.sub-item:hover,
+.sub-item.is-on {
   background: #eee;
   color: #1f1f1f;
+}
+
+.nav-item .chev {
+  margin-left: auto;
+  color: #bbb;
+  transition: transform 180ms ease;
 }
 
 .user .chev {
@@ -260,8 +340,30 @@ button {
   transition: transform 180ms ease;
 }
 
+.nav-item .chev.is-open,
 .user .chev.is-open {
   transform: rotate(180deg);
+}
+
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 8px 8px 48px;
+}
+
+.sub-item {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: #555;
+  font-size: 14px;
+  text-align: left;
+}
+
+.sub-item.is-on {
+  color: #1f1f1f;
+  font-weight: 500;
 }
 
 .nav-fold {
@@ -275,6 +377,7 @@ button {
   flex: 1;
   min-width: 0;
   min-height: 0;
+  overflow: auto;
   background: rgb(248, 248, 248);
 }
 

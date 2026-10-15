@@ -130,7 +130,41 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | title | VARCHAR(200) 可空 | |
 | body | TEXT | 正文 |
 | post_type | VARCHAR(16) | `text` / `image` / `video` / `mixed` |
-| category | VARCHAR(16) | 首页 Tab：旅行/美食/时尚/摄影/生活/运动/游戏/音乐；旧帖可空 |
+| category | VARCHAR(32) | 首页 Tab，对应 `post_category.name` |
+
+### post_category
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| name | VARCHAR(32) UNIQUE | 写入 `post.category` |
+| sort_order | INT | 小的在前 |
+| enabled | TINYINT | 1 展示 |
+| created_at | DATETIME(3) | |
+
+### campaign
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | VARCHAR(32) PK | 写入 `post.event_id` |
+| title | VARCHAR(64) | 快照到 `post.event_title` |
+| intro | VARCHAR(200) | |
+| cover_url | VARCHAR(512) | |
+| status | VARCHAR(16) | live / upcoming / ended |
+| sort_order | INT | |
+| enabled | TINYINT | |
+| created_at | DATETIME(3) | |
+
+### topic
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| name | VARCHAR(32) UNIQUE | 无 `#` |
+| official | TINYINT | 1 官方 |
+| sort_order | INT | |
+| enabled | TINYINT | |
+| created_at | DATETIME(3) | |
 | original | TINYINT | 1 声明原创 |
 | content_kind | VARCHAR(16) | 空=不声明；虚构创作 / 个人观点 / 专业内容 |
 | event_id | VARCHAR(32) | 关联活动 id，可空串 |

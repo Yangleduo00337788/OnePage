@@ -1,5 +1,6 @@
 package com.onepage.moderation.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
@@ -263,19 +264,108 @@ public class ModerationService {
   public ModerationDtos.OpsCatalog catalog() {
     ContentClient.OpsCatalog raw = contentClient.catalog(internalToken);
     if (raw == null) {
-      return new ModerationDtos.OpsCatalog(List.of(), List.of());
+      return new ModerationDtos.OpsCatalog(List.of(), List.of(), List.of());
+    }
+    List<ModerationDtos.OpsCategory> categories = new ArrayList<>();
+    if (raw.categories() != null) {
+      for (ContentClient.OpsCategory row : raw.categories()) {
+        if (row != null) {
+          categories.add(new ModerationDtos.OpsCategory(row.categoryId(), row.name(), row.sortOrder(), row.enabled()));
+        }
+      }
     }
     List<ModerationDtos.OpsCampaign> campaigns = new ArrayList<>();
     if (raw.campaigns() != null) {
       for (ContentClient.OpsCampaign row : raw.campaigns()) {
-        if (row == null) {
-          continue;
+        if (row != null) {
+          campaigns.add(new ModerationDtos.OpsCampaign(
+              row.eventId(), row.title(), row.intro(), row.coverUrl(), row.status(), row.sortOrder(), row.enabled()));
         }
-        campaigns.add(new ModerationDtos.OpsCampaign(row.eventId(), row.title()));
       }
     }
-    List<String> categories = raw.categories() == null ? List.of() : raw.categories();
-    return new ModerationDtos.OpsCatalog(categories, campaigns);
+    List<ModerationDtos.OpsTopic> topics = new ArrayList<>();
+    if (raw.topics() != null) {
+      for (ContentClient.OpsTopic row : raw.topics()) {
+        if (row != null) {
+          topics.add(new ModerationDtos.OpsTopic(row.topicId(), row.name(), row.official(), row.sortOrder(), row.enabled()));
+        }
+      }
+    }
+    return new ModerationDtos.OpsCatalog(categories, campaigns, topics);
+  }
+
+  public ModerationDtos.OpsOverview overview() {
+    long users = 0;
+    try {
+      UserClient.Count c = userClient.count(internalToken);
+      users = c == null ? 0 : c.users();
+    } catch (RuntimeException ex) {
+      log.warn("ops user-count failed");
+    }
+    long live = 0;
+    long down = 0;
+    long comments = 0;
+    try {
+      ContentClient.ContentStats st = contentClient.stats(internalToken);
+      if (st != null) {
+        live = st.postsLive();
+        down = st.postsDown();
+        comments = st.comments();
+      }
+    } catch (RuntimeException ex) {
+      log.warn("ops content-stats failed");
+    }
+    ModerationDtos.OpsCatalog cat = catalog();
+    long pending = mapper.selectCount(Wrappers.<Report>lambdaQuery().eq(Report::getStatus, STATUS_PENDING));
+    long done = mapper.selectCount(Wrappers.<Report>lambdaQuery().eq(Report::getStatus, STATUS_DONE));
+    return new ModerationDtos.OpsOverview(
+        users,
+        live,
+        down,
+        comments,
+        pending,
+        done,
+        cat.categories().size(),
+        cat.campaigns().size(),
+        cat.topics().size());
+  }
+
+  public ModerationDtos.OpsCategory saveCategory(String id, ModerationDtos.CategorySpec spec) {
+    ContentClient.CategorySpec body = new ContentClient.CategorySpec(spec.name(), spec.sortOrder(), spec.enabled());
+    ContentClient.OpsCategory row = StringUtils.hasText(id)
+        ? contentClient.patchCategory(internalToken, id, body)
+        : contentClient.createCategory(internalToken, body);
+    return new ModerationDtos.OpsCategory(row.categoryId(), row.name(), row.sortOrder(), row.enabled());
+  }
+
+  public void setCategoryEnabled(long id, boolean enabled) {
+    contentClient.categoryEnabled(internalToken, id, enabled);
+  }
+
+  public ModerationDtos.OpsCampaign saveCampaign(ModerationDtos.CampaignSpec spec, boolean create) {
+    ContentClient.CampaignSpec body = new ContentClient.CampaignSpec(
+        spec.eventId(), spec.title(), spec.intro(), spec.coverUrl(), spec.status(), spec.sortOrder(), spec.enabled());
+    ContentClient.OpsCampaign row = create
+        ? contentClient.createCampaign(internalToken, body)
+        : contentClient.patchCampaign(internalToken, spec.eventId(), body);
+    return new ModerationDtos.OpsCampaign(
+        row.eventId(), row.title(), row.intro(), row.coverUrl(), row.status(), row.sortOrder(), row.enabled());
+  }
+
+  public void setCampaignEnabled(String eventId, boolean enabled) {
+    contentClient.campaignEnabled(internalToken, eventId, enabled);
+  }
+
+  public ModerationDtos.OpsTopic saveTopic(String id, ModerationDtos.TopicSpec spec) {
+    ContentClient.TopicSpec body = new ContentClient.TopicSpec(spec.name(), spec.official(), spec.sortOrder(), spec.enabled());
+    ContentClient.OpsTopic row = StringUtils.hasText(id)
+        ? contentClient.patchTopic(internalToken, id, body)
+        : contentClient.createTopic(internalToken, body);
+    return new ModerationDtos.OpsTopic(row.topicId(), row.name(), row.official(), row.sortOrder(), row.enabled());
+  }
+
+  public void setTopicEnabled(long id, boolean enabled) {
+    contentClient.topicEnabled(internalToken, id, enabled);
   }
 
   public ModerationDtos.OpsUser getUser(long targetId) {
@@ -294,16 +384,13 @@ public class ModerationService {
     return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
   }
 
-  public List<ModerationDtos.OpsUser> searchUsers(String q) {
-    if (!StringUtils.hasText(q) || q.trim().length() < 1) {
-      throw BusinessException.validation("请输入一页号或昵称");
-    }
-    List<UserSummary> found = userClient.suggest(internalToken, q.trim());
-    if (found == null || found.isEmpty()) {
-      return List.of();
+  public ModerationDtos.OpsUserPage pageUsers(String q, String cursor, Integer limit) {
+    UserClient.UserPage page = userClient.opsUsers(internalToken, q, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsUserPage(List.of(), null, false);
     }
     List<ModerationDtos.OpsUser> out = new ArrayList<>();
-    for (UserSummary row : found) {
+    for (UserSummary row : page.items()) {
       if (row == null || !StringUtils.hasText(row.userId())) {
         continue;
       }
@@ -316,7 +403,7 @@ public class ModerationService {
       }
       out.add(new ModerationDtos.OpsUser(row.userId(), row.pageId(), row.nickname(), row.avatarUrl(), frozen));
     }
-    return out;
+    return new ModerationDtos.OpsUserPage(out, page.nextCursor(), page.hasMore());
   }
 
   public ModerationDtos.OpsUser freezeUser(long actorId, long targetId, boolean frozen) {

@@ -33,16 +33,19 @@ public class UploadService {
   private final MinioClient minioClient;
   private final String bucket;
   private final int expirySec;
+  private final String mediaPublicBase;
 
   public UploadService(
       MediaAssetMapper mapper,
       MinioClient minioClient,
       @Value("${onepage.minio.bucket}") String bucket,
-      @Value("${onepage.minio.presign-expiry-sec}") int expirySec) {
+      @Value("${onepage.minio.presign-expiry-sec}") int expirySec,
+      @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.mapper = mapper;
     this.minioClient = minioClient;
     this.bucket = bucket;
     this.expirySec = expirySec;
+    this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
   }
 
   /**
@@ -104,7 +107,10 @@ public class UploadService {
     }
     asset.setStatus(1);
     mapper.updateById(asset);
-    return new CompleteResult(String.valueOf(asset.getId()), "ready");
+    String url = mediaPublicBase.isEmpty() || asset.getObjectKey() == null
+        ? ""
+        : mediaPublicBase + "/" + asset.getObjectKey();
+    return new CompleteResult(String.valueOf(asset.getId()), "ready", url);
   }
 
   public MediaAsset require(Long mediaId) {
@@ -132,5 +138,5 @@ public class UploadService {
   }
 
   public record PresignResult(String mediaId, String uploadUrl, String objectKey, String expiresAt) {}
-  public record CompleteResult(String mediaId, String status) {}
+  public record CompleteResult(String mediaId, String status, String url) {}
 }

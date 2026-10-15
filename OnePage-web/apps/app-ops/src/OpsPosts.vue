@@ -4,15 +4,16 @@ import { onMounted, ref, watch } from 'vue'
 import { api, ApiError, type OpsPostRow, type OpsPostView } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
+import OpsPager from './OpsPager.vue'
 import OpsTargetPreview from './OpsTargetPreview.vue'
+import { useCursorPages } from './useCursorPages'
 
 type Taken = '' | 'live' | 'down'
 
 const taken = ref<Taken>('')
 const query = ref('')
 const items = ref<OpsPostRow[]>([])
-const nextCursor = ref<string | null>(null)
-const hasMore = ref(false)
+const { page, pageSize, hasMore, resetCursors, cursorFor, applyResult } = useCursorPages()
 const loading = ref(false)
 const failed = ref('')
 const toast = ref('')
@@ -40,28 +41,29 @@ function clock(iso: string) {
   return iso.replace('T', ' ').slice(0, 16)
 }
 
-async function load(reset: boolean) {
-  if (reset) {
-    items.value = []
-    nextCursor.value = null
-    hasMore.value = false
-  }
+async function load(index = 1, reset = false) {
+  if (reset) resetCursors()
   loading.value = true
   failed.value = ''
   try {
-    const page = await api.opsPosts({
+    const result = await api.opsPosts({
       q: query.value.trim() || undefined,
       taken: taken.value || undefined,
-      cursor: reset ? undefined : nextCursor.value || undefined,
+      cursor: cursorFor(index),
+      limit: pageSize.value,
     })
-    items.value = reset ? page.items : items.value.concat(page.items)
-    nextCursor.value = page.nextCursor
-    hasMore.value = page.hasMore
+    items.value = result.items
+    applyResult(index, result.nextCursor, result.hasMore)
   } catch (e) {
     failed.value = e instanceof ApiError ? e.message : '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+function setSize(size: number) {
+  pageSize.value = size
+  void load(1, true)
 }
 
 async function openPost(id: string) {
@@ -85,7 +87,7 @@ async function act(row: OpsPostRow, kind: 'takedown' | 'restore') {
     else await api.opsRestorePost(row.postId)
     flash(kind === 'takedown' ? '已下架' : '已恢复')
     previewOpen.value = false
-    await load(true)
+    await load(page.value)
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
   } finally {
@@ -93,8 +95,8 @@ async function act(row: OpsPostRow, kind: 'takedown' | 'restore') {
   }
 }
 
-onMounted(() => load(true))
-watch(taken, () => load(true))
+onMounted(() => load(1, true))
+watch(taken, () => load(1, true))
 </script>
 
 <template>
@@ -115,7 +117,7 @@ watch(taken, () => load(true))
         </div>
         <label class="search">
           <Icon name="search" :size="16" />
-          <input v-model="query" placeholder="搜标题或笔记 ID" @keydown.enter="load(true)" />
+          <input v-model="query" placeholder="搜标题或笔记 ID" @keydown.enter="load(1, true)" />
         </label>
       </div>
       <p v-if="toast" class="toast">{{ toast }}</p>
@@ -171,9 +173,16 @@ watch(taken, () => load(true))
           </tr>
         </tbody>
       </table>
-      <button v-if="hasMore" type="button" class="more" :disabled="loading" @click="load(false)">
-        {{ loading ? '加载中…' : '加载更多' }}
-      </button>
+      <OpsPager
+        v-if="items.length || page > 1"
+        :page="page"
+        :page-size="pageSize"
+        :has-more="hasMore"
+        :loading="loading"
+        @prev="load(page - 1)"
+        @next="load(page + 1)"
+        @update:page-size="setSize"
+      />
     </section>
     <OpsTargetPreview
       v-if="previewOpen"

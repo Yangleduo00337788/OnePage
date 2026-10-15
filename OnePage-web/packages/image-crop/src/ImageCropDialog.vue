@@ -27,6 +27,8 @@ const PAD = 40
 const img = ref<HTMLImageElement | null>(null)
 const stageEl = ref<HTMLElement | null>(null)
 const ready = ref(false)
+const natW = ref(0)
+const natH = ref(0)
 const busy = ref(false)
 const failed = ref('')
 const scale = ref(1)
@@ -75,6 +77,8 @@ function clampPos() {
 function fit() {
   const el = img.value
   if (!el) return
+  natW.value = el.naturalWidth
+  natH.value = el.naturalHeight
   const f = frame.value
   scale.value = minScale.value
   ox.value = f.x - (el.naturalWidth * scale.value - f.w) / 2
@@ -211,6 +215,8 @@ onUnmounted(() => {
             alt=""
             class="crop-img"
             :style="{
+              width: natW ? `${natW}px` : undefined,
+              height: natH ? `${natH}px` : undefined,
               transform: `translate(${ox}px, ${oy}px) scale(${scale})`,
               visibility: ready ? 'visible' : 'hidden',
             }"

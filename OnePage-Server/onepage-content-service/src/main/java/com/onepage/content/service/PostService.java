@@ -1,6 +1,7 @@
 package com.onepage.content.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +63,7 @@ public class PostService {
   private final CommentMapper commentMapper;
   private final PostViewMapper postViewMapper;
   private final AuthorLookup authorLookup;
+  private final CatalogService catalogService;
   private final ObjectMapper objectMapper;
   private final ImClient imClient;
   private final String mediaPublicBase;
@@ -78,6 +80,7 @@ public class PostService {
       CommentMapper commentMapper,
       PostViewMapper postViewMapper,
       AuthorLookup authorLookup,
+      CatalogService catalogService,
       ObjectMapper objectMapper,
       ImClient imClient,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
@@ -92,6 +95,7 @@ public class PostService {
     this.commentMapper = commentMapper;
     this.postViewMapper = postViewMapper;
     this.authorLookup = authorLookup;
+    this.catalogService = catalogService;
     this.objectMapper = objectMapper;
     this.imClient = imClient;
     this.mediaPublicBase = trimSlash(mediaPublicBase);
@@ -109,7 +113,7 @@ public class PostService {
       throw BusinessException.validation("postType 不支持");
     }
     String cat = spec.category() == null ? "" : spec.category().trim();
-    if (!CATEGORIES.contains(cat)) {
+    if (!catalogService.isEnabledCategory(cat)) {
       throw BusinessException.validation("请选择笔记分类");
     }
     List<MediaAsset> assets = loadOwnedReadyMedia(userId, spec.mediaIds());
@@ -152,6 +156,7 @@ public class PostService {
         "postId", String.valueOf(postId),
         "authorId", String.valueOf(userId),
         "postType", type));
+    catalogService.rememberHashtags(spec.body());
     return new FeedDtos.CreateResult(String.valueOf(postId), now.toString());
   }
 
@@ -172,7 +177,7 @@ public class PostService {
       throw BusinessException.validation("postType 不支持");
     }
     String cat = spec.category() == null ? "" : spec.category().trim();
-    if (!CATEGORIES.contains(cat)) {
+    if (!catalogService.isEnabledCategory(cat)) {
       throw BusinessException.validation("请选择笔记分类");
     }
     List<MediaAsset> assets = loadOwnedReadyMedia(userId, spec.mediaIds());
@@ -208,6 +213,7 @@ public class PostService {
     writeOutbox("post", String.valueOf(postId), "post.updated", Map.of(
         "postId", String.valueOf(postId),
         "authorId", String.valueOf(userId)));
+    catalogService.rememberHashtags(spec.body());
     return detail(userId, postId);
   }
 
@@ -370,10 +376,12 @@ public class PostService {
       return;
     }
     LocalDateTime now = LocalDateTime.now();
-    post.setStatus("published");
-    post.setDeletedAt(null);
-    post.setUpdatedAt(now);
-    postMapper.updateById(post);
+    LambdaUpdateWrapper<Post> update = Wrappers.lambdaUpdate();
+    update.eq(Post::getId, postId)
+        .set(Post::getStatus, "published")
+        .set(Post::getDeletedAt, null)
+        .set(Post::getUpdatedAt, now);
+    postMapper.update(null, update);
     writeOutbox("post", String.valueOf(postId), "post.restored", Map.of("postId", String.valueOf(postId)));
   }
 
@@ -426,13 +434,7 @@ public class PostService {
   }
 
   public FeedDtos.OpsCatalog opsCatalog() {
-    List<FeedDtos.OpsCampaign> campaigns = new ArrayList<>();
-    for (var entry : CampaignCatalog.TITLES.entrySet()) {
-      campaigns.add(new FeedDtos.OpsCampaign(entry.getKey(), entry.getValue()));
-    }
-    return new FeedDtos.OpsCatalog(
-        List.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐"),
-        campaigns);
+    return catalogService.opsCatalog();
   }
 
   public FeedDtos.CursorPage listMine(long userId, String cursor, Integer limit) {
@@ -754,15 +756,15 @@ public class PostService {
     throw BusinessException.validation("可见范围不支持");
   }
 
-  private static void applyCampaign(Post post, String eventId) {
+  private void applyCampaign(Post post, String eventId) {
     if (!StringUtils.hasText(eventId)) {
       post.setEventId("");
       post.setEventTitle("");
       return;
     }
     String id = eventId.trim();
-    String title = CampaignCatalog.TITLES.get(id);
-    if (title == null) {
+    String title = catalogService.campaignTitle(id);
+    if (!StringUtils.hasText(title)) {
       throw BusinessException.validation("活动不存在或未开始");
     }
     post.setEventId(id);

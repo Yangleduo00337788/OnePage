@@ -70,5 +70,23 @@ public class InternalUserController {
     return userService.suggest(q, null);
   }
 
+  @GetMapping("/users/count")
+  public Count count(HttpServletRequest request) {
+    tokenFilter.assertInternal(request);
+    return new Count(userService.countProfiles());
+  }
+
+  @GetMapping("/users/ops")
+  public UserService.UserSummaryPage opsUsers(
+      HttpServletRequest request,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    tokenFilter.assertInternal(request);
+    return userService.opsPage(q, cursor, limit);
+  }
+
+  public record Count(long users) {}
+
   public record CreateProfileRequest(Long userId, String nickname) {}
 }

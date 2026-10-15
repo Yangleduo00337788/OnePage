@@ -204,9 +204,49 @@ export type OpsCommentRow = {
   createdAt: string
 }
 
+export type OpsCategory = {
+  categoryId: string
+  name: string
+  sortOrder: number
+  enabled: boolean
+}
+
+export type OpsCampaign = {
+  eventId: string
+  title: string
+  intro: string
+  coverUrl: string
+  status: string
+  sortOrder: number
+  enabled: boolean
+}
+
+export type OpsTopic = {
+  topicId: string
+  name: string
+  official: boolean
+  sortOrder: number
+  enabled: boolean
+}
+
 export type OpsCatalog = {
-  categories: string[]
-  campaigns: { eventId: string; title: string }[]
+  categories: OpsCategory[]
+  campaigns: OpsCampaign[]
+  topics: OpsTopic[]
+}
+
+export type PublicCatalog = OpsCatalog
+
+export type OpsOverview = {
+  communityUsers: number
+  postsLive: number
+  postsDown: number
+  comments: number
+  reportsPending: number
+  reportsDone: number
+  categories: number
+  campaigns: number
+  topics: number
 }
 
 export type UserProfile = UserSummary & {
@@ -342,7 +382,7 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ mimeType, sizeBytes, purpose }) },
     ),
   completeUpload: (mediaId: string) =>
-    request<{ mediaId: string; status: string }>('/api/v1/uploads/complete', {
+    request<{ mediaId: string; status: string; url?: string }>('/api/v1/uploads/complete', {
       method: 'POST',
       body: JSON.stringify({ mediaId }),
     }),
@@ -542,11 +582,76 @@ export const api = {
     request<void>(`/api/v1/ops/comments/${encodeURIComponent(commentId)}/hide`, { method: 'POST' }),
   opsRestoreComment: (commentId: string) =>
     request<void>(`/api/v1/ops/comments/${encodeURIComponent(commentId)}/restore`, { method: 'POST' }),
+  catalog: () => request<PublicCatalog>('/api/v1/catalog'),
+  suggestTopics: (q?: string) => {
+    const suffix = q ? `?q=${encodeURIComponent(q)}` : ''
+    return request<OpsTopic[]>(`/api/v1/catalog/topics${suffix}`)
+  },
+  opsOverview: () => request<OpsOverview>('/api/v1/ops/overview'),
   opsCatalog: () => request<OpsCatalog>('/api/v1/ops/catalog'),
+  opsCreateCategory: (body: { name: string; sortOrder?: number; enabled?: boolean }) =>
+    request<OpsCategory>('/api/v1/ops/categories', { method: 'POST', body: JSON.stringify(body) }),
+  opsPatchCategory: (id: string, body: { name?: string; sortOrder?: number; enabled?: boolean }) =>
+    request<OpsCategory>(`/api/v1/ops/categories/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  opsCategoryEnabled: (id: string, value: boolean) =>
+    request<void>(`/api/v1/ops/categories/${encodeURIComponent(id)}/enabled?value=${value}`, {
+      method: 'POST',
+    }),
+  opsCreateCampaign: (body: {
+    eventId: string
+    title: string
+    intro?: string
+    coverUrl?: string
+    status?: string
+    sortOrder?: number
+    enabled?: boolean
+  }) => request<OpsCampaign>('/api/v1/ops/campaigns', { method: 'POST', body: JSON.stringify(body) }),
+  opsPatchCampaign: (
+    eventId: string,
+    body: {
+      title?: string
+      intro?: string
+      coverUrl?: string
+      status?: string
+      sortOrder?: number
+      enabled?: boolean
+    },
+  ) =>
+    request<OpsCampaign>(`/api/v1/ops/campaigns/${encodeURIComponent(eventId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  opsCampaignEnabled: (eventId: string, value: boolean) =>
+    request<void>(`/api/v1/ops/campaigns/${encodeURIComponent(eventId)}/enabled?value=${value}`, {
+      method: 'POST',
+    }),
+  opsCreateTopic: (body: { name: string; official?: boolean; sortOrder?: number; enabled?: boolean }) =>
+    request<OpsTopic>('/api/v1/ops/topics', { method: 'POST', body: JSON.stringify(body) }),
+  opsPatchTopic: (
+    id: string,
+    body: { name?: string; official?: boolean; sortOrder?: number; enabled?: boolean },
+  ) =>
+    request<OpsTopic>(`/api/v1/ops/topics/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  opsTopicEnabled: (id: string, value: boolean) =>
+    request<void>(`/api/v1/ops/topics/${encodeURIComponent(id)}/enabled?value=${value}`, {
+      method: 'POST',
+    }),
   opsUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}`),
-  opsUsers: (q: string) =>
-    request<OpsUser[]>(`/api/v1/ops/users?q=${encodeURIComponent(q)}`),
+  opsUsers: (opts?: { q?: string; cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.q) q.set('q', opts.q)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsUser>>(`/api/v1/ops/users${suffix}`)
+  },
   opsFreezeUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
   opsUnfreezeUser: (userId: string) =>

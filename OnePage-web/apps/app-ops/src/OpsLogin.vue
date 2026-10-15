@@ -124,7 +124,8 @@ async function sendCode() {
   justify-content: space-between;
   gap: 40px;
   box-sizing: border-box;
-  min-height: 100vh;
+  height: 100%;
+  overflow: auto;
   padding: 48px 40px;
   color: #1f1f1f;
   background: #f4f1ea;

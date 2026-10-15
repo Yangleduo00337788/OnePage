@@ -84,6 +84,12 @@ spring:
             - Path=/api/v1/media/**
           metadata:
             sensitiveHeaders: ""
+        - id: catalog
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/catalog,/api/v1/catalog/**
+          metadata:
+            sensitiveHeaders: ""
         - id: posts
           uri: lb://onepage-content-service
           predicates:

@@ -50,6 +50,12 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'path', d: 'M8 2v4' },
     { tag: 'path', d: 'M3 10h18' },
   ],
+  hash: [
+    { tag: 'path', d: 'M4 9h16' },
+    { tag: 'path', d: 'M4 15h16' },
+    { tag: 'path', d: 'M10 3 8 21' },
+    { tag: 'path', d: 'M16 3l-2 18' },
+  ],
   'layout-grid': [
     { tag: 'rect', x: 3, y: 3, width: 7, height: 7, rx: 1 },
     { tag: 'rect', x: 14, y: 3, width: 7, height: 7, rx: 1 },

@@ -24,5 +24,5 @@ public final class RequestIds {
 
   public static void clear() {
     HOLDER.remove();
-  }
+  } // 这个clear方法没有调用啊。
 }

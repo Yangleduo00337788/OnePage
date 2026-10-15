@@ -4,7 +4,9 @@ import { onMounted, ref, watch } from 'vue'
 import { api, ApiError, REPORT_REASONS, type OpsPostView, type OpsReport, type OpsResolveAction, type OpsUser } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
+import OpsPager from './OpsPager.vue'
 import OpsTargetPreview from './OpsTargetPreview.vue'
+import { useCursorPages } from './useCursorPages'
 
 type Tab = 'pending' | 'done'
 
@@ -12,8 +14,7 @@ const tab = ref<Tab>('pending')
 const query = ref('')
 const note = ref('')
 const items = ref<OpsReport[]>([])
-const nextCursor = ref<string | null>(null)
-const hasMore = ref(false)
+const { page, pageSize, hasMore, resetCursors, cursorFor, applyResult } = useCursorPages()
 const loading = ref(false)
 const failed = ref('')
 const toast = ref('')
@@ -94,21 +95,15 @@ function matches(item: OpsReport, q: string) {
   )
 }
 
-async function load(reset: boolean) {
-  if (reset) {
-    items.value = []
-    nextCursor.value = null
-    hasMore.value = false
-  }
+async function load(index = 1, reset = false) {
+  if (reset) resetCursors()
   loading.value = true
   failed.value = ''
   try {
-    const page = await api.opsReports(tab.value, reset ? undefined : nextCursor.value || undefined)
+    const result = await api.opsReports(tab.value, cursorFor(index), pageSize.value)
     const q = query.value.trim().toLowerCase()
-    const batch = q ? page.items.filter((item) => matches(item, q)) : page.items
-    items.value = reset ? batch : items.value.concat(batch)
-    nextCursor.value = page.nextCursor
-    hasMore.value = page.hasMore
+    items.value = q ? result.items.filter((item) => matches(item, q)) : result.items
+    applyResult(index, result.nextCursor, result.hasMore)
   } catch (e) {
     if (reset && e instanceof ApiError && (e.status === 404 || e.status === 501)) {
       failed.value = ''
@@ -121,13 +116,18 @@ async function load(reset: boolean) {
   }
 }
 
+function setSize(size: number) {
+  pageSize.value = size
+  void load(1, true)
+}
+
 async function resolve(item: OpsReport, action: OpsResolveAction) {
   busyId.value = item.reportId
   try {
     await api.opsResolveReport(item.reportId, { action, note: note.value.trim() || undefined })
     flash(actionLabel[action] ? `已${actionLabel[action]}` : '已处理')
     closePreview()
-    await load(true)
+    await load(1, true)
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
   } finally {
@@ -135,8 +135,8 @@ async function resolve(item: OpsReport, action: OpsResolveAction) {
   }
 }
 
-onMounted(() => load(true))
-watch(tab, () => load(true))
+onMounted(() => load(1, true))
+watch(tab, () => load(1, true))
 </script>
 
 <template>
@@ -157,7 +157,7 @@ watch(tab, () => load(true))
         </div>
         <label class="search">
           <Icon name="search" :size="16" />
-          <input v-model="query" placeholder="搜原因、说明、对象" @keydown.enter="load(true)" />
+          <input v-model="query" placeholder="搜原因、说明、对象" @keydown.enter="load(1, true)" />
         </label>
       </div>
       <input
@@ -247,9 +247,16 @@ watch(tab, () => load(true))
           </tr>
         </tbody>
       </table>
-      <button v-if="hasMore" type="button" class="more" :disabled="loading" @click="load(false)">
-        {{ loading ? '加载中…' : '加载更多' }}
-      </button>
+      <OpsPager
+        v-if="items.length || page > 1"
+        :page="page"
+        :page-size="pageSize"
+        :has-more="hasMore"
+        :loading="loading"
+        @prev="load(page - 1)"
+        @next="load(page + 1)"
+        @update:page-size="setSize"
+      />
     </section>
     <OpsTargetPreview
       v-if="previewOpen"

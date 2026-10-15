@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { TABS, noteFromPost, type NoteCard } from '../data/home'
+import { noteFromPost, type NoteCard } from '../data/home'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import NoteFeedCard from '../components/NoteFeedCard.vue'
@@ -23,10 +23,12 @@ const sentinel = ref<HTMLElement | null>(null)
 let io: IntersectionObserver | null = null
 let seq = 0
 
+const tabs = ref<string[]>(['推荐', '关注', ...FEED_CATEGORIES])
+
 const tab = computed({
   get: () => {
     const c = route.query.cat
-    if (typeof c === 'string' && (TABS as readonly string[]).includes(c)) return c
+    if (typeof c === 'string' && tabs.value.includes(c)) return c
     return '推荐'
   },
   set: (value: string) => {
@@ -36,7 +38,7 @@ const tab = computed({
 
 function pull(nextCursor?: string) {
   if (tab.value === '关注') return api.followingFeed(nextCursor, 20)
-  const cat = (FEED_CATEGORIES as readonly string[]).includes(tab.value) ? tab.value : undefined
+  const cat = tab.value !== '推荐' && tab.value !== '关注' ? tab.value : undefined
   return api.exploreFeed(nextCursor, 20, cat)
 }
 
@@ -89,6 +91,15 @@ function toTop() {
 }
 
 onMounted(() => {
+  void api
+    .catalog()
+    .then((data) => {
+      const names = (data.categories || []).map((row) => row.name).filter(Boolean)
+      if (names.length) tabs.value = ['推荐', '关注', ...names]
+    })
+    .catch(() => {
+      /* 目录失败时沿用内置分类 */
+    })
   void refreshFeed()
   io = new IntersectionObserver(
     (entries) => {
@@ -110,7 +121,7 @@ onUnmounted(() => {
   <section>
     <div class="mb-5 flex flex-wrap items-center justify-center gap-x-7 gap-y-2">
       <button
-        v-for="item in TABS"
+        v-for="item in tabs"
         :key="item"
         type="button"
         class="feed-tab"

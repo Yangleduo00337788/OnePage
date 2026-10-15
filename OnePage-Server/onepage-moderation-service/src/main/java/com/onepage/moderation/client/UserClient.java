@@ -20,4 +20,18 @@ public interface UserClient {
   List<UserSummary> suggest(
       @RequestHeader("X-Internal-Token") String token,
       @RequestParam("q") String q);
+
+  @GetMapping("/internal/users/count")
+  Count count(@RequestHeader("X-Internal-Token") String token);
+
+  @GetMapping("/internal/users/ops")
+  UserPage opsUsers(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
+
+  record Count(long users) {}
+
+  record UserPage(List<UserSummary> items, String nextCursor, boolean hasMore) {}
 }

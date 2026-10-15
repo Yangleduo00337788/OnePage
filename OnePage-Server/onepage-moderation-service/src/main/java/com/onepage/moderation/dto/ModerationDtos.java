@@ -82,7 +82,38 @@ public final class ModerationDtos {
 
   public record OpsCommentPage(List<OpsCommentRow> items, String nextCursor, boolean hasMore) {}
 
-  public record OpsCampaign(String eventId, String title) {}
+  public record OpsCampaign(
+      String eventId,
+      String title,
+      String intro,
+      String coverUrl,
+      String status,
+      int sortOrder,
+      boolean enabled) {}
 
-  public record OpsCatalog(List<String> categories, List<OpsCampaign> campaigns) {}
+  public record OpsCategory(String categoryId, String name, int sortOrder, boolean enabled) {}
+
+  public record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled) {}
+
+  public record OpsCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
+
+  public record OpsOverview(
+      long communityUsers,
+      long postsLive,
+      long postsDown,
+      long comments,
+      long reportsPending,
+      long reportsDone,
+      long categories,
+      long campaigns,
+      long topics) {}
+
+  public record OpsUserPage(List<OpsUser> items, String nextCursor, boolean hasMore) {}
+
+  public record CategorySpec(String name, Integer sortOrder, Boolean enabled) {}
+
+  public record CampaignSpec(
+      String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
+
+  public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
 }

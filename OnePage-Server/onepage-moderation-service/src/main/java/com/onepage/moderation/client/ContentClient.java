@@ -3,8 +3,10 @@ package com.onepage.moderation.client;
 import com.onepage.common.dto.UserSummary;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -43,6 +45,54 @@ public interface ContentClient {
 
   @GetMapping("/internal/catalog/ops")
   OpsCatalog catalog(@RequestHeader("X-Internal-Token") String token);
+
+  @GetMapping("/internal/stats")
+  ContentStats stats(@RequestHeader("X-Internal-Token") String token);
+
+  @PostMapping("/internal/categories")
+  OpsCategory createCategory(@RequestHeader("X-Internal-Token") String token, @RequestBody CategorySpec spec);
+
+  @PatchMapping("/internal/categories/{id}")
+  OpsCategory patchCategory(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") String id,
+      @RequestBody CategorySpec spec);
+
+  @PostMapping("/internal/categories/{id}/enabled")
+  void categoryEnabled(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value);
+
+  @PostMapping("/internal/campaigns")
+  OpsCampaign createCampaign(@RequestHeader("X-Internal-Token") String token, @RequestBody CampaignSpec spec);
+
+  @PatchMapping("/internal/campaigns/{eventId}")
+  OpsCampaign patchCampaign(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("eventId") String eventId,
+      @RequestBody CampaignSpec spec);
+
+  @PostMapping("/internal/campaigns/{eventId}/enabled")
+  void campaignEnabled(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("eventId") String eventId,
+      @RequestParam("value") boolean value);
+
+  @PostMapping("/internal/topics")
+  OpsTopic createTopic(@RequestHeader("X-Internal-Token") String token, @RequestBody TopicSpec spec);
+
+  @PatchMapping("/internal/topics/{id}")
+  OpsTopic patchTopic(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") String id,
+      @RequestBody TopicSpec spec);
+
+  @PostMapping("/internal/topics/{id}/enabled")
+  void topicEnabled(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value);
 
   @GetMapping("/internal/comments/ops")
   OpsCommentPage opsComments(
@@ -85,9 +135,29 @@ public interface ContentClient {
 
   record OpsCommentPage(List<OpsCommentRow> items, String nextCursor, boolean hasMore) {}
 
-  record OpsCampaign(String eventId, String title) {}
+  record OpsCampaign(
+      String eventId,
+      String title,
+      String intro,
+      String coverUrl,
+      String status,
+      int sortOrder,
+      boolean enabled) {}
 
-  record OpsCatalog(List<String> categories, List<OpsCampaign> campaigns) {}
+  record OpsCategory(String categoryId, String name, int sortOrder, boolean enabled) {}
+
+  record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled) {}
+
+  record OpsCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
+
+  record ContentStats(long postsLive, long postsDown, long comments) {}
+
+  record CategorySpec(String name, Integer sortOrder, Boolean enabled) {}
+
+  record CampaignSpec(
+      String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
+
+  record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
 
   record MediaItem(String mediaId, String url, String mimeType, String role) {}
 

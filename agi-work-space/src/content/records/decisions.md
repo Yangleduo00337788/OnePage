@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-039 运营工作台概览 + 目录 CRUD + 恢复必须写 null
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳
+- **背景：** 运营要做全站治理台。工作台只有入口卡；用户页必须先搜；分类/活动只读；笔记「恢复」接口成功但 `deleted_at` 仍在（MyBatis-Plus `updateById` 忽略 null）。首页 Tab 仍写死八个分类。
+- **决策：** 工作台 `GET /ops/overview` 汇总社区用户、在线/下架笔记、评论、工单、目录条数。用户 `GET /ops/users` 可空 `q`，默认全表分页。分类/活动/话题 CRUD 在 content（`005_ops_catalog.sql`），运营经 Feign 写；社区 `GET /catalog` 驱动首页 Tab、发帖分类/活动/话题联想。恢复帖用 `LambdaUpdateWrapper.set(deletedAt, null)`。侧栏两级：治理（工单/用户）、内容（笔记/评论/分类/活动/话题），图标与文字居中。直播/搜索/AI 仍不进菜单（DEC-038）。CMS 上帝后台仍不做（DEC-034）。
+- **替代：** 新拆 admin 服务（否决）；运营直接连 content 公网写接口（否决：员工鉴权在 moderation）。
+- **影响：** 须执行 `005_ops_catalog.sql` 并重启 content / user / moderation / gateway。见 [API 明细](/engineering/process/api-endpoints)、[库表](/engineering/tech/database-schema)。
+
 ## DEC-038 运营菜单只挂当前真实能力
 
 - **日期：** 2026-10-15

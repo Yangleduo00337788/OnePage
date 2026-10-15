@@ -16,7 +16,7 @@ order: 3
 | --- | --- |
 | 地址前缀 | `/api/v1` |
 | 格式 | JSON；生产走 HTTPS |
-| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有 Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/suggest`、`GET /users/me/favorites` `/likes` `/history` `/likes-received` `/favorites-received`、`GET/POST /notifications/**`、`GET/POST /conversations/**`、`WS /ws/im`、`POST /posts/{id}/share/im`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}`、**`/ops/**`（员工，`OPS_STAFF_USER_IDS`，空则 403）** 必须登录。运营登录须 `audience=ops` |
+| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /catalog`、`GET /catalog/topics`、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有 Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/suggest`、`GET /users/me/favorites` `/likes` `/history` `/likes-received` `/favorites-received`、`GET/POST /notifications/**`、`GET/POST /conversations/**`、`WS /ws/im`、`POST /posts/{id}/share/im`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}`、**`/ops/**`（员工，`OPS_STAFF_USER_IDS`，空则 403）** 必须登录。运营登录须 `audience=ops` |
 | 密码 | 注册 8～32 位，须同时包含字母和数字；BCrypt 存储 |
 | 登出 | `POST /api/v1/auth/logout` 由**网关** invalidate WebSession，返回 200 |
 | 设密 | 已登录 `POST /auth/password`；未登录找回 `POST /auth/password/reset` + `sms scene=reset` |
@@ -48,7 +48,8 @@ order: 3
 | `/ai/**` | AI |
 | `/live/**` | 直播 |
 | `/reports/**` | 用户提交举报（P5，moderation） |
-| `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记/评论/目录；content+auth Feign） |
+| `/catalog/**` | 公开目录（分类/活动/话题） |
+| `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记/评论/分类活动话题 CRUD；content+auth Feign） |
 
 完整路径列表见 [API 明细](/engineering/process/api-endpoints)。
 

@@ -201,7 +201,7 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 ### POST `/api/v1/uploads/complete`
 
 **Body**：`mediaId`  
-**Response 200**：`{ "mediaId", "status": "ready" }`
+**Response 200**：`{ "mediaId", "status": "ready", "url" }`。`url` 为 `MEDIA_PUBLIC_BASE` + objectKey，运营活动封面等可直接写入。
 
 ---
 
@@ -225,7 +225,17 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 
 **Response 201**：`{ "postId", "publishedAt" }`
 
-Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。
+Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。分类须为启用中的 `post_category.name`（`GET /catalog`）。
+
+### GET `/api/v1/catalog`
+
+公开。社区首页 Tab、发帖分类/活动、创作者活动中心同源。
+
+**Response**：`{ categories: OpsCategory[], campaigns: OpsCampaign[], topics: OpsTopic[] }`（仅 `enabled=true`）。活动 `status`：`live` / `upcoming` / `ended`。
+
+### GET `/api/v1/catalog/topics`
+
+公开。Query：`q` 可选。联想启用中的话题名。
 
 ### GET `/api/v1/posts/mine`
 
@@ -513,9 +523,23 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 **Response 204**。隐藏后社区评论列表不再出现（`comment.status=1`）。
 
+### GET `/api/v1/ops/overview`
+
+**Response**：`communityUsers` `postsLive` `postsDown` `comments` `reportsPending` `reportsDone` `categories` `campaigns` `topics`。
+
 ### GET `/api/v1/ops/catalog`
 
-**Response**：`{ categories: string[], campaigns: { eventId, title }[] }`。与发帖校验同一份，只读。
+含停用项。**Response**：`{ categories, campaigns, topics }`（完整字段，非只读目录名）。
+
+### POST `/api/v1/ops/categories` · PATCH `/api/v1/ops/categories/{id}` · POST `.../enabled?value=`
+
+### POST `/api/v1/ops/campaigns` · PATCH `/api/v1/ops/campaigns/{eventId}` · POST `.../enabled?value=`
+
+Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
+
+### POST `/api/v1/ops/topics` · PATCH `/api/v1/ops/topics/{id}` · POST `.../enabled?value=`
+
+`official` 官方话题。用户发帖 `#标签` 也会写入 topic 表。
 
 ### GET `/api/v1/ops/users/{userId}`
 
@@ -523,7 +547,7 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ### GET `/api/v1/ops/users`
 
-**Query**：`q` 一页号或昵称。**Response**：`OpsUser[]`（`userId` `pageId` `nickname` `avatarUrl` `frozen`）。
+**Query**：`q` 可空（空则全表），`cursor`，`limit`。**Response**：`CursorPage<OpsUser>`。
 
 ### POST `/api/v1/ops/users/{userId}/freeze`
 

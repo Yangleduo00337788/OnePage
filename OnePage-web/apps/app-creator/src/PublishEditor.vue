@@ -1,6 +1,6 @@
 <!-- 发布编辑页：有图后再进来。白卡片叠放，底栏暂存 / 发布。 -->
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, FEED_CATEGORIES } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import { EVENTS } from './events'
@@ -37,7 +37,9 @@ const posted = ref('')
 const topicFocus = ref(false)
 
 const contentTypes = ['不声明', '虚构创作', '个人观点', '专业内容']
-const events = EVENTS.filter((item) => item.status === '进行中').slice(0, 2)
+const categories = ref<string[]>([...FEED_CATEGORIES])
+const events = ref(EVENTS.filter((item) => item.status === '进行中').slice(0, 2))
+const topicHints = ref<string[]>([])
 const visOpts = [
   { id: 'public' as const, label: '公开' },
   { id: 'friend' as const, label: '好友' },
@@ -59,7 +61,48 @@ function addTopic() {
   if (!tag || topics.value.includes(tag) || topics.value.length >= 10) return
   topics.value.push(tag)
   topicInput.value = ''
+  topicHints.value = []
 }
+
+function pickHint(tag: string) {
+  topicInput.value = tag
+  addTopic()
+}
+
+onMounted(() => {
+  void api
+    .catalog()
+    .then((data) => {
+      const names = (data.categories || []).map((row) => row.name).filter(Boolean)
+      if (names.length) categories.value = names
+      const live = (data.campaigns || [])
+        .filter((row) => row.enabled && row.status === 'live')
+        .map((row) => ({
+          id: row.eventId,
+          title: row.title,
+          time: row.intro || '',
+          cover: row.coverUrl || '',
+          status: '进行中' as const,
+        }))
+      if (live.length) events.value = live.slice(0, 4)
+    })
+    .catch(() => {
+      /* 目录失败时沿用内置分类和活动 */
+    })
+})
+
+watch(topicInput, async (q) => {
+  if (!topicFocus.value) {
+    topicHints.value = []
+    return
+  }
+  try {
+    const rows = await api.suggestTopics(q.trim() || undefined)
+    topicHints.value = rows.map((row) => row.name).filter((name) => !topics.value.includes(name))
+  } catch {
+    topicHints.value = []
+  }
+})
 
 function pickFiles(e: Event) {
   const list = (e.target as HTMLInputElement).files
@@ -271,6 +314,9 @@ async function submit() {
           placeholder="输入话题，回车添加"
           @keydown.enter.prevent="addTopic"
         />
+        <div v-if="topicFocus && topicHints.length" class="hints">
+          <button v-for="tag in topicHints" :key="tag" type="button" @click="pickHint(tag)">#{{ tag }}</button>
+        </div>
       </section>
 
       <section class="card">
@@ -280,7 +326,7 @@ async function submit() {
         </div>
         <div class="cats">
           <button
-            v-for="item in FEED_CATEGORIES"
+            v-for="item in categories"
             :key="item"
             type="button"
             class="cat"
@@ -658,6 +704,22 @@ async function submit() {
   border-radius: 12px;
   background: rgb(248, 248, 248);
   font: inherit;
+}
+
+.hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.hints button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: rgb(248, 248, 248);
+  color: #555;
+  font-size: 12px;
 }
 
 .card-h .more {

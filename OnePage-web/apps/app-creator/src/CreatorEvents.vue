@@ -1,6 +1,7 @@
-<!-- 活动中心：状态 Tab + 活动卡。P0 占位。 -->
+<!-- 活动中心：状态 Tab + 活动卡。数据来自 GET /catalog。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { api } from '@onepage/api-client'
 import { EVENTS } from './events'
 
 type TabId = 'all' | '进行中' | '预告'
@@ -12,9 +13,38 @@ const tabs: { id: TabId; label: string }[] = [
   { id: '预告', label: '预告' },
 ]
 
+const items = ref(EVENTS)
+
 const list = computed(() => {
-  if (tab.value === 'all') return EVENTS
-  return EVENTS.filter((item) => item.status === tab.value)
+  if (tab.value === 'all') return items.value.filter((item) => item.status !== '结束')
+  return items.value.filter((item) => item.status === tab.value)
+})
+
+function labelOf(status: string) {
+  if (status === 'live') return '进行中'
+  if (status === 'upcoming') return '预告'
+  if (status === 'ended') return '结束'
+  return status
+}
+
+onMounted(() => {
+  void api
+    .catalog()
+    .then((data) => {
+      const rows = (data.campaigns || []).filter((row) => row.enabled)
+      if (!rows.length) return
+      items.value = rows.map((row) => ({
+        id: row.eventId,
+        title: row.title,
+        time: row.intro || '',
+        status: labelOf(row.status),
+        intro: row.intro || '',
+        cover: row.coverUrl || '',
+      }))
+    })
+    .catch(() => {
+      /* 目录失败时沿用占位 */
+    })
 })
 </script>
 
@@ -39,7 +69,7 @@ const list = computed(() => {
     <div v-if="list.length" class="grid">
       <article v-for="item in list" :key="item.id" class="card">
         <div class="cover">
-          <img :src="item.cover" alt="" />
+          <img v-if="item.cover" :src="item.cover" alt="" />
         </div>
         <div class="body">
           <p class="status" :class="item.status === '进行中' ? 'is-on' : ''">{{ item.status }}</p>
@@ -79,7 +109,7 @@ const list = computed(() => {
 
 h1 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
 }
 
@@ -90,39 +120,38 @@ h1 {
 
 .tab {
   height: 32px;
-  padding: 0 14px;
-  border-radius: 20px;
-  color: #555;
-  font-size: 14px;
+  padding: 0 12px;
+  border-radius: 16px;
+  color: #8a8a8a;
+  font-size: 13px;
 }
 
-.tab:hover,
 .tab.is-on {
+  background: rgb(248, 248, 248);
   color: #1f1f1f;
   font-weight: 600;
-  background: rgb(248, 248, 248);
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
   margin-top: 20px;
 }
 
 .card {
   display: flex;
-  gap: 14px;
-  padding: 14px;
+  gap: 16px;
+  padding: 12px;
   border-radius: 16px;
   background: rgb(248, 248, 248);
 }
 
 .cover {
+  width: 88px;
+  height: 88px;
   overflow: hidden;
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
   border-radius: 12px;
   background: #eee;
 }
@@ -133,58 +162,46 @@ h1 {
   object-fit: cover;
 }
 
+.body {
+  min-width: 0;
+}
+
 .status {
   margin: 0;
-  color: #8a8a8a;
   font-size: 12px;
+  color: #8a8a8a;
 }
 
 .status.is-on {
   color: #ff2442;
 }
 
-.body {
-  min-width: 0;
-  padding: 0;
-}
-
 h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  margin: 6px 0 0;
+  font-size: 15px;
 }
 
-.time {
-  margin: 8px 0 0;
-  color: #8a8a8a;
-  font-size: 12px;
-}
-
+.time,
 .intro {
-  margin: 10px 0 0;
-  color: #555;
+  margin: 6px 0 0;
+  color: #8a8a8a;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .empty {
-  margin: 48px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
   color: #8a8a8a;
   font-size: 14px;
-  text-align: center;
 }
 
 .empty-art {
   display: block;
-  width: 160px;
-  height: auto;
-  margin: 0 auto 16px;
+  margin-bottom: 12px;
 }
-
-@media (max-width: 1100px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 </style>
+

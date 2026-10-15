@@ -336,6 +336,55 @@ public class UserService {
     return ids == null ? List.of() : ids;
   }
 
+  public long countProfiles() {
+    Long n = profileMapper.selectCount(Wrappers.lambdaQuery());
+    return n == null ? 0L : n;
+  }
+
+  /** 运营用户列表。q 可空，空则全表倒序。 */
+  public UserSummaryPage opsPage(String q, String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    var query = Wrappers.<UserProfile>lambdaQuery();
+    if (StringUtils.hasText(q)) {
+      String text = q.trim();
+      query.and(w -> w.like(UserProfile::getPageId, text).or().like(UserProfile::getNickname, text));
+    }
+    if (StringUtils.hasText(cursor)) {
+      String[] parts = cursor.split("_", 2);
+      if (parts.length != 2) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+      try {
+        LocalDateTime at = LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(parts[0])), ZoneId.systemDefault());
+        long id = Long.parseLong(parts[1]);
+        query.and(w -> w.lt(UserProfile::getCreatedAt, at)
+            .or(inner -> inner.eq(UserProfile::getCreatedAt, at).lt(UserProfile::getUserId, id)));
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+    }
+    query.orderByDesc(UserProfile::getCreatedAt).orderByDesc(UserProfile::getUserId).last("LIMIT " + (size + 1));
+    List<UserProfile> rows = profileMapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<UserSummary> items = new ArrayList<>();
+    for (UserProfile row : rows) {
+      items.add(toSummary(row));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty()) {
+      UserProfile last = rows.getLast();
+      if (last.getCreatedAt() != null && last.getUserId() != null) {
+        next = last.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() + "_" + last.getUserId();
+      }
+    }
+    return new UserSummaryPage(items, next, hasMore);
+  }
+
+  public record UserSummaryPage(List<UserSummary> items, String nextCursor, boolean hasMore) {}
+
   public UserCursorPage following(String pageId, Long viewerId, String cursor, Integer limit) {
     UserProfile owner = requireProfileByPageId(pageId);
     return pageRelations(owner.getUserId(), viewerId, cursor, limit, true);

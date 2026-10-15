@@ -11,3 +11,4 @@ order: 3
 - [002_p1_fix_comments.sql](/engineering/tech/sql/onepage-content-service/002_p1_fix_comments)
 - [003_category.sql](/engineering/tech/sql/onepage-content-service/003_category)
 - [004_post_settings.sql](/engineering/tech/sql/onepage-content-service/004_post_settings)
+- [005_ops_catalog.sql](/engineering/tech/sql/onepage-content-service/005_ops_catalog)

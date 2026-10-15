@@ -97,7 +97,9 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
     if (!HttpMethod.GET.equals(method)) {
       return false;
     }
-    if (path.startsWith("/api/v1/feeds/")) {
+    if (path.startsWith("/api/v1/feeds/")
+        || path.equals("/api/v1/catalog")
+        || path.startsWith("/api/v1/catalog/")) {
       return true;
     }
     if ("/api/v1/posts/mine".equals(path) || "/api/v1/users/me".equals(path) || path.startsWith("/api/v1/users/me/")) {
