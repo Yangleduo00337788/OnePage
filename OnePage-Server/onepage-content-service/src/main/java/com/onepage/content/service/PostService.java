@@ -377,6 +377,64 @@ public class PostService {
     writeOutbox("post", String.valueOf(postId), "post.restored", Map.of("postId", String.valueOf(postId)));
   }
 
+  /** 运营笔记列表：含已下架。taken=live 仅在线，down 仅下架。 */
+  public FeedDtos.OpsPostPage opsPage(String q, String taken, String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery();
+    if ("down".equals(taken)) {
+      query.isNotNull(Post::getDeletedAt);
+    } else if ("live".equals(taken)) {
+      query.isNull(Post::getDeletedAt);
+    }
+    if (StringUtils.hasText(q)) {
+      String text = q.trim();
+      query.and(w -> {
+        w.like(Post::getTitle, text);
+        try {
+          w.or().eq(Post::getId, Long.parseLong(text));
+        } catch (NumberFormatException ignored) {
+          // 只按标题
+        }
+      });
+    }
+    applyCursor(query, cursor);
+    query.orderByDesc(Post::getPublishedAt).orderByDesc(Post::getId).last("LIMIT " + (size + 1));
+    List<Post> rows = postMapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<FeedDtos.OpsPostRow> items = new ArrayList<>();
+    for (Post post : rows) {
+      items.add(new FeedDtos.OpsPostRow(
+          String.valueOf(post.getId()),
+          authorLookup.brief(post.getAuthorId()),
+          post.getTitle() == null ? "" : post.getTitle(),
+          post.getPostType() == null ? "" : post.getPostType(),
+          post.getCategory() == null ? "" : post.getCategory(),
+          post.getDeletedAt() != null,
+          iso(post.getPublishedAt())));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty()) {
+      Post last = rows.getLast();
+      if (last.getPublishedAt() != null && last.getId() != null) {
+        next = epochMilli(last.getPublishedAt()) + "_" + last.getId();
+      }
+    }
+    return new FeedDtos.OpsPostPage(items, next, hasMore);
+  }
+
+  public FeedDtos.OpsCatalog opsCatalog() {
+    List<FeedDtos.OpsCampaign> campaigns = new ArrayList<>();
+    for (var entry : CampaignCatalog.TITLES.entrySet()) {
+      campaigns.add(new FeedDtos.OpsCampaign(entry.getKey(), entry.getValue()));
+    }
+    return new FeedDtos.OpsCatalog(
+        List.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐"),
+        campaigns);
+  }
+
   public FeedDtos.CursorPage listMine(long userId, String cursor, Integer limit) {
     return listByAuthor(userId, userId, cursor, limit);
   }

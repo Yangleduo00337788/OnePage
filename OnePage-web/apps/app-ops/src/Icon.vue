@@ -37,6 +37,25 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'circle', cx: 11, cy: 11, r: 8 },
     { tag: 'path', d: 'm21 21-4.3-4.3' },
   ],
+  'sticky-note': [
+    { tag: 'path', d: 'M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z' },
+    { tag: 'path', d: 'M15 3v5h5' },
+  ],
+  'message-square': [
+    { tag: 'path', d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
+  ],
+  calendar: [
+    { tag: 'rect', x: 3, y: 4, width: 18, height: 18, rx: 2 },
+    { tag: 'path', d: 'M16 2v4' },
+    { tag: 'path', d: 'M8 2v4' },
+    { tag: 'path', d: 'M3 10h18' },
+  ],
+  'layout-grid': [
+    { tag: 'rect', x: 3, y: 3, width: 7, height: 7, rx: 1 },
+    { tag: 'rect', x: 14, y: 3, width: 7, height: 7, rx: 1 },
+    { tag: 'rect', x: 14, y: 14, width: 7, height: 7, rx: 1 },
+    { tag: 'rect', x: 3, y: 14, width: 7, height: 7, rx: 1 },
+  ],
 }
 
 const nodes = (name: string) => icons[name] ?? icons.house

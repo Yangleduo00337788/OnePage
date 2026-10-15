@@ -105,4 +105,29 @@ public final class FeedDtos {
       List<MediaItem> media,
       boolean takenDown,
       String publishedAt) {}
+
+  public record OpsPostRow(
+      String postId,
+      UserBrief author,
+      String title,
+      String postType,
+      String category,
+      boolean takenDown,
+      String publishedAt) {}
+
+  public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsCommentRow(
+      String commentId,
+      String postId,
+      UserBrief author,
+      String content,
+      boolean hidden,
+      String createdAt) {}
+
+  public record OpsCommentPage(List<OpsCommentRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsCampaign(String eventId, String title) {}
+
+  public record OpsCatalog(List<String> categories, List<OpsCampaign> campaigns) {}
 }

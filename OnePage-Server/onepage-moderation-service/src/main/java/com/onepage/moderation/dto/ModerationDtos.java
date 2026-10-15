@@ -60,4 +60,29 @@ public final class ModerationDtos {
       boolean frozen) {}
 
   public record CursorPage(List<OpsReport> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsPostRow(
+      String postId,
+      UserSummary author,
+      String title,
+      String postType,
+      String category,
+      boolean takenDown,
+      String publishedAt) {}
+
+  public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsCommentRow(
+      String commentId,
+      String postId,
+      UserSummary author,
+      String content,
+      boolean hidden,
+      String createdAt) {}
+
+  public record OpsCommentPage(List<OpsCommentRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsCampaign(String eventId, String title) {}
+
+  public record OpsCatalog(List<String> categories, List<OpsCampaign> campaigns) {}
 }

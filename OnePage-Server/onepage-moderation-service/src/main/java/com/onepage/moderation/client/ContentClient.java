@@ -33,7 +33,61 @@ public interface ContentClient {
       @RequestHeader("X-Internal-Token") String token,
       @RequestParam("ids") List<Long> ids);
 
+  @GetMapping("/internal/posts/ops")
+  OpsPostPage opsPosts(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "taken", required = false) String taken,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
+
+  @GetMapping("/internal/catalog/ops")
+  OpsCatalog catalog(@RequestHeader("X-Internal-Token") String token);
+
+  @GetMapping("/internal/comments/ops")
+  OpsCommentPage opsComments(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "hidden", required = false) String hidden,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
+
+  @PostMapping("/internal/comments/{commentId}/hide")
+  void hideComment(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("commentId") long commentId);
+
+  @PostMapping("/internal/comments/{commentId}/restore")
+  void restoreComment(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("commentId") long commentId);
+
   record PostBrief(String postId, String title, String authorId, boolean takenDown) {}
+
+  record OpsPostRow(
+      String postId,
+      UserSummary author,
+      String title,
+      String postType,
+      String category,
+      boolean takenDown,
+      String publishedAt) {}
+
+  record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
+
+  record OpsCommentRow(
+      String commentId,
+      String postId,
+      UserSummary author,
+      String content,
+      boolean hidden,
+      String createdAt) {}
+
+  record OpsCommentPage(List<OpsCommentRow> items, String nextCursor, boolean hasMore) {}
+
+  record OpsCampaign(String eventId, String title) {}
+
+  record OpsCatalog(List<String> categories, List<OpsCampaign> campaigns) {}
 
   record MediaItem(String mediaId, String url, String mimeType, String role) {}
 

@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -238,6 +240,90 @@ public class CommentService {
       throw BusinessException.forbidden("只能删除自己的评论");
     }
     row.setStatus(1);
+    commentMapper.updateById(row);
+  }
+
+  /** 运营评论列表。hidden=yes 仅已隐藏，no 仅可见。 */
+  public FeedDtos.OpsCommentPage opsPage(String q, String hidden, String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    LambdaQueryWrapper<Comment> query = Wrappers.<Comment>lambdaQuery();
+    if ("yes".equals(hidden)) {
+      query.ne(Comment::getStatus, 0);
+    } else if ("no".equals(hidden)) {
+      query.eq(Comment::getStatus, 0);
+    }
+    if (StringUtils.hasText(q)) {
+      String text = q.trim();
+      query.and(w -> {
+        w.like(Comment::getContent, text);
+        try {
+          long id = Long.parseLong(text);
+          w.or().eq(Comment::getId, id).or().eq(Comment::getPostId, id);
+        } catch (NumberFormatException ignored) {
+          // 只按正文
+        }
+      });
+    }
+    if (StringUtils.hasText(cursor)) {
+      String[] parts = cursor.split("_", 2);
+      if (parts.length != 2) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+      try {
+        LocalDateTime at = LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(parts[0])), ZoneId.systemDefault());
+        long id = Long.parseLong(parts[1]);
+        query.and(w -> w.lt(Comment::getCreatedAt, at)
+            .or(inner -> inner.eq(Comment::getCreatedAt, at).lt(Comment::getId, id)));
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+    }
+    query.orderByDesc(Comment::getCreatedAt).orderByDesc(Comment::getId).last("LIMIT " + (size + 1));
+    List<Comment> rows = commentMapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<FeedDtos.OpsCommentRow> items = new ArrayList<>();
+    for (Comment row : rows) {
+      items.add(new FeedDtos.OpsCommentRow(
+          String.valueOf(row.getId()),
+          row.getPostId() == null ? "" : String.valueOf(row.getPostId()),
+          authorLookup.brief(row.getUserId()),
+          row.getContent() == null ? "" : row.getContent(),
+          row.getStatus() == null || row.getStatus() != 0,
+          PostService.iso(row.getCreatedAt())));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty()) {
+      Comment last = rows.getLast();
+      if (last.getCreatedAt() != null && last.getId() != null) {
+        next = PostService.epochMilli(last.getCreatedAt()) + "_" + last.getId();
+      }
+    }
+    return new FeedDtos.OpsCommentPage(items, next, hasMore);
+  }
+
+  @Transactional
+  public void opsHide(long commentId) {
+    Comment row = commentMapper.selectById(commentId);
+    if (row == null) {
+      throw BusinessException.notFound("评论不存在");
+    }
+    if (row.getStatus() != null && row.getStatus() != 0) {
+      return;
+    }
+    row.setStatus(1);
+    commentMapper.updateById(row);
+  }
+
+  @Transactional
+  public void opsRestore(long commentId) {
+    Comment row = commentMapper.selectById(commentId);
+    if (row == null) {
+      throw BusinessException.notFound("评论不存在");
+    }
+    row.setStatus(0);
     commentMapper.updateById(row);
   }
 

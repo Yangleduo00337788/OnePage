@@ -185,6 +185,30 @@ export type OpsUser = {
   frozen: boolean
 }
 
+export type OpsPostRow = {
+  postId: string
+  author?: UserBrief
+  title: string
+  postType: string
+  category: string
+  takenDown: boolean
+  publishedAt: string
+}
+
+export type OpsCommentRow = {
+  commentId: string
+  postId: string
+  author?: UserBrief
+  content: string
+  hidden: boolean
+  createdAt: string
+}
+
+export type OpsCatalog = {
+  categories: string[]
+  campaigns: { eventId: string; title: string }[]
+}
+
 export type UserProfile = UserSummary & {
   coverUrl: string
   bio: string
@@ -492,6 +516,33 @@ export const api = {
     ),
   opsPost: (postId: string) =>
     request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}`),
+  opsPosts: (opts?: { q?: string; taken?: 'live' | 'down'; cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.q) q.set('q', opts.q)
+    if (opts?.taken) q.set('taken', opts.taken)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsPostRow>>(`/api/v1/ops/posts${suffix}`)
+  },
+  opsTakedownPost: (postId: string) =>
+    request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}/takedown`, { method: 'POST' }),
+  opsRestorePost: (postId: string) =>
+    request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}/restore`, { method: 'POST' }),
+  opsComments: (opts?: { q?: string; hidden?: 'yes' | 'no'; cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.q) q.set('q', opts.q)
+    if (opts?.hidden) q.set('hidden', opts.hidden)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsCommentRow>>(`/api/v1/ops/comments${suffix}`)
+  },
+  opsHideComment: (commentId: string) =>
+    request<void>(`/api/v1/ops/comments/${encodeURIComponent(commentId)}/hide`, { method: 'POST' }),
+  opsRestoreComment: (commentId: string) =>
+    request<void>(`/api/v1/ops/comments/${encodeURIComponent(commentId)}/restore`, { method: 'POST' }),
+  opsCatalog: () => request<OpsCatalog>('/api/v1/ops/catalog'),
   opsUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}`),
   opsUsers: (q: string) =>

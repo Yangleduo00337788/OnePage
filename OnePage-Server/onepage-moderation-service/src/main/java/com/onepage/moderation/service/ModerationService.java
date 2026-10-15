@@ -199,6 +199,85 @@ public class ModerationService {
         raw.publishedAt() == null ? "" : raw.publishedAt());
   }
 
+  public ModerationDtos.OpsPostPage opsPosts(String q, String taken, String cursor, Integer limit) {
+    ContentClient.OpsPostPage page = contentClient.opsPosts(internalToken, q, taken, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsPostPage(List.of(), null, false);
+    }
+    List<ModerationDtos.OpsPostRow> items = new ArrayList<>();
+    for (ContentClient.OpsPostRow row : page.items()) {
+      if (row == null) {
+        continue;
+      }
+      items.add(new ModerationDtos.OpsPostRow(
+          row.postId(),
+          row.author(),
+          row.title() == null ? "" : row.title(),
+          row.postType() == null ? "" : row.postType(),
+          row.category() == null ? "" : row.category(),
+          row.takenDown(),
+          row.publishedAt() == null ? "" : row.publishedAt()));
+    }
+    return new ModerationDtos.OpsPostPage(items, page.nextCursor(), page.hasMore());
+  }
+
+  public ModerationDtos.OpsPostView takedownPost(long postId) {
+    contentClient.takedown(internalToken, postId);
+    return opsPost(postId);
+  }
+
+  public ModerationDtos.OpsPostView restorePost(long postId) {
+    contentClient.restore(internalToken, postId);
+    return opsPost(postId);
+  }
+
+  public ModerationDtos.OpsCommentPage opsComments(String q, String hidden, String cursor, Integer limit) {
+    ContentClient.OpsCommentPage page = contentClient.opsComments(internalToken, q, hidden, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsCommentPage(List.of(), null, false);
+    }
+    List<ModerationDtos.OpsCommentRow> items = new ArrayList<>();
+    for (ContentClient.OpsCommentRow row : page.items()) {
+      if (row == null) {
+        continue;
+      }
+      items.add(new ModerationDtos.OpsCommentRow(
+          row.commentId(),
+          row.postId() == null ? "" : row.postId(),
+          row.author(),
+          row.content() == null ? "" : row.content(),
+          row.hidden(),
+          row.createdAt() == null ? "" : row.createdAt()));
+    }
+    return new ModerationDtos.OpsCommentPage(items, page.nextCursor(), page.hasMore());
+  }
+
+  public void hideComment(long commentId) {
+    contentClient.hideComment(internalToken, commentId);
+  }
+
+  public void restoreComment(long commentId) {
+    contentClient.restoreComment(internalToken, commentId);
+  }
+
+  public ModerationDtos.OpsCatalog catalog() {
+    ContentClient.OpsCatalog raw = contentClient.catalog(internalToken);
+    if (raw == null) {
+      return new ModerationDtos.OpsCatalog(List.of(), List.of());
+    }
+    List<ModerationDtos.OpsCampaign> campaigns = new ArrayList<>();
+    if (raw.campaigns() != null) {
+      for (ContentClient.OpsCampaign row : raw.campaigns()) {
+        if (row == null) {
+          continue;
+        }
+        campaigns.add(new ModerationDtos.OpsCampaign(row.eventId(), row.title()));
+      }
+    }
+    List<String> categories = raw.categories() == null ? List.of() : raw.categories();
+    return new ModerationDtos.OpsCatalog(categories, campaigns);
+  }
+
   public ModerationDtos.OpsUser getUser(long targetId) {
     List<UserSummary> briefs = userClient.briefs(internalToken, List.of(targetId));
     UserSummary brief = briefs == null || briefs.isEmpty() ? null : briefs.get(0);

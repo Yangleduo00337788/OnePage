@@ -96,6 +96,23 @@ public class InternalPostController {
     return postService.opsBriefs(ids);
   }
 
+  @GetMapping("/posts/ops")
+  public FeedDtos.OpsPostPage opsPosts(
+      HttpServletRequest request,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "taken", required = false) String taken,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.opsPage(q, taken, cursor, limit);
+  }
+
+  @GetMapping("/catalog/ops")
+  public FeedDtos.OpsCatalog opsCatalog(HttpServletRequest request) {
+    assertInternal(request);
+    return postService.opsCatalog();
+  }
+
   @GetMapping("/posts/{postId}/ops")
   public FeedDtos.OpsPostView opsDetail(HttpServletRequest request, @PathVariable("postId") long postId) {
     assertInternal(request);

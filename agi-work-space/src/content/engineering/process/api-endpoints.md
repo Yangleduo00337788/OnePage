@@ -487,9 +487,35 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 **Response**：`{ reportId, status }`。takedown / restore 由 content 内部下架或恢复；ban 由 **auth** `status=1` 冻结（帖举报同时下架该帖）；unban 解冻作者或被举报用户。不能冻结员工或自己。已处理工单仍可 restore / ban / unban / takedown，dismiss 不行。
 
+### GET `/api/v1/ops/posts`
+
+**Query**：`q` 标题或笔记 ID，`taken` live/down，`cursor`，`limit`  
+**Response**：`CursorPage<OpsPostRow>`（含 `takenDown`）。含已下架。
+
 ### GET `/api/v1/ops/posts/{postId}`
 
 员工预览。已下架也返回正文和媒体。**Response**：`OpsPostView`（含 `takenDown`、`media[]`）。
+
+### POST `/api/v1/ops/posts/{postId}/takedown`
+
+### POST `/api/v1/ops/posts/{postId}/restore`
+
+**Response**：`OpsPostView`。不经过举报工单，直接处置笔记。
+
+### GET `/api/v1/ops/comments`
+
+**Query**：`q` 正文或评论/笔记 ID，`hidden` yes/no，`cursor`，`limit`  
+**Response**：`CursorPage<OpsCommentRow>`。
+
+### POST `/api/v1/ops/comments/{commentId}/hide`
+
+### POST `/api/v1/ops/comments/{commentId}/restore`
+
+**Response 204**。隐藏后社区评论列表不再出现（`comment.status=1`）。
+
+### GET `/api/v1/ops/catalog`
+
+**Response**：`{ categories: string[], campaigns: { eventId, title }[] }`。与发帖校验同一份，只读。
 
 ### GET `/api/v1/ops/users/{userId}`
 

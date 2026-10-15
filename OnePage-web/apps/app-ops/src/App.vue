@@ -8,8 +8,18 @@ import OpsLogin from './OpsLogin.vue'
 import OpsHome from './OpsHome.vue'
 import OpsReports from './OpsReports.vue'
 import OpsUsers from './OpsUsers.vue'
+import OpsPosts from './OpsPosts.vue'
+import OpsComments from './OpsComments.vue'
+import OpsCatalog from './OpsCatalog.vue'
 
-export type PageId = 'home' | 'reports' | 'users'
+export type PageId = 'home' | 'reports' | 'users' | 'posts' | 'comments' | 'catalog'
+
+const navGov: { id: PageId; label: string; icon: string }[] = [
+  { id: 'reports', label: '举报工单', icon: 'flag' },
+  { id: 'users', label: '用户', icon: 'users' },
+  { id: 'posts', label: '笔记', icon: 'sticky-note' },
+  { id: 'comments', label: '评论', icon: 'message-square' },
+]
 
 const page = ref<PageId>('home')
 const collapsed = ref(localStorage.getItem('onepage.ops.navCollapsed') === '1')
@@ -77,31 +87,35 @@ function onLoggedIn(profile: UserProfile) {
           type="button"
           class="nav-item"
           :class="{ 'is-on': page === 'home' }"
-          :title="collapsed ? '首页' : undefined"
+          :title="collapsed ? '工作台' : undefined"
           @click="openPage('home')"
         >
           <Icon name="house" :size="20" />
-          <span v-if="!collapsed">首页</span>
+          <span v-if="!collapsed">工作台</span>
         </button>
+        <p v-if="!collapsed" class="nav-label">治理</p>
+        <button
+          v-for="item in navGov"
+          :key="item.id"
+          type="button"
+          class="nav-item"
+          :class="{ 'is-on': page === item.id }"
+          :title="collapsed ? item.label : undefined"
+          @click="openPage(item.id)"
+        >
+          <Icon :name="item.icon" :size="20" />
+          <span v-if="!collapsed">{{ item.label }}</span>
+        </button>
+        <p v-if="!collapsed" class="nav-label">目录</p>
         <button
           type="button"
           class="nav-item"
-          :class="{ 'is-on': page === 'reports' }"
-          :title="collapsed ? '举报工单' : undefined"
-          @click="openPage('reports')"
+          :class="{ 'is-on': page === 'catalog' }"
+          :title="collapsed ? '分类与活动' : undefined"
+          @click="openPage('catalog')"
         >
-          <Icon name="flag" :size="20" />
-          <span v-if="!collapsed">举报工单</span>
-        </button>
-        <button
-          type="button"
-          class="nav-item"
-          :class="{ 'is-on': page === 'users' }"
-          :title="collapsed ? '用户处置' : undefined"
-          @click="openPage('users')"
-        >
-          <Icon name="users" :size="20" />
-          <span v-if="!collapsed">用户处置</span>
+          <Icon name="layout-grid" :size="20" />
+          <span v-if="!collapsed">分类与活动</span>
         </button>
       </nav>
 
@@ -134,7 +148,10 @@ function onLoggedIn(profile: UserProfile) {
       </header>
       <OpsHome v-if="page === 'home'" @open="openPage($event as PageId)" />
       <OpsReports v-else-if="page === 'reports'" />
-      <OpsUsers v-else />
+      <OpsUsers v-else-if="page === 'users'" />
+      <OpsPosts v-else-if="page === 'posts'" />
+      <OpsComments v-else-if="page === 'comments'" />
+      <OpsCatalog v-else />
     </div>
   </div>
 </template>
@@ -193,7 +210,16 @@ button {
 .nav-list {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: 2px;
+  overflow: auto;
+}
+
+.nav-label {
+  margin: 12px 16px 4px;
+  color: #8a8a8a;
+  font-size: 12px;
 }
 
 .nav-item {

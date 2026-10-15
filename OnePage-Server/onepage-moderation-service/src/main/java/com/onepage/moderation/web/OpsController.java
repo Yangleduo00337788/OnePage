@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -70,6 +71,18 @@ public class OpsController {
     return moderationService.resolve(userId, reportId, body);
   }
 
+  @GetMapping("/posts")
+  public ModerationDtos.OpsPostPage posts(
+      HttpServletRequest request,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "taken", required = false) String taken,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsPosts(q, taken, cursor, limit);
+  }
+
   @GetMapping("/posts/{postId}")
   public ModerationDtos.OpsPostView post(
       HttpServletRequest request,
@@ -77,6 +90,61 @@ public class OpsController {
     long userId = CurrentUser.requireUserId(request);
     staffGuard.requireStaff(userId);
     return moderationService.opsPost(postId);
+  }
+
+  @PostMapping("/posts/{postId}/takedown")
+  public ModerationDtos.OpsPostView takedownPost(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.takedownPost(postId);
+  }
+
+  @PostMapping("/posts/{postId}/restore")
+  public ModerationDtos.OpsPostView restorePost(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.restorePost(postId);
+  }
+
+  @GetMapping("/comments")
+  public ModerationDtos.OpsCommentPage comments(
+      HttpServletRequest request,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "hidden", required = false) String hidden,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsComments(q, hidden, cursor, limit);
+  }
+
+  @PostMapping("/comments/{commentId}/hide")
+  public ResponseEntity<Void> hideComment(
+      HttpServletRequest request, @PathVariable("commentId") long commentId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.hideComment(commentId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/comments/{commentId}/restore")
+  public ResponseEntity<Void> restoreComment(
+      HttpServletRequest request, @PathVariable("commentId") long commentId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.restoreComment(commentId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/catalog")
+  public ModerationDtos.OpsCatalog catalog(HttpServletRequest request) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.catalog();
   }
 
   @GetMapping("/users/{userId}")

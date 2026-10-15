@@ -1,4 +1,4 @@
-<!-- 运营首页：工单概览。治理服务未上线时计数为 0。 -->
+<!-- 运营工作台：入口对齐已落地能力。 -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { api, ApiError } from '@onepage/api-client'
@@ -12,7 +12,7 @@ onMounted(async () => {
   try {
     await api.opsReports('pending', undefined, 1)
     serviceReady.value = true
-    note.value = '治理服务已接通。社区举报会出现在工单里。'
+    note.value = '治理服务已接通。下面只列当前真实能力，直播 / 搜索 / AI 上线后再进菜单。'
   } catch (e) {
     serviceReady.value = false
     if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
@@ -24,6 +24,14 @@ onMounted(async () => {
     }
   }
 })
+
+const cards: { id: string; title: string; desc: string }[] = [
+  { id: 'reports', title: '举报工单', desc: '预览、忽略、下架、封禁' },
+  { id: 'users', title: '用户', desc: '搜人、冻结、解冻' },
+  { id: 'posts', title: '笔记', desc: '全站列表、下架、恢复' },
+  { id: 'comments', title: '评论', desc: '隐藏、恢复' },
+  { id: 'catalog', title: '分类与活动', desc: '发帖目录只读' },
+]
 </script>
 
 <template>
@@ -32,13 +40,9 @@ onMounted(async () => {
       <h1>工作台</h1>
       <p class="lead">{{ note }}</p>
       <div class="stats">
-        <button type="button" class="stat" @click="emit('open', 'reports')">
-          <span class="n">工单</span>
-          <span class="l">预览、下架、封禁</span>
-        </button>
-        <button type="button" class="stat" @click="emit('open', 'users')">
-          <span class="n">用户</span>
-          <span class="l">冻结 / 解冻</span>
+        <button v-for="item in cards" :key="item.id" type="button" class="stat" @click="emit('open', item.id)">
+          <span class="n">{{ item.title }}</span>
+          <span class="l">{{ item.desc }}</span>
         </button>
         <div class="stat is-plain">
           <span class="n">{{ serviceReady ? '通' : '未' }}</span>
@@ -77,6 +81,7 @@ h1 {
 
 .stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 24px;
 }
@@ -86,7 +91,7 @@ h1 {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  min-width: 120px;
+  min-width: 140px;
   padding: 16px 18px;
   border-radius: 16px;
   background: rgb(248, 248, 248);
@@ -98,7 +103,7 @@ h1 {
 }
 
 .n {
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 650;
   color: #1f1f1f;
 }
