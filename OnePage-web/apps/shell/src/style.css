@@ -79,6 +79,25 @@ button {
   background: #e61e3a;
 }
 
+.report-cta {
+  height: 40px;
+  flex: 1;
+  border-radius: 20px;
+  background: #ff2442;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.report-ghost {
+  height: 40px;
+  flex: 1;
+  border-radius: 20px;
+  background: #f7f7f7;
+  color: #1f1f1f;
+  font-size: 14px;
+}
+
 .icon-btn {
   display: flex;
   height: 32px;
