@@ -189,7 +189,7 @@ public class CatalogService {
     }
     row.setTitle(spec.title().trim());
     row.setIntro(spec.intro() == null ? "" : spec.intro().trim());
-    row.setCoverUrl(spec.coverUrl() == null ? "" : spec.coverUrl().trim());
+    row.setCoverUrl(normalizeCoverUrl(spec.coverUrl()));
     row.setStatus(status);
     row.setSortOrder(spec.sortOrder() == null ? 0 : spec.sortOrder());
     row.setEnabled(bool(spec.enabled(), true));
@@ -410,5 +410,24 @@ public class CatalogService {
 
   private static int n(Integer value) {
     return value == null ? 0 : value;
+  }
+
+  /** 只存公开对象地址。预签名 query 会超过 cover_url 512 并让 MySQL 500。 */
+  private static String normalizeCoverUrl(String raw) {
+    if (!StringUtils.hasText(raw)) {
+      return "";
+    }
+    String text = raw.trim();
+    if (text.startsWith("blob:")) {
+      throw BusinessException.validation("封面还没上传完");
+    }
+    int query = text.indexOf('?');
+    if (query >= 0) {
+      text = text.substring(0, query);
+    }
+    if (text.length() > 512) {
+      throw BusinessException.validation("封面地址过长");
+    }
+    return text;
   }
 }

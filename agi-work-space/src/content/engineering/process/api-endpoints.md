@@ -535,7 +535,7 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ### POST `/api/v1/ops/campaigns` · PATCH `/api/v1/ops/campaigns/{eventId}` · POST `.../enabled?value=`
 
-Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
+Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。`coverUrl` 只存公开对象地址，不要带预签名 query。治理调 content 内网改活动用 **POST** `/internal/campaigns/{eventId}`（Feign 默认客户端不能 PATCH）。
 
 ### POST `/api/v1/ops/topics` · PATCH `/api/v1/ops/topics/{id}` · POST `.../enabled?value=`
 

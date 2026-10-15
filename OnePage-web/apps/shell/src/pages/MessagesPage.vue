@@ -174,12 +174,7 @@ async function onImageFile(event: Event) {
   threadFailed.value = ''
   try {
     const ticket = await api.presign(file.type, file.size, 'im_image')
-    const put = await fetch(ticket.uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': file.type },
-    })
-    if (!put.ok) throw new Error('直传对象存储失败')
+    await api.putObject(ticket.uploadUrl, file, file.type)
     await api.completeUpload(ticket.mediaId)
     const row = await api.sendImageMessage(activeId.value, ticket.mediaId)
     ingest(row, activeId.value)

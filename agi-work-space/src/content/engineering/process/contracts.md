@@ -30,7 +30,7 @@ order: 3
 ## 上传文件（三步）
 
 1. `POST /api/v1/uploads/presign` — 拿到临时上传地址  
-2. 浏览器 **直传 MinIO**（`PUT`，`Content-Type` 必须与 presign 时的 `mimeType` 一致）。本机 MinIO 请设 `MINIO_API_CORS_ALLOW_ORIGIN`，包含 5173/5174/5175/5176（及 127.0.0.1 对应端口）。这版 PutBucketCors 常不可用。创作者站 :5175 直传缺 5175 会被浏览器拦 CORS。  
+2. 浏览器 **直传 MinIO**（`PUT`，`Content-Type` 必须与 presign 时的 `mimeType` 一致）。本机预签名指向 `:9000`，运营 :5176 直传会被 CORS 拦；开发时 `api.putObject` 改走当前源，Vite 把 `/onepage-media` 转到 MinIO（Host 仍是 localhost:9000）。MinIO 仍建议设 `MINIO_API_CORS_ALLOW_ORIGIN`（含 5173–5176）。活动封面只存去掉 query 的公开 URL，不要把预签名整段写入 `cover_url`（512，超长会 500）。  
 3. `POST /api/v1/uploads/complete` — 确认可用，拿到 `mediaId` 再去发帖、绑头像/封面，或发私信图片（`purpose=im_image`）
 
 ## 请求分到哪个服务（Gateway 路由）

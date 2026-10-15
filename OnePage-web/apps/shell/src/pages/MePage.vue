@@ -180,14 +180,7 @@ async function onCropped(file: File) {
   try {
     const mimeType = file.type || 'image/jpeg'
     const ticket = await api.presign(mimeType, file.size, purpose)
-    const put = await fetch(ticket.uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': mimeType },
-    })
-    if (!put.ok) {
-      throw new Error('直传对象存储失败')
-    }
+    await api.putObject(ticket.uploadUrl, file, mimeType)
     await api.completeUpload(ticket.mediaId)
     session.me = await api.patchMe(
       purpose === 'avatar' ? { avatarMediaId: ticket.mediaId } : { coverMediaId: ticket.mediaId },

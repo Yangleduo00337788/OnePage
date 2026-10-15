@@ -7,3 +7,4 @@
 | local | 002_p1_fix_comments.sql | 修正 002 用错误码页写入的中文 COMMENT |
 | local | 003_category.sql | `post.category`：首页分类 |
 | local | 004_post_settings.sql | 原创 / 内容类型 / 活动快照；visibility 仅自己 |
+| local | 005_ops_catalog.sql | 分类 / 活动 / 话题；活动封面只存公开 URL |

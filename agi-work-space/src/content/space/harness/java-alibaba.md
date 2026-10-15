@@ -69,7 +69,7 @@ ONEPAGE：Cookie 名 `ONEPAGE_SESSION`、内部令牌 `onepage.internal-token` �
 | 推荐 | 接口保持小而稳；不要为「以后可能」加空方法 |
 | 允许 | MyBatis-Plus 实体保留 setter，与现有代码一致 |
 
-ONEPAGE：Controller 只做参数与鉴权头读取，业务在 `service`。Feign 接口放 `client`。
+ONEPAGE：Controller 只做参数与鉴权头读取，业务在 `service`。Feign 接口放 `client`。Feign 默认 JDK 客户端不能发 PATCH，内网更新用 POST（对外 `/api/v1/ops` 仍可 PATCH）。
 
 ### 1.5 日期时间
 

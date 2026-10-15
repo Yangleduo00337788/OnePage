@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,7 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 运营目录 CRUD。 */
+/**
+ * 运营目录 CRUD。改分类/活动/话题用 POST 不用 PATCH：
+ * Feign 默认 JDK HttpURLConnection 不能发 PATCH，会 ProtocolException。
+ */
 @RestController
 @RequestMapping("/internal")
 public class InternalCatalogController {
@@ -49,7 +51,7 @@ public class InternalCatalogController {
     return catalogService.saveCategory(null, spec);
   }
 
-  @PatchMapping("/categories/{id}")
+  @PostMapping("/categories/{id}")
   public FeedDtos.OpsCategory patchCategory(
       HttpServletRequest request,
       @PathVariable("id") String id,
@@ -75,7 +77,7 @@ public class InternalCatalogController {
     return catalogService.saveCampaign(spec, true);
   }
 
-  @PatchMapping("/campaigns/{eventId}")
+  @PostMapping("/campaigns/{eventId}")
   public FeedDtos.OpsCampaign patchCampaign(
       HttpServletRequest request,
       @PathVariable("eventId") String eventId,
@@ -108,7 +110,7 @@ public class InternalCatalogController {
     return catalogService.saveTopic(null, spec);
   }
 
-  @PatchMapping("/topics/{id}")
+  @PostMapping("/topics/{id}")
   public FeedDtos.OpsTopic patchTopic(
       HttpServletRequest request,
       @PathVariable("id") String id,

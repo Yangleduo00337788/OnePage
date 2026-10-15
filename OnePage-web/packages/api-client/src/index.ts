@@ -281,6 +281,21 @@ export class ApiError extends Error {
   }
 }
 
+/** 本机 :9000 预签名改到当前站点，避免运营/创作者站 CORS。 */
+export function localMinioPutUrl(uploadUrl: string): string {
+  try {
+    const u = new URL(uploadUrl)
+    const localMinio =
+      (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && u.port === '9000'
+    if (localMinio) {
+      return `${window.location.origin}${u.pathname}${u.search}`
+    }
+  } catch {
+    /* 非法 URL 仍走原地址 */
+  }
+  return uploadUrl
+}
+
 /**
  * 相对路径请求。开发时由 Vite 代理到网关。
  * 204 无 body；其余当 JSON。HTTP 非 2xx 抛 ApiError，不要当成功。
@@ -381,6 +396,20 @@ export const api = {
       '/api/v1/uploads/presign',
       { method: 'POST', body: JSON.stringify({ mimeType, sizeBytes, purpose }) },
     ),
+  /**
+   * 预签名 PUT。本机 MinIO 在 :9000，页面在 :517x，直传会被 CORS 拦。
+   * 开发时改成当前源路径，由 Vite 把 `/onepage-media` 转到 9000，Host 仍是 localhost:9000，签名对得上。
+   */
+  putObject: async (uploadUrl: string, body: Blob, mimeType: string) => {
+    const res = await fetch(localMinioPutUrl(uploadUrl), {
+      method: 'PUT',
+      body,
+      headers: { 'Content-Type': mimeType },
+    })
+    if (!res.ok) {
+      throw new Error('直传失败')
+    }
+  },
   completeUpload: (mediaId: string) =>
     request<{ mediaId: string; status: string; url?: string }>('/api/v1/uploads/complete', {
       method: 'POST',

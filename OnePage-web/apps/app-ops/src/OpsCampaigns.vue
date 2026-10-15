@@ -112,7 +112,7 @@ async function save() {
         eventId: id,
         title: name,
         intro: intro.value.trim(),
-        coverUrl: coverUrl.value.trim(),
+        coverUrl: persistCoverUrl(coverUrl.value),
         status: status.value,
         sortOrder: sortOrder.value,
         enabled: true,
@@ -121,7 +121,7 @@ async function save() {
       await api.opsPatchCampaign(id, {
         title: name,
         intro: intro.value.trim(),
-        coverUrl: coverUrl.value.trim(),
+        coverUrl: persistCoverUrl(coverUrl.value),
         status: status.value,
         sortOrder: sortOrder.value,
       })
@@ -160,6 +160,19 @@ function stopCrop() {
   cropName.value = ''
 }
 
+function persistCoverUrl(raw: string) {
+  const text = raw.trim()
+  if (!text || text.startsWith('blob:')) return ''
+  try {
+    const u = new URL(text)
+    u.search = ''
+    u.hash = ''
+    return u.toString()
+  } catch {
+    return text
+  }
+}
+
 function setCoverPreview(next: string) {
   if (coverPreview.value.startsWith('blob:')) URL.revokeObjectURL(coverPreview.value)
   coverPreview.value = next
@@ -182,14 +195,9 @@ async function onCropped(file: File) {
   try {
     const mimeType = file.type || 'image/jpeg'
     const ticket = await api.presign(mimeType, file.size, 'cover')
-    const put = await fetch(ticket.uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': mimeType },
-    })
-    if (!put.ok) throw new Error('直传失败')
+    await api.putObject(ticket.uploadUrl, file, mimeType)
     const done = await api.completeUpload(ticket.mediaId)
-    coverUrl.value = done.url?.trim() || ''
+    coverUrl.value = persistCoverUrl(done.url || '')
     if (!coverUrl.value) flash('已上传，但没有拿到封面地址，保存前无法写入活动')
     else flash('封面已上传')
   } catch (e) {

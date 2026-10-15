@@ -3,7 +3,6 @@ package com.onepage.moderation.client;
 import com.onepage.common.dto.UserSummary;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-/** 下架/恢复帖、工单标题、运营预览：改/读 content 库。 */
+/** 下架/恢复帖、工单标题、运营预览：改/读 content 库。目录更新走 POST，不要 PATCH。 */
 @FeignClient(name = "onepage-content-service")
 public interface ContentClient {
   @PostMapping("/internal/posts/{postId}/takedown")
@@ -52,7 +51,7 @@ public interface ContentClient {
   @PostMapping("/internal/categories")
   OpsCategory createCategory(@RequestHeader("X-Internal-Token") String token, @RequestBody CategorySpec spec);
 
-  @PatchMapping("/internal/categories/{id}")
+  @PostMapping("/internal/categories/{id}")
   OpsCategory patchCategory(
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("id") String id,
@@ -67,7 +66,7 @@ public interface ContentClient {
   @PostMapping("/internal/campaigns")
   OpsCampaign createCampaign(@RequestHeader("X-Internal-Token") String token, @RequestBody CampaignSpec spec);
 
-  @PatchMapping("/internal/campaigns/{eventId}")
+  @PostMapping("/internal/campaigns/{eventId}")
   OpsCampaign patchCampaign(
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("eventId") String eventId,
@@ -82,7 +81,7 @@ public interface ContentClient {
   @PostMapping("/internal/topics")
   OpsTopic createTopic(@RequestHeader("X-Internal-Token") String token, @RequestBody TopicSpec spec);
 
-  @PatchMapping("/internal/topics/{id}")
+  @PostMapping("/internal/topics/{id}")
   OpsTopic patchTopic(
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("id") String id,

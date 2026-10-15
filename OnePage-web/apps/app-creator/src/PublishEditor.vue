@@ -159,12 +159,7 @@ async function uploadOne(item: LocalFile): Promise<string> {
   if (!file) throw new Error('缺少文件')
   const mimeType = mimeOf(file)
   const ticket = await api.presign(mimeType, file.size, purposeOf(file))
-  const put = await fetch(ticket.uploadUrl, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': mimeType },
-  })
-  if (!put.ok) throw new Error('直传对象存储失败')
+  await api.putObject(ticket.uploadUrl, file, mimeType)
   await api.completeUpload(ticket.mediaId)
   return ticket.mediaId
 }

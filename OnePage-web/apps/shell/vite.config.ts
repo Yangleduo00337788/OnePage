@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => {
       port: 5174,
       strictPort: true,
       proxy: {
+        '/onepage-media': {
+          target: 'http://localhost:9000',
+          changeOrigin: true,
+        },
         '/ws': {
           target: env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8080',
           ws: true,
