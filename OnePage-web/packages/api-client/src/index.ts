@@ -256,6 +256,19 @@ export type OpsImMessageRow = {
   createdAt: string
 }
 
+export type OpsMediaRow = {
+  mediaId: string
+  owner?: UserBrief
+  purpose: string
+  mimeType: string
+  sizeBytes: number
+  status: string
+  url: string
+  postId: string
+  hidden: boolean
+  createdAt: string
+}
+
 export type OpsCatalog = {
   categories: OpsCategory[]
   campaigns: OpsCampaign[]
@@ -712,6 +725,28 @@ export const api = {
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
   opsUnfreezeUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/unfreeze`, { method: 'POST' }),
+  opsMedia: (opts?: {
+    q?: string
+    purpose?: string
+    status?: 'pending' | 'ready' | 'fail'
+    hidden?: 'yes' | 'no'
+    cursor?: string
+    limit?: number
+  }) => {
+    const q = new URLSearchParams()
+    if (opts?.q) q.set('q', opts.q)
+    if (opts?.purpose) q.set('purpose', opts.purpose)
+    if (opts?.status) q.set('status', opts.status)
+    if (opts?.hidden) q.set('hidden', opts.hidden)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsMediaRow>>(`/api/v1/ops/media${suffix}`)
+  },
+  opsHideMedia: (mediaId: string) =>
+    request<void>(`/api/v1/ops/media/${encodeURIComponent(mediaId)}/hide`, { method: 'POST' }),
+  opsRestoreMedia: (mediaId: string) =>
+    request<void>(`/api/v1/ops/media/${encodeURIComponent(mediaId)}/restore`, { method: 'POST' }),
   opsConversations: (opts?: { q?: string; cursor?: string; limit?: number }) => {
     const q = new URLSearchParams()
     if (opts?.q) q.set('q', opts.q)

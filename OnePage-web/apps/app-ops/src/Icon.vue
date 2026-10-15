@@ -56,6 +56,11 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'path', d: 'M10 3 8 21' },
     { tag: 'path', d: 'M16 3l-2 18' },
   ],
+  image: [
+    { tag: 'rect', x: 3, y: 3, width: 18, height: 18, rx: 2 },
+    { tag: 'circle', cx: 9, cy: 9, r: 2 },
+    { tag: 'path', d: 'm21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' },
+  ],
   'layout-grid': [
     { tag: 'rect', x: 3, y: 3, width: 7, height: 7, rx: 1 },
     { tag: 'rect', x: 14, y: 3, width: 7, height: 7, rx: 1 },

@@ -152,4 +152,18 @@ public final class FeedDtos {
       String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
 
   public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
+
+  public record OpsMediaRow(
+      String mediaId,
+      UserBrief owner,
+      String purpose,
+      String mimeType,
+      long sizeBytes,
+      String status,
+      String url,
+      String postId,
+      boolean hidden,
+      String createdAt) {}
+
+  public record OpsMediaPage(List<OpsMediaRow> items, String nextCursor, boolean hasMore) {}
 }

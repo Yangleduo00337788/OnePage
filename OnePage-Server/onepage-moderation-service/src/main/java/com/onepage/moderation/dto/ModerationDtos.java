@@ -136,4 +136,18 @@ public final class ModerationDtos {
       String createdAt) {}
 
   public record OpsImMessagePage(List<OpsImMessageRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsMediaRow(
+      String mediaId,
+      UserSummary owner,
+      String purpose,
+      String mimeType,
+      long sizeBytes,
+      String status,
+      String url,
+      String postId,
+      boolean hidden,
+      String createdAt) {}
+
+  public record OpsMediaPage(List<OpsMediaRow> items, String nextCursor, boolean hasMore) {}
 }

@@ -6,6 +6,24 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-042 运营隐藏媒体写 media_asset.blocked_at，不删 MinIO
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳
+- **背景：** 媒体库第一刀只有列表预览。治理台需要能处置违规图，但不能物理删对象（帖子/私信仍引用 key）。
+- **决策：** `POST /ops/media/{id}/hide|restore`。隐藏写 `blocked_at`；社区笔记详情与封面跳过该媒体；内网 `GET /internal/media/{id}` 对已隐藏返回 status=2，头像/私信图不能再绑定。隐藏头像/封面时 Feign user 清掉资料上的 object key。已发出私信图仍在消息 JSON 里，改走私信巡查隐藏该条。冻结上传人走已有接口。不删 MinIO。
+- **替代：** 删 MinIO 对象（否决）；只读预览（否决，DEC-041 已补动作）。
+- **影响：** 已有库执行 `006_ops_media_block.sql`，重启 content / user / moderation。见 [API 明细](/engineering/process/api-endpoints)。
+
+## DEC-041 运营媒体库只读 media_asset，不删 MinIO
+
+- **日期：** 2026-10-15
+- **状态：** 已被 DEC-042 补充
+- **背景：** 治理台按优先级接媒体库。上传元数据已在 content `media_asset`，字节在 MinIO。运营需要按用途巡查头像/封面/笔记/私信图，不要另建 CMS 资源库。
+- **决策：** `GET /ops/media`（员工鉴权）Feign `GET /internal/media/ops`。按 id 倒序游标；`q` 只接受媒体 ID 或上传人 ID；`purpose` 取 object_key 前缀；`status` pending/ready/fail。已就绪才返回公开 URL。处置动作见 DEC-042。
+- **替代：** 运营直扫 MinIO（否决：无归属/用途）；物理删除（否决：会打断已发帖和私信）。
+- **影响：** 见 DEC-042。
+
 ## DEC-040 运营私信巡查：隐藏写 message.deleted_at
 
 - **日期：** 2026-10-15

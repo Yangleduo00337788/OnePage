@@ -395,6 +395,25 @@ public class UserService {
     return pageRelations(owner.getUserId(), viewerId, cursor, limit, false);
   }
 
+  /** 运营隐藏头像/封面后清掉资料上的 object key，列表不再拼出 URL。 */
+  @Transactional
+  public void clearObjectKey(String objectKey) {
+    if (!StringUtils.hasText(objectKey)) {
+      return;
+    }
+    String key = objectKey.trim();
+    profileMapper.update(
+        null,
+        Wrappers.<UserProfile>lambdaUpdate()
+            .eq(UserProfile::getAvatarObjectKey, key)
+            .set(UserProfile::getAvatarObjectKey, null));
+    profileMapper.update(
+        null,
+        Wrappers.<UserProfile>lambdaUpdate()
+            .eq(UserProfile::getCoverObjectKey, key)
+            .set(UserProfile::getCoverObjectKey, null));
+  }
+
   private String objectKeyOwnedBy(Long userId, String mediaId) {
     ContentClient.MediaInfo info = contentClient.getMedia(internalToken, Long.parseLong(mediaId));
     if (info == null || !userId.equals(info.ownerId()) || info.status() == null || info.status() != 1) {

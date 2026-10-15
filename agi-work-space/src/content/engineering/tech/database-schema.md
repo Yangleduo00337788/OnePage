@@ -114,12 +114,13 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | id | BIGINT PK | 对外 mediaId |
 | owner_id | BIGINT | |
 | bucket | VARCHAR(64) | |
-| object_key | VARCHAR(512) | |
+| object_key | VARCHAR(512) | 前缀即用途：`avatar/` `cover/` `post_image/` `post_video/` `im_image/` |
 | mime_type | VARCHAR(128) | |
 | size_bytes | BIGINT | |
 | duration_sec | INT 可空 | 视频 |
 | status | TINYINT | 0 上传中 1 就绪 2 失败 |
 | created_at | DATETIME(3) | |
+| blocked_at | DATETIME(3) 可空 | 运营隐藏；社区笔记跳过该媒体 |
 
 ### post
 

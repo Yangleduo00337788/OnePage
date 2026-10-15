@@ -93,6 +93,22 @@ public interface ContentClient {
       @PathVariable("id") long id,
       @RequestParam("value") boolean value);
 
+  @GetMapping("/internal/media/ops")
+  OpsMediaPage opsMedia(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "purpose", required = false) String purpose,
+      @RequestParam(value = "status", required = false) String status,
+      @RequestParam(value = "hidden", required = false) String hidden,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
+
+  @PostMapping("/internal/media/{mediaId}/hide")
+  void hideMedia(@RequestHeader("X-Internal-Token") String token, @PathVariable("mediaId") long mediaId);
+
+  @PostMapping("/internal/media/{mediaId}/restore")
+  void restoreMedia(@RequestHeader("X-Internal-Token") String token, @PathVariable("mediaId") long mediaId);
+
   @GetMapping("/internal/comments/ops")
   OpsCommentPage opsComments(
       @RequestHeader("X-Internal-Token") String token,
@@ -157,6 +173,20 @@ public interface ContentClient {
       String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
 
   record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
+
+  record OpsMediaRow(
+      String mediaId,
+      UserSummary owner,
+      String purpose,
+      String mimeType,
+      long sizeBytes,
+      String status,
+      String url,
+      String postId,
+      boolean hidden,
+      String createdAt) {}
+
+  record OpsMediaPage(List<OpsMediaRow> items, String nextCursor, boolean hasMore) {}
 
   record MediaItem(String mediaId, String url, String mimeType, String role) {}
 

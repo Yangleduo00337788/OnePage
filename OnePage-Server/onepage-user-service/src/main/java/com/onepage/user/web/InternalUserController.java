@@ -76,6 +76,13 @@ public class InternalUserController {
     return new Count(userService.countProfiles());
   }
 
+  @PostMapping("/users/clear-object-key")
+  public void clearObjectKey(
+      HttpServletRequest request, @RequestParam("objectKey") String objectKey) {
+    tokenFilter.assertInternal(request);
+    userService.clearObjectKey(objectKey);
+  }
+
   @GetMapping("/users/ops")
   public UserService.UserSummaryPage opsUsers(
       HttpServletRequest request,

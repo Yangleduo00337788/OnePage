@@ -14,6 +14,7 @@ import OpsCategories from './OpsCategories.vue'
 import OpsCampaigns from './OpsCampaigns.vue'
 import OpsTopics from './OpsTopics.vue'
 import OpsMessages from './OpsMessages.vue'
+import OpsMedia from './OpsMedia.vue'
 
 export type PageId =
   | 'home'
@@ -22,6 +23,7 @@ export type PageId =
   | 'im'
   | 'posts'
   | 'comments'
+  | 'media'
   | 'categories'
   | 'campaigns'
   | 'topics'
@@ -47,6 +49,7 @@ const groups: NavGroup[] = [
     children: [
       { id: 'posts', label: '笔记', icon: 'sticky-note' },
       { id: 'comments', label: '评论', icon: 'message-square' },
+      { id: 'media', label: '媒体库', icon: 'image' },
       { id: 'categories', label: '分类', icon: 'layout-grid' },
       { id: 'campaigns', label: '活动', icon: 'calendar' },
       { id: 'topics', label: '话题', icon: 'hash' },
@@ -211,6 +214,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsMessages v-else-if="page === 'im'" />
       <OpsPosts v-else-if="page === 'posts'" />
       <OpsComments v-else-if="page === 'comments'" />
+      <OpsMedia v-else-if="page === 'media'" />
       <OpsCategories v-else-if="page === 'categories'" />
       <OpsCampaigns v-else-if="page === 'campaigns'" />
       <OpsTopics v-else-if="page === 'topics'" />

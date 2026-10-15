@@ -22,6 +22,7 @@ public class MediaAsset {
   private Integer durationSec;
   private Integer status;
   private LocalDateTime createdAt;
+  private LocalDateTime blockedAt;
 
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
@@ -41,4 +42,6 @@ public class MediaAsset {
   public void setStatus(Integer status) { this.status = status; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+  public LocalDateTime getBlockedAt() { return blockedAt; }
+  public void setBlockedAt(LocalDateTime blockedAt) { this.blockedAt = blockedAt; }
 }

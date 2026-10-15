@@ -224,7 +224,7 @@ public class PostService {
     List<FeedDtos.MediaItem> media = new ArrayList<>();
     for (PostMedia link : links) {
       MediaAsset asset = mediaAssetMapper.selectById(link.getMediaId());
-      if (asset == null) {
+      if (asset == null || asset.getBlockedAt() != null) {
         continue;
       }
       media.add(new FeedDtos.MediaItem(
@@ -779,7 +779,7 @@ public class PostService {
     String fallback = "";
     for (PostMedia link : links) {
       MediaAsset asset = mediaAssetMapper.selectById(link.getMediaId());
-      if (asset == null) {
+      if (asset == null || asset.getBlockedAt() != null) {
         continue;
       }
       String url = publicUrl(asset.getObjectKey());
@@ -823,7 +823,12 @@ public class PostService {
         throw BusinessException.validation("mediaId 不合法");
       }
       MediaAsset asset = mediaAssetMapper.selectById(mediaId);
-      if (asset == null || asset.getOwnerId() == null || asset.getOwnerId() != userId || asset.getStatus() == null || asset.getStatus() != 1) {
+      if (asset == null
+          || asset.getOwnerId() == null
+          || asset.getOwnerId() != userId
+          || asset.getStatus() == null
+          || asset.getStatus() != 1
+          || asset.getBlockedAt() != null) {
         throw BusinessException.validation("媒体不可用");
       }
       assets.add(asset);

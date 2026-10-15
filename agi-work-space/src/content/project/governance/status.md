@@ -26,6 +26,8 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-15 — 运营媒体库可隐藏/恢复（`blocked_at`），并冻结上传人；须执行 `006_ops_media_block.sql`
+- 2026-10-15 — 运营媒体库：`GET /ops/media` 列出 `media_asset`，不删 MinIO
 - 2026-10-15 — 运营私信巡查：`GET /ops/conversations` 与消息隐藏/恢复；须执行 `002_ops_hide.sql`
 - 2026-10-15 — 治理改活动/分类/话题内网改 POST，避开 Feign PATCH 被 JDK 拒绝
 - 2026-10-15 — 运营封面直传改走 Vite 同源代理，避免 MinIO CORS；封面 URL 去掉预签名 query，避免 cover_url 超长 500

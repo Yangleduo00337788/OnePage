@@ -1,17 +1,27 @@
 package com.onepage.content.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.content.client.UserClient;
+import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.MediaAsset;
+import com.onepage.content.entity.PostMedia;
 import com.onepage.content.mapper.MediaAssetMapper;
+import com.onepage.content.mapper.PostMediaMapper;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -30,22 +40,34 @@ public class UploadService {
       Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
   private static final long IM_IMAGE_MAX_BYTES = 10L * 1024 * 1024;
   private final MediaAssetMapper mapper;
+  private final PostMediaMapper postMediaMapper;
   private final MinioClient minioClient;
+  private final AuthorLookup authorLookup;
+  private final UserClient userClient;
   private final String bucket;
   private final int expirySec;
   private final String mediaPublicBase;
+  private final String internalToken;
 
   public UploadService(
       MediaAssetMapper mapper,
+      PostMediaMapper postMediaMapper,
       MinioClient minioClient,
+      AuthorLookup authorLookup,
+      UserClient userClient,
       @Value("${onepage.minio.bucket}") String bucket,
       @Value("${onepage.minio.presign-expiry-sec}") int expirySec,
-      @Value("${onepage.media-public-base}") String mediaPublicBase) {
+      @Value("${onepage.media-public-base}") String mediaPublicBase,
+      @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
+    this.postMediaMapper = postMediaMapper;
     this.minioClient = minioClient;
+    this.authorLookup = authorLookup;
+    this.userClient = userClient;
     this.bucket = bucket;
     this.expirySec = expirySec;
     this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
+    this.internalToken = internalToken;
   }
 
   /**
@@ -119,6 +141,132 @@ public class UploadService {
       throw BusinessException.notFound("媒体不存在");
     }
     return asset;
+  }
+
+  public FeedDtos.OpsMediaPage opsPage(
+      String q, String purpose, String status, String hidden, String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    if (StringUtils.hasText(purpose) && !PURPOSES.contains(purpose.trim())) {
+      throw BusinessException.validation("purpose 不支持");
+    }
+    LambdaQueryWrapper<MediaAsset> query = Wrappers.lambdaQuery();
+    if (StringUtils.hasText(purpose)) {
+      query.likeRight(MediaAsset::getObjectKey, purpose.trim() + "/");
+    }
+    if ("pending".equals(status)) {
+      query.eq(MediaAsset::getStatus, 0);
+    } else if ("ready".equals(status)) {
+      query.eq(MediaAsset::getStatus, 1);
+    } else if ("fail".equals(status)) {
+      query.eq(MediaAsset::getStatus, 2);
+    }
+    if ("yes".equals(hidden)) {
+      query.isNotNull(MediaAsset::getBlockedAt);
+    } else if ("no".equals(hidden)) {
+      query.isNull(MediaAsset::getBlockedAt);
+    }
+    if (StringUtils.hasText(q)) {
+      try {
+        long id = Long.parseLong(q.trim());
+        query.and(w -> w.eq(MediaAsset::getId, id).or().eq(MediaAsset::getOwnerId, id));
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("只支持媒体 ID 或上传人 ID");
+      }
+    }
+    if (StringUtils.hasText(cursor)) {
+      try {
+        query.lt(MediaAsset::getId, Long.parseLong(cursor.trim()));
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+    }
+    query.orderByDesc(MediaAsset::getId).last("LIMIT " + (size + 1));
+    List<MediaAsset> rows = mapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<FeedDtos.OpsMediaRow> items = new ArrayList<>();
+    for (MediaAsset asset : rows) {
+      items.add(toOpsRow(asset));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty() && rows.getLast().getId() != null) {
+      next = String.valueOf(rows.getLast().getId());
+    }
+    return new FeedDtos.OpsMediaPage(items, next, hasMore);
+  }
+
+  @Transactional
+  public void opsHide(long mediaId) {
+    MediaAsset asset = require(mediaId);
+    if (asset.getBlockedAt() != null) {
+      return;
+    }
+    mapper.update(
+        null,
+        Wrappers.<MediaAsset>lambdaUpdate()
+            .eq(MediaAsset::getId, mediaId)
+            .set(MediaAsset::getBlockedAt, LocalDateTime.now()));
+    String purpose = purposeOf(asset.getObjectKey());
+    if (("avatar".equals(purpose) || "cover".equals(purpose)) && StringUtils.hasText(asset.getObjectKey())) {
+      try {
+        userClient.clearObjectKey(internalToken, asset.getObjectKey());
+      } catch (RuntimeException ex) {
+        throw new IllegalStateException("清头像/封面失败", ex);
+      }
+    }
+  }
+
+  @Transactional
+  public void opsRestore(long mediaId) {
+    MediaAsset asset = require(mediaId);
+    if (asset.getBlockedAt() == null) {
+      return;
+    }
+    mapper.update(
+        null,
+        Wrappers.<MediaAsset>lambdaUpdate()
+            .eq(MediaAsset::getId, mediaId)
+            .set(MediaAsset::getBlockedAt, null));
+  }
+
+  private FeedDtos.OpsMediaRow toOpsRow(MediaAsset asset) {
+    int code = asset.getStatus() == null ? 0 : asset.getStatus();
+    String status = code == 1 ? "ready" : (code == 2 ? "fail" : "pending");
+    String url = "";
+    if (code == 1 && StringUtils.hasText(asset.getObjectKey()) && StringUtils.hasText(mediaPublicBase)) {
+      url = mediaPublicBase + "/" + asset.getObjectKey();
+    }
+    String postId = "";
+    if (asset.getId() != null) {
+      List<PostMedia> links = postMediaMapper.selectList(
+          Wrappers.<PostMedia>lambdaQuery()
+              .eq(PostMedia::getMediaId, asset.getId())
+              .last("LIMIT 1"));
+      if (links != null && !links.isEmpty() && links.getFirst().getPostId() != null) {
+        postId = String.valueOf(links.getFirst().getPostId());
+      }
+    }
+    return new FeedDtos.OpsMediaRow(
+        String.valueOf(asset.getId()),
+        authorLookup.brief(asset.getOwnerId()),
+        purposeOf(asset.getObjectKey()),
+        asset.getMimeType() == null ? "" : asset.getMimeType(),
+        asset.getSizeBytes() == null ? 0L : asset.getSizeBytes(),
+        status,
+        url,
+        postId,
+        asset.getBlockedAt() != null,
+        asset.getCreatedAt() == null ? "" : asset.getCreatedAt().toString());
+  }
+
+  private static String purposeOf(String objectKey) {
+    if (!StringUtils.hasText(objectKey)) {
+      return "";
+    }
+    int slash = objectKey.indexOf('/');
+    return slash <= 0 ? objectKey : objectKey.substring(0, slash);
   }
 
   private String extension(String mime) {

@@ -4,6 +4,7 @@ import com.onepage.common.dto.UserSummary;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -26,4 +27,9 @@ public interface UserClient {
   List<UserSummary> byKeys(
       @RequestHeader("X-Internal-Token") String token,
       @RequestParam("keys") List<String> keys);
+
+  @PostMapping("/internal/users/clear-object-key")
+  void clearObjectKey(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam("objectKey") String objectKey);
 }

@@ -25,6 +25,7 @@ order: 1
 | duration_sec | INT 可空 | 视频秒；图片空 |
 | status | TINYINT | 0 上传中 1 就绪 2 失败 |
 | created_at | DATETIME(3) | |
+| blocked_at | DATETIME(3) 可空 | 运营隐藏 |
 
 ## SQL
 
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS media_asset (
   duration_sec INT NULL COMMENT '视频时长秒；图片空',
   status TINYINT NOT NULL DEFAULT 0 COMMENT '0 上传中 1 就绪 2 失败',
   created_at DATETIME(3) NOT NULL COMMENT '创建时间',
+  blocked_at DATETIME(3) NULL COMMENT '运营隐藏时间，空则对用户可见',
   KEY idx_owner (owner_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='媒体对象';
 ```

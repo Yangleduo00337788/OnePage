@@ -12,3 +12,4 @@ order: 3
 - [003_category.sql](/engineering/tech/sql/onepage-content-service/003_category)
 - [004_post_settings.sql](/engineering/tech/sql/onepage-content-service/004_post_settings)
 - [005_ops_catalog.sql](/engineering/tech/sql/onepage-content-service/005_ops_catalog)
+- [006_ops_media_block.sql](/engineering/tech/sql/onepage-content-service/006_ops_media_block)

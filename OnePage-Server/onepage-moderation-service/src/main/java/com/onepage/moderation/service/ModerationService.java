@@ -257,6 +257,41 @@ public class ModerationService {
     return new ModerationDtos.OpsCommentPage(items, page.nextCursor(), page.hasMore());
   }
 
+  public ModerationDtos.OpsMediaPage opsMedia(
+      String q, String purpose, String status, String hidden, String cursor, Integer limit) {
+    ContentClient.OpsMediaPage page =
+        contentClient.opsMedia(internalToken, q, purpose, status, hidden, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsMediaPage(List.of(), null, false);
+    }
+    List<ModerationDtos.OpsMediaRow> items = new ArrayList<>();
+    for (ContentClient.OpsMediaRow row : page.items()) {
+      if (row == null) {
+        continue;
+      }
+      items.add(new ModerationDtos.OpsMediaRow(
+          row.mediaId(),
+          row.owner(),
+          row.purpose() == null ? "" : row.purpose(),
+          row.mimeType() == null ? "" : row.mimeType(),
+          row.sizeBytes(),
+          row.status() == null ? "" : row.status(),
+          row.url() == null ? "" : row.url(),
+          row.postId() == null ? "" : row.postId(),
+          row.hidden(),
+          row.createdAt() == null ? "" : row.createdAt()));
+    }
+    return new ModerationDtos.OpsMediaPage(items, page.nextCursor(), page.hasMore());
+  }
+
+  public void hideMedia(long mediaId) {
+    contentClient.hideMedia(internalToken, mediaId);
+  }
+
+  public void restoreMedia(long mediaId) {
+    contentClient.restoreMedia(internalToken, mediaId);
+  }
+
   public void hideComment(long commentId) {
     contentClient.hideComment(internalToken, commentId);
   }

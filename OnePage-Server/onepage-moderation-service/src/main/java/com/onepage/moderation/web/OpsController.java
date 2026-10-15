@@ -287,6 +287,38 @@ public class OpsController {
     return moderationService.freezeUser(actorId, targetId, false);
   }
 
+  @GetMapping("/media")
+  public ModerationDtos.OpsMediaPage media(
+      HttpServletRequest request,
+      @RequestParam(value = "q", required = false) String q,
+      @RequestParam(value = "purpose", required = false) String purpose,
+      @RequestParam(value = "status", required = false) String status,
+      @RequestParam(value = "hidden", required = false) String hidden,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsMedia(q, purpose, status, hidden, cursor, limit);
+  }
+
+  @PostMapping("/media/{mediaId}/hide")
+  public ResponseEntity<Void> hideMedia(
+      HttpServletRequest request, @PathVariable("mediaId") long mediaId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.hideMedia(mediaId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/media/{mediaId}/restore")
+  public ResponseEntity<Void> restoreMedia(
+      HttpServletRequest request, @PathVariable("mediaId") long mediaId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.restoreMedia(mediaId);
+    return ResponseEntity.noContent().build();
+  }
+
   @GetMapping("/conversations")
   public ModerationDtos.OpsConversationPage conversations(
       HttpServletRequest request,
