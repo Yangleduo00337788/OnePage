@@ -8,11 +8,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-/** 填工单里的举报人摘要。 */
+/** 填工单举报人/对象摘要，以及运营搜人。 */
 @FeignClient(name = "onepage-user-service")
 public interface UserClient {
   @GetMapping("/internal/users/briefs")
   List<UserSummary> briefs(
       @RequestHeader("X-Internal-Token") String token,
       @RequestParam("ids") List<Long> ids);
+
+  @GetMapping("/internal/users/suggest")
+  List<UserSummary> suggest(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam("q") String q);
 }

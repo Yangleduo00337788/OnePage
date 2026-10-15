@@ -18,4 +18,8 @@ public class StaffGuard {
   public void requireStaff(long userId) {
     OpsStaffAllowlist.requireStaff(staffIds, userId);
   }
+
+  public boolean isStaff(long userId) {
+    return staffIds.contains(userId);
+  }
 }

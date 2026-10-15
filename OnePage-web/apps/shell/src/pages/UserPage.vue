@@ -8,6 +8,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
+import ReportDialog from '../components/ReportDialog.vue'
 import SearchBox from '../components/SearchBox.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import ProfileNoteList from '../components/ProfileNoteList.vue'
@@ -24,6 +25,7 @@ const relation = ref<'following' | 'followers' | null>(null)
 const followBusy = ref(false)
 const moreWrap = ref<HTMLElement | null>(null)
 const toast = ref('')
+const reportOpen = ref(false)
 const loading = ref(true)
 const failed = ref('')
 const profile = ref<UserProfile | null>(null)
@@ -109,12 +111,20 @@ async function toggleFollow() {
   }
 }
 
+function flashReportDone() {
+  toast.value = '已提交举报'
+  window.setTimeout(() => {
+    if (toast.value === '已提交举报') toast.value = ''
+  }, 1600)
+}
+
 function report() {
   moreOpen.value = false
-  toast.value = '举报尚未接入'
-  window.setTimeout(() => {
-    if (toast.value === '举报尚未接入') toast.value = ''
-  }, 1600)
+  if (!session.me) {
+    if (profile.value) auth.show('login', `/u/${profile.value.pageId}`)
+    return
+  }
+  reportOpen.value = true
 }
 
 function showReceivedHint() {
@@ -286,6 +296,13 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       :page-id="profile.pageId"
       :kind="relation || 'following'"
       @close="relation = null"
+    />
+    <ReportDialog
+      :open="reportOpen"
+      target-type="user"
+      :target-id="profile.userId"
+      @close="reportOpen = false"
+      @done="flashReportDone"
     />
   </section>
 </template>

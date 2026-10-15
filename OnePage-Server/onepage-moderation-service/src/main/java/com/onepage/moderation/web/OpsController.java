@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -67,5 +68,32 @@ public class OpsController {
     long userId = CurrentUser.requireUserId(request);
     staffGuard.requireStaff(userId);
     return moderationService.resolve(userId, reportId, body);
+  }
+
+  @GetMapping("/users")
+  public List<ModerationDtos.OpsUser> users(
+      HttpServletRequest request,
+      @RequestParam("q") String q) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.searchUsers(q);
+  }
+
+  @PostMapping("/users/{userId}/freeze")
+  public ModerationDtos.OpsUser freeze(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId) {
+    long actorId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(actorId);
+    return moderationService.freezeUser(actorId, targetId, true);
+  }
+
+  @PostMapping("/users/{userId}/unfreeze")
+  public ModerationDtos.OpsUser unfreeze(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId) {
+    long actorId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(actorId);
+    return moderationService.freezeUser(actorId, targetId, false);
   }
 }

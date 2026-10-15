@@ -62,5 +62,13 @@ public class InternalUserController {
     return userService.byKeys(keys);
   }
 
+  @GetMapping("/users/suggest")
+  public List<UserSummary> suggest(
+      HttpServletRequest request,
+      @RequestParam("q") String q) {
+    tokenFilter.assertInternal(request);
+    return userService.suggest(q, null);
+  }
+
   public record CreateProfileRequest(Long userId, String nickname) {}
 }

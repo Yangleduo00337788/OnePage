@@ -85,4 +85,7 @@ public final class FeedDtos {
   public record ReceivedHit(String userId, String postId, String postTitle, String createdAt) {}
 
   public record ReceivedPage(List<ReceivedHit> items, String nextCursor, boolean hasMore) {}
+
+  /** 治理工单用的笔记摘要。已下架也返回标题。 */
+  public record OpsPostBrief(String postId, String title, String authorId) {}
 }

@@ -5,6 +5,7 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.common.web.GatewayHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,5 +32,23 @@ public class InternalAuthController {
       throw BusinessException.unauthorized("内部调用未授权");
     }
     authService.freeze(userId);
+  }
+
+  @PostMapping("/accounts/{userId}/unfreeze")
+  public void unfreeze(HttpServletRequest request, @PathVariable("userId") long userId) {
+    String token = request.getHeader(GatewayHeaders.INTERNAL_TOKEN);
+    if (token == null || !token.equals(expectedToken)) {
+      throw BusinessException.unauthorized("内部调用未授权");
+    }
+    authService.unfreeze(userId);
+  }
+
+  @GetMapping("/accounts/{userId}/freeze-status")
+  public AuthService.FreezeView freezeStatus(HttpServletRequest request, @PathVariable("userId") long userId) {
+    String token = request.getHeader(GatewayHeaders.INTERNAL_TOKEN);
+    if (token == null || !token.equals(expectedToken)) {
+      throw BusinessException.unauthorized("内部调用未授权");
+    }
+    return authService.freezeStatus(userId);
   }
 }

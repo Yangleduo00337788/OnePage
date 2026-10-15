@@ -9,6 +9,7 @@ import com.onepage.moderation.client.UserClient;
 import com.onepage.moderation.dto.ModerationDtos;
 import com.onepage.moderation.entity.Report;
 import com.onepage.moderation.mapper.ReportMapper;
+import com.onepage.moderation.web.StaffGuard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +36,7 @@ public class ModerationService {
   private static final Logger log = LoggerFactory.getLogger(ModerationService.class);
   private static final Set<String> TARGETS = Set.of("post", "user");
   private static final Set<String> ACTIONS = Set.of("dismiss", "takedown", "ban");
+  private static final Set<String> REASONS = Set.of("spam", "porn", "abuse", "illegal", "other");
   private static final int STATUS_PENDING = 0;
   private static final int STATUS_DONE = 1;
 
@@ -42,6 +44,7 @@ public class ModerationService {
   private final UserClient userClient;
   private final ContentClient contentClient;
   private final AuthClient authClient;
+  private final StaffGuard staffGuard;
   private final String internalToken;
 
   public ModerationService(
@@ -49,11 +52,13 @@ public class ModerationService {
       UserClient userClient,
       ContentClient contentClient,
       AuthClient authClient,
+      StaffGuard staffGuard,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
     this.userClient = userClient;
     this.contentClient = contentClient;
     this.authClient = authClient;
+    this.staffGuard = staffGuard;
     this.internalToken = internalToken;
   }
 
@@ -71,8 +76,8 @@ public class ModerationService {
       throw BusinessException.validation("不能举报自己");
     }
     String reason = body.reasonCode().trim();
-    if (reason.length() > 32) {
-      throw BusinessException.validation("reasonCode 过长");
+    if (!REASONS.contains(reason)) {
+      throw BusinessException.validation("原因须为 spam / porn / abuse / illegal / other");
     }
     String detail = blankToNull(body.detail());
     if (detail != null && detail.length() > 1000) {
@@ -114,10 +119,11 @@ public class ModerationService {
     if (hasMore) {
       rows = rows.subList(0, size);
     }
-    Map<Long, UserSummary> reporters = loadReporters(rows);
+    Map<Long, UserSummary> people = loadPeople(rows);
+    Map<Long, ContentClient.PostBrief> posts = loadPosts(rows);
     List<ModerationDtos.OpsReport> items = new ArrayList<>();
     for (Report row : rows) {
-      items.add(toView(row, reporters.get(row.getReporterId())));
+      items.add(toView(row, people, posts));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -158,6 +164,7 @@ public class ModerationService {
       if (!"user".equals(row.getTargetType())) {
         throw BusinessException.validation("封禁只能用于用户");
       }
+      assertCanPunishUser(handlerId, row.getTargetId());
       authClient.freeze(internalToken, row.getTargetId());
     }
     LocalDateTime now = LocalDateTime.now();
@@ -171,11 +178,57 @@ public class ModerationService {
     return new ModerationDtos.ResolveResult(String.valueOf(reportId), "done");
   }
 
-  private Map<Long, UserSummary> loadReporters(List<Report> rows) {
+  public List<ModerationDtos.OpsUser> searchUsers(String q) {
+    if (!StringUtils.hasText(q) || q.trim().length() < 1) {
+      throw BusinessException.validation("请输入一页号或昵称");
+    }
+    List<UserSummary> found = userClient.suggest(internalToken, q.trim());
+    if (found == null || found.isEmpty()) {
+      return List.of();
+    }
+    List<ModerationDtos.OpsUser> out = new ArrayList<>();
+    for (UserSummary row : found) {
+      if (row == null || !StringUtils.hasText(row.userId())) {
+        continue;
+      }
+      boolean frozen = false;
+      try {
+        AuthClient.FreezeStatus st = authClient.freezeStatus(internalToken, Long.parseLong(row.userId()));
+        frozen = st != null && st.frozen();
+      } catch (RuntimeException ex) {
+        log.warn("ops freeze-status {} failed", row.userId());
+      }
+      out.add(new ModerationDtos.OpsUser(row.userId(), row.pageId(), row.nickname(), row.avatarUrl(), frozen));
+    }
+    return out;
+  }
+
+  public ModerationDtos.OpsUser freezeUser(long actorId, long targetId, boolean frozen) {
+    assertCanPunishUser(actorId, targetId);
+    if (frozen) {
+      authClient.freeze(internalToken, targetId);
+    } else {
+      authClient.unfreeze(internalToken, targetId);
+    }
+    List<UserSummary> briefs = userClient.briefs(internalToken, List.of(targetId));
+    UserSummary brief = briefs == null || briefs.isEmpty() ? null : briefs.get(0);
+    if (brief == null) {
+      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", frozen);
+    }
+    return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
+  }
+
+  private Map<Long, UserSummary> loadPeople(List<Report> rows) {
     Set<Long> ids = new LinkedHashSet<>();
     for (Report row : rows) {
       if (row.getReporterId() != null) {
         ids.add(row.getReporterId());
+      }
+      if (row.getHandlerId() != null) {
+        ids.add(row.getHandlerId());
+      }
+      if ("user".equals(row.getTargetType()) && row.getTargetId() != null) {
+        ids.add(row.getTargetId());
       }
     }
     if (ids.isEmpty()) {
@@ -188,16 +241,69 @@ public class ModerationService {
     return list.stream().collect(Collectors.toMap(u -> Long.parseLong(u.userId()), Function.identity(), (a, b) -> a));
   }
 
-  private static ModerationDtos.OpsReport toView(Report row, UserSummary reporter) {
+  private Map<Long, ContentClient.PostBrief> loadPosts(List<Report> rows) {
+    List<Long> ids = new ArrayList<>();
+    for (Report row : rows) {
+      if ("post".equals(row.getTargetType()) && row.getTargetId() != null) {
+        ids.add(row.getTargetId());
+      }
+    }
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    List<ContentClient.PostBrief> list = contentClient.postBriefs(internalToken, ids);
+    if (list == null) {
+      return Map.of();
+    }
+    Map<Long, ContentClient.PostBrief> map = new java.util.HashMap<>();
+    for (ContentClient.PostBrief brief : list) {
+      if (brief != null && StringUtils.hasText(brief.postId())) {
+        map.put(Long.parseLong(brief.postId()), brief);
+      }
+    }
+    return map;
+  }
+
+  private static ModerationDtos.OpsReport toView(
+      Report row, Map<Long, UserSummary> people, Map<Long, ContentClient.PostBrief> posts) {
+    String title = "";
+    String pageId = "";
+    if ("post".equals(row.getTargetType())) {
+      ContentClient.PostBrief brief = posts.get(row.getTargetId());
+      if (brief != null) {
+        title = brief.title() == null ? "" : brief.title();
+      }
+    } else if ("user".equals(row.getTargetType())) {
+      UserSummary target = people.get(row.getTargetId());
+      if (target != null) {
+        title = target.nickname() == null ? "" : target.nickname();
+        pageId = target.pageId() == null ? "" : target.pageId();
+      }
+    }
     return new ModerationDtos.OpsReport(
         String.valueOf(row.getId()),
         row.getTargetType(),
         String.valueOf(row.getTargetId()),
+        title,
+        pageId,
         row.getReasonCode(),
         row.getDetail() == null ? "" : row.getDetail(),
         row.getStatus() != null && row.getStatus() == STATUS_DONE ? "done" : "pending",
-        reporter,
-        iso(row.getCreatedAt()));
+        people.get(row.getReporterId()),
+        people.get(row.getHandlerId()),
+        row.getHandleAction() == null ? "" : row.getHandleAction(),
+        row.getHandleNote() == null ? "" : row.getHandleNote(),
+        iso(row.getCreatedAt()),
+        iso(row.getHandledAt()));
+  }
+
+  private void assertCanPunishUser(long actorId, long targetId) {
+    if (targetId == actorId) {
+      throw BusinessException.forbidden("不能处置自己");
+    }
+    if (staffGuard.isStaff(targetId)) {
+      throw BusinessException.forbidden("不能处置运营员工");
+    }
   }
 
   private static Integer parseStatus(String status) {

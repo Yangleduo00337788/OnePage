@@ -20,11 +20,24 @@ public final class ModerationDtos {
       String reportId,
       String targetType,
       String targetId,
+      String targetTitle,
+      String targetPageId,
       String reasonCode,
       String detail,
       String status,
       UserSummary reporter,
-      String createdAt) {}
+      UserSummary handler,
+      String handleAction,
+      String handleNote,
+      String createdAt,
+      String handledAt) {}
+
+  public record OpsUser(
+      String userId,
+      String pageId,
+      String nickname,
+      String avatarUrl,
+      boolean frozen) {}
 
   public record CursorPage(List<OpsReport> items, String nextCursor, boolean hasMore) {}
 }

@@ -273,6 +273,29 @@ public class AuthService {
     accountMapper.updateById(account);
   }
 
+  /** 运营解冻：status 回到 0。 */
+  public void unfreeze(long userId) {
+    AuthAccount account = accountMapper.selectById(userId);
+    if (account == null) {
+      throw BusinessException.notFound("账号不存在");
+    }
+    if (account.getStatus() != null && account.getStatus() == 0) {
+      return;
+    }
+    account.setStatus(0);
+    account.setUpdatedAt(LocalDateTime.now());
+    accountMapper.updateById(account);
+  }
+
+  public FreezeView freezeStatus(long userId) {
+    AuthAccount account = accountMapper.selectById(userId);
+    if (account == null) {
+      throw BusinessException.notFound("账号不存在");
+    }
+    boolean frozen = account.getStatus() != null && account.getStatus() != 0;
+    return new FreezeView(String.valueOf(userId), frozen);
+  }
+
   private void assertActive(AuthAccount account) {
     if (account == null || account.getStatus() == null || account.getStatus() != 0) {
       throw BusinessException.unauthorized("账号不可用");
@@ -292,4 +315,6 @@ public class AuthService {
   }
 
   public record AccountView(String phone, String email, boolean hasPassword) {}
+
+  public record FreezeView(String userId, boolean frozen) {}
 }

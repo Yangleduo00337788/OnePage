@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答。P5 治理：`POST /reports`、`GET/PATCH /ops/reports` 已落 moderation-service。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单与用户冻结已落 moderation-service。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -441,10 +441,10 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ### POST `/api/v1/reports`
 
-**Body**：`targetType`（post/user）, `targetId`, `reasonCode`, `detail?`
+**Body**：`targetType`（post/user）, `targetId`, `reasonCode`（`spam` / `porn` / `abuse` / `illegal` / `other`）, `detail?`
 **Response 201**：`{ "reportId" }`
 
-社区用户提交。处理走下面 Ops，不要把员工接口暴露给社区站。
+社区用户提交。详情「更多 → 举报」、他人主页「举报」已接。处理走下面 Ops。
 
 ---
 
@@ -467,17 +467,33 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 | reportId | string | |
 | targetType | string | post / user |
 | targetId | string | |
+| targetTitle | string | 笔记标题或用户昵称，可空 |
+| targetPageId | string | 被举报用户的一页号，笔记可空 |
 | reasonCode | string | |
 | detail | string | 可空 |
 | status | string | pending / done |
 | reporter | UserBrief | 可空 |
+| handler | UserBrief | 已处理才有 |
+| handleAction | string | dismiss / takedown / ban |
+| handleNote | string | |
 | createdAt | string | ISO-8601 |
+| handledAt | string | 已处理才有 |
 
 ### PATCH `/api/v1/ops/reports/{reportId}`
 
 **Body**：`action` dismiss / takedown / ban，`note?`
 
-**Response**：`{ reportId, status }`。takedown 由 content 内部下架帖；ban 由 auth 冻结账号（`status=1`）。忽略只改工单状态。员工名单见上，空则拒绝。
+**Response**：`{ reportId, status }`。takedown 由 content 内部下架帖；ban 由 **auth** `status=1` 冻结（不是 user-service）。不能冻结员工或自己。
+
+### GET `/api/v1/ops/users`
+
+**Query**：`q` 一页号或昵称。**Response**：`OpsUser[]`（`userId` `pageId` `nickname` `avatarUrl` `frozen`）。
+
+### POST `/api/v1/ops/users/{userId}/freeze`
+
+### POST `/api/v1/ops/users/{userId}/unfreeze`
+
+**Response**：`OpsUser`。解冻把 auth `status` 改回 0。
 
 ---
 

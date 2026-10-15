@@ -8,6 +8,7 @@ import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
 import EmptyState from './EmptyState.vue'
+import ReportDialog from './ReportDialog.vue'
 import TextNoteCover from './TextNoteCover.vue'
 import { formatCount } from '../data/home'
 
@@ -43,6 +44,7 @@ const idx = ref(0)
 const liked = ref(false)
 const saved = ref(false)
 const moreOpen = ref(false)
+const reportOpen = ref(false)
 const shareOpen = ref(false)
 type SharePeer = { userId: string; pageId: string; nickname: string; avatarUrl: string; conversationId?: string }
 const sharePeers = ref<SharePeer[]>([])
@@ -868,7 +870,12 @@ async function sendComment() {
 
 function report() {
   moreOpen.value = false
-  flash('举报尚未接入')
+  if (!session.me) {
+    auth.show('login')
+    return
+  }
+  if (!detail.note?.id) return
+  reportOpen.value = true
 }
 
 async function copyLink() {
@@ -1275,7 +1282,7 @@ watch(moreOpen, async (on) => {
             </div>
             <div class="relative mt-4 flex items-center justify-between text-[12px] text-[#8a8a8a]">
               <span>{{ published }}</span>
-              <div ref="moreWrap" class="relative">
+              <div v-if="!mine" ref="moreWrap" class="relative">
                 <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#f2f2f2]" aria-label="更多" @click.stop="moreOpen = !moreOpen">
                   <Icon name="ellipsis" :size="18" />
                 </button>
@@ -1444,6 +1451,13 @@ watch(moreOpen, async (on) => {
         </div>
       </div>
 
+      <ReportDialog
+        :open="reportOpen"
+        target-type="post"
+        :target-id="detail.note?.id || ''"
+        @close="reportOpen = false"
+        @done="flash('已提交举报')"
+      />
       <p v-if="toast" class="pointer-events-none absolute bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/70 px-4 py-2 text-[13px] text-white">{{ toast }}</p>
     </div>
   </Teleport>

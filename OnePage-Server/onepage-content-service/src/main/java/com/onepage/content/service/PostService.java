@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -273,6 +274,32 @@ public class PostService {
     post.setUpdatedAt(now);
     postMapper.updateById(post);
     writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
+  }
+
+  /** 运营工单展示标题；已删也返回。找不到的 id 跳过。 */
+  public List<FeedDtos.OpsPostBrief> opsBriefs(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    LinkedHashSet<Long> uniq = new LinkedHashSet<>();
+    for (Long id : ids) {
+      if (id != null) {
+        uniq.add(id);
+      }
+      if (uniq.size() >= 50) {
+        break;
+      }
+    }
+    List<FeedDtos.OpsPostBrief> out = new ArrayList<>();
+    for (Long id : uniq) {
+      Post post = postMapper.selectById(id);
+      if (post == null) {
+        continue;
+      }
+      String title = post.getTitle() == null ? "" : post.getTitle();
+      out.add(new FeedDtos.OpsPostBrief(String.valueOf(id), title, String.valueOf(post.getAuthorId())));
+    }
+    return out;
   }
 
   /** 运营下架：不校验作者，已删则当作成功。 */

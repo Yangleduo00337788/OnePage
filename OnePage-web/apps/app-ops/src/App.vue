@@ -7,7 +7,7 @@ import BrandLogo from './BrandLogo.vue'
 import OpsLogin from './OpsLogin.vue'
 import OpsHome from './OpsHome.vue'
 import OpsReports from './OpsReports.vue'
-import OpsPlaceholder from './OpsPlaceholder.vue'
+import OpsUsers from './OpsUsers.vue'
 
 export type PageId = 'home' | 'reports' | 'users'
 
@@ -134,11 +134,7 @@ function onLoggedIn(profile: UserProfile) {
       </header>
       <OpsHome v-if="page === 'home'" @open="openPage($event as PageId)" />
       <OpsReports v-else-if="page === 'reports'" />
-      <OpsPlaceholder
-        v-else
-        title="用户处置尚未接入"
-        desc="封禁账号要等治理服务调 user。先在举报工单里处理。"
-      />
+      <OpsUsers v-else />
     </div>
   </div>
 </template>

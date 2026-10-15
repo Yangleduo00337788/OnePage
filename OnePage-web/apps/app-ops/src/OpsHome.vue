@@ -12,11 +12,11 @@ onMounted(async () => {
   try {
     await api.opsReports('pending', undefined, 1)
     serviceReady.value = true
-    note.value = '已接到治理服务。去举报工单处理。'
+    note.value = '治理服务已接通。社区举报会出现在工单里。'
   } catch (e) {
     serviceReady.value = false
     if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
-      note.value = '治理服务尚未接入。列表会空着，不要造假工单。'
+      note.value = '治理接口不可用。确认 ModerationApplication 已启动。'
     } else if (e instanceof ApiError && e.status === 403) {
       note.value = '当前账号没有运营权限。'
     } else {

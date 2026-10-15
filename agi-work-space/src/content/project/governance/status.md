@@ -26,6 +26,10 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-15 — 举报弹窗选中改为红胶囊（避开全局 button 重置把背景清掉）
+- 2026-10-15 — 登录弹窗 `z-[100]`，盖过帖子详情；未登录在详情里举报/赞评/关注立刻能看到登录
+- 2026-10-15 — 社区详情/主页接 `POST /reports`；运营工单补翻页、备注、对象标题；用户处置搜人冻结/解冻（auth `status`）
+- 2026-10-15 — DEC-036：封禁走 auth 冻结，不走 user 库
 - 2026-10-15 — DEC-035：运营登录强制 `OPS_STAFF_USER_IDS`（空则拒绝）；`audience=ops`；`GET /ops/me`
 - 2026-10-15 — `env.example` 与本地 `.env` 每个键补了中文注释（端口 / 库名 / CORS / mock 短信等）
 - 2026-10-15 — 治理服务 `onepage-moderation-service`（8086）：`POST /reports`、`GET/PATCH /ops/reports`；下架走 content，冻结走 auth。须执行 `001_init.sql`

@@ -88,6 +88,14 @@ public class InternalPostController {
     return postService.listFavoritesReceived(userId, cursor, limit);
   }
 
+  @GetMapping("/posts/briefs")
+  public java.util.List<FeedDtos.OpsPostBrief> postBriefs(
+      HttpServletRequest request,
+      @RequestParam("ids") java.util.List<Long> ids) {
+    assertInternal(request);
+    return postService.opsBriefs(ids);
+  }
+
   @PostMapping("/posts/{postId}/takedown")
   public void takedown(HttpServletRequest request, @PathVariable("postId") long postId) {
     assertInternal(request);

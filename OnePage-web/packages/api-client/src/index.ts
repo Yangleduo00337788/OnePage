@@ -129,15 +129,39 @@ export type CommentView = {
   createdAt: string
 }
 
+export const REPORT_REASONS = [
+  { code: 'spam', label: '垃圾广告' },
+  { code: 'porn', label: '色情低俗' },
+  { code: 'abuse', label: '辱骂攻击' },
+  { code: 'illegal', label: '违法违规' },
+  { code: 'other', label: '其他' },
+] as const
+
+export type ReportReasonCode = (typeof REPORT_REASONS)[number]['code']
+
 export type OpsReport = {
   reportId: string
   targetType: 'post' | 'user'
   targetId: string
+  targetTitle?: string
+  targetPageId?: string
   reasonCode: string
   detail: string
   status: 'pending' | 'done'
   reporter?: UserBrief
+  handler?: UserBrief
+  handleAction?: string
+  handleNote?: string
   createdAt: string
+  handledAt?: string
+}
+
+export type OpsUser = {
+  userId: string
+  pageId: string
+  nickname: string
+  avatarUrl: string
+  frozen: boolean
 }
 
 export type UserProfile = UserSummary & {
@@ -421,6 +445,16 @@ export const api = {
       body: JSON.stringify({ msgType: 'image', content: { mediaId } }),
     }),
   conversationUnread: () => request<{ count: number }>('/api/v1/conversations/unread-count'),
+  createReport: (body: {
+    targetType: 'post' | 'user'
+    targetId: string
+    reasonCode: ReportReasonCode
+    detail?: string
+  }) =>
+    request<{ reportId: string }>('/api/v1/reports', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   opsMe: () => request<UserSummary>('/api/v1/ops/me'),
   opsReports: (status?: 'pending' | 'done', cursor?: string, limit?: number) => {
     const q = new URLSearchParams()
@@ -435,4 +469,10 @@ export const api = {
       `/api/v1/ops/reports/${encodeURIComponent(reportId)}`,
       { method: 'PATCH', body: JSON.stringify(body) },
     ),
+  opsUsers: (q: string) =>
+    request<OpsUser[]>(`/api/v1/ops/users?q=${encodeURIComponent(q)}`),
+  opsFreezeUser: (userId: string) =>
+    request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
+  opsUnfreezeUser: (userId: string) =>
+    request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/unfreeze`, { method: 'POST' }),
 }

@@ -48,7 +48,7 @@ order: 3
 | `/ai/**` | AI |
 | `/live/**` | 直播 |
 | `/reports/**` | 用户提交举报（P5，moderation） |
-| `/ops/**` | 运营后台（P5；员工 Session；moderation，下架/封禁 Feign content/user） |
+| `/ops/**` | 运营后台（P5；员工 Session；moderation，下架 Feign content，冻结 Feign auth） |
 
 完整路径列表见 [API 明细](/engineering/process/api-endpoints)。
 
