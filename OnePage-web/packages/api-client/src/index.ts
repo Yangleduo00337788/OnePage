@@ -725,6 +725,45 @@ export const api = {
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
   opsUnfreezeUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/unfreeze`, { method: 'POST' }),
+  opsUserFollowing: (userId: string, opts?: { cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<UserBrief>>(`/api/v1/ops/users/${encodeURIComponent(userId)}/following${suffix}`)
+  },
+  opsUserFollowers: (userId: string, opts?: { cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<UserBrief>>(`/api/v1/ops/users/${encodeURIComponent(userId)}/followers${suffix}`)
+  },
+  opsRemoveFollowing: (userId: string, peerId: string) =>
+    request<void>(
+      `/api/v1/ops/users/${encodeURIComponent(userId)}/following/${encodeURIComponent(peerId)}/remove`,
+      { method: 'POST' },
+    ),
+  opsRemoveFollower: (userId: string, peerId: string) =>
+    request<void>(
+      `/api/v1/ops/users/${encodeURIComponent(userId)}/followers/${encodeURIComponent(peerId)}/remove`,
+      { method: 'POST' },
+    ),
+  opsUserNotifications: (
+    userId: string,
+    opts?: { group?: string; cursor?: string; limit?: number },
+  ) => {
+    const q = new URLSearchParams()
+    if (opts?.group) q.set('group', opts.group)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<NotificationItem>>(
+      `/api/v1/ops/users/${encodeURIComponent(userId)}/notifications${suffix}`,
+    )
+  },
+  opsHideNotification: (id: string) =>
+    request<void>(`/api/v1/ops/notifications/${encodeURIComponent(id)}/hide`, { method: 'POST' }),
   opsMedia: (opts?: {
     q?: string
     purpose?: string

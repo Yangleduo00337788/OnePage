@@ -385,6 +385,27 @@ public class UserService {
 
   public record UserSummaryPage(List<UserSummary> items, String nextCursor, boolean hasMore) {}
 
+  public UserCursorPage opsRelations(long userId, boolean following, String cursor, Integer limit) {
+    if (profileMapper.selectById(userId) == null) {
+      throw BusinessException.notFound("用户不存在");
+    }
+    return pageRelations(userId, null, cursor, limit, following);
+  }
+
+  @Transactional
+  public void opsRemoveFollow(long followerId, long followeeId) {
+    if (followerId == followeeId) {
+      throw BusinessException.validation("不能取消自己关注自己");
+    }
+    int deleted = followMapper.deletePair(followerId, followeeId);
+    if (deleted <= 0) {
+      throw BusinessException.notFound("关注关系不存在");
+    }
+    LocalDateTime now = LocalDateTime.now();
+    statMapper.bumpFollowing(followerId, -1, now);
+    statMapper.bumpFollower(followeeId, -1, now);
+  }
+
   public UserCursorPage following(String pageId, Long viewerId, String cursor, Integer limit) {
     UserProfile owner = requireProfileByPageId(pageId);
     return pageRelations(owner.getUserId(), viewerId, cursor, limit, true);

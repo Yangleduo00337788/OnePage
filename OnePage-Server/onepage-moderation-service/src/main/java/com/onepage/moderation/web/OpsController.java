@@ -287,6 +287,71 @@ public class OpsController {
     return moderationService.freezeUser(actorId, targetId, false);
   }
 
+  @GetMapping("/users/{userId}/following")
+  public ModerationDtos.OpsPeerPage following(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsFollowing(targetId, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/followers")
+  public ModerationDtos.OpsPeerPage followers(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsFollowers(targetId, cursor, limit);
+  }
+
+  @PostMapping("/users/{userId}/following/{peerId}/remove")
+  public ResponseEntity<Void> removeFollowing(
+      HttpServletRequest request,
+      @PathVariable("userId") long followerId,
+      @PathVariable("peerId") long followeeId) {
+    long actorId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(actorId);
+    moderationService.removeFollow(followerId, followeeId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/users/{userId}/followers/{peerId}/remove")
+  public ResponseEntity<Void> removeFollower(
+      HttpServletRequest request,
+      @PathVariable("userId") long followeeId,
+      @PathVariable("peerId") long followerId) {
+    long actorId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(actorId);
+    moderationService.removeFollow(followerId, followeeId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/users/{userId}/notifications")
+  public ModerationDtos.OpsNotifyPage notifications(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId,
+      @RequestParam(value = "group", required = false) String group,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsNotifications(targetId, group, cursor, limit);
+  }
+
+  @PostMapping("/notifications/{id}/hide")
+  public ResponseEntity<Void> hideNotification(
+      HttpServletRequest request, @PathVariable("id") long id) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.hideNotification(id);
+    return ResponseEntity.noContent().build();
+  }
+
   @GetMapping("/media")
   public ModerationDtos.OpsMediaPage media(
       HttpServletRequest request,

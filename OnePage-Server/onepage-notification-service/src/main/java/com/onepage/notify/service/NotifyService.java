@@ -119,6 +119,14 @@ public class NotifyService {
     return new NotifyDtos.CursorPage(items, next, hasMore);
   }
 
+  public void opsHide(long id) {
+    NotificationRow row = mapper.findById(id);
+    if (row == null) {
+      throw BusinessException.notFound("通知不存在");
+    }
+    mapper.deleteById(id);
+  }
+
   public NotifyDtos.UnreadCount unread(long userId) {
     long comment = 0;
     long reaction = 0;

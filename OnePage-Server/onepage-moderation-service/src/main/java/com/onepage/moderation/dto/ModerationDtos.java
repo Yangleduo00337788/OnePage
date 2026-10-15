@@ -150,4 +150,18 @@ public final class ModerationDtos {
       String createdAt) {}
 
   public record OpsMediaPage(List<OpsMediaRow> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsPeerPage(List<UserSummary> items, String nextCursor, boolean hasMore) {}
+
+  public record OpsNotifyRow(
+      String id,
+      String type,
+      UserSummary actor,
+      String postId,
+      String commentId,
+      String preview,
+      boolean read,
+      String createdAt) {}
+
+  public record OpsNotifyPage(List<OpsNotifyRow> items, String nextCursor, boolean hasMore) {}
 }

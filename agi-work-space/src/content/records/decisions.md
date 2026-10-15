@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-043 运营用户详情可拆关注、删通知
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳
+- **背景：** 治理台用户页原先只有冻结和站内资料预览。需要看目标用户的关注/粉丝与收件箱，并有处置动作，不要空预览。
+- **决策：** 员工 `GET /ops/users/{id}/following|followers`、`GET /ops/users/{id}/notifications`。取消「他关注谁」走 `POST .../following/{peerId}/remove`（userId=follower）；移除粉丝走 `POST .../followers/{peerId}/remove`（userId=followee）。删通知 `POST /ops/notifications/{id}/hide`，物理 DELETE 收件箱行（表无 `deleted_at`）。运营看别人收件箱不 `markRead`。moderation Feign user / notification，内网更新一律 POST。不新建表。精细权限与 CMS 仍不做（DEC-034）。创作者审稿后置。
+- **替代：** 运营直连用户侧 `/users/{pageId}/following` 与 `/notifications`（否决：无按 userId 巡查、会标已读、不能拆别人的边）；软删通知列（否决：现网无该列）。
+- **影响：** 重启 user / notification / moderation。见 [API 明细](/engineering/process/api-endpoints)。
+
 ## DEC-042 运营隐藏媒体写 media_asset.blocked_at，不删 MinIO
 
 - **日期：** 2026-10-15

@@ -87,7 +87,7 @@ PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 M
 | P2 | 能关注、能收通知、能私信 |
 | P3 | 能搜索、能用 AI 助手 |
 | P4 | 能开播、能看直播 |
-| P5 | 能举报；员工能在 `app-ops` 站内预览并下架/恢复/封禁/解冻；能巡查私信并隐藏；能浏览媒体库 |
+| P5 | 能举报；员工能在 `app-ops` 站内预览并下架/恢复/封禁/解冻；能巡查私信并隐藏；能浏览媒体库；能看关注/粉丝并拆边、看收件箱并删通知 |
 
 **当前**：P1 主链路已通。P2 关注已落在 user-service。P2 通知已落 `onepage-notification-service`（8084）。P2 私信已落 `onepage-message-service`（8085）：单聊文本/图片 HTTP、`WS /ws/im`、分享笔记卡片 `POST /posts/{id}/share/im`。获赞/被收藏列表已接。尚未实现：AI、搜索、直播。评论 @ 已接（一页号或昵称，通知 `mention`）。Outbox 只落库。本地 IDEA 七进程（含 moderation 8086）；yml 只引用环境变量。短信 `SMS_MOCK` 验证码 `888888`。content 需 `002_p1.sql`、`003_category.sql`、`004_post_settings.sql`、`005_ops_catalog.sql`，已有库另执行 `006_ops_media_block.sql`；user 关注需 `002_follow.sql`；通知需 `onepage-notification-service/db/sql/001_init.sql`；私信需 `onepage-message-service/db/sql/001_init.sql`，已有库另执行 `002_ops_hide.sql`（并在 `.env` 加 `MESSAGE_PORT`、`MYSQL_MESSAGE_DB`）。message-service 需 Redis 与 `MEDIA_PUBLIC_BASE`。治理需 `onepage-moderation-service/db/sql/001_init.sql`（`.env` 加 `MODERATION_PORT`、`MYSQL_MODERATION_DB`；`OPS_STAFF_USER_IDS` 必填，空则拒绝）。
 

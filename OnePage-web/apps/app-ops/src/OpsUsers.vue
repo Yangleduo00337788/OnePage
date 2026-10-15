@@ -5,7 +5,7 @@ import { api, ApiError, type OpsUser } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
 import OpsPager from './OpsPager.vue'
-import OpsTargetPreview from './OpsTargetPreview.vue'
+import OpsUserDetail from './OpsUserDetail.vue'
 import { useCursorPages } from './useCursorPages'
 
 const query = ref('')
@@ -75,7 +75,7 @@ async function toggle(row: OpsUser) {
     const next = row.frozen ? await api.opsUnfreezeUser(row.userId) : await api.opsFreezeUser(row.userId)
     items.value = items.value.map((item) => (item.userId === next.userId ? next : item))
     flash(next.frozen ? '已冻结' : '已解冻')
-    previewOpen.value = false
+    if (previewUser.value?.userId === next.userId) previewUser.value = next
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
   } finally {
@@ -150,14 +150,19 @@ onMounted(() => load(1, true))
         @update:page-size="setSize"
       />
     </section>
-    <OpsTargetPreview
-      v-if="previewOpen"
-      kind="user"
-      :post="null"
+    <div v-if="previewOpen && (previewLoading || previewError)" class="mask" @click.self="previewOpen = false">
+      <p :class="previewError ? 'float-hint err' : 'float-hint'">{{ previewError || '加载中…' }}</p>
+    </div>
+    <OpsUserDetail
+      v-else-if="previewOpen && previewUser"
       :user="previewUser"
-      :loading="previewLoading"
-      :error="previewError"
       @close="previewOpen = false"
+      @frozen="
+        (next) => {
+          previewUser = next
+          items = items.map((item) => (item.userId === next.userId ? next : item))
+        }
+      "
     />
   </div>
 </template>
@@ -281,5 +286,28 @@ th {
   background: rgb(248, 248, 248);
   color: #555;
   font-size: 13px;
+}
+
+.mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.float-hint {
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+}
+
+.float-hint.err {
+  color: #ff2442;
 }
 </style>

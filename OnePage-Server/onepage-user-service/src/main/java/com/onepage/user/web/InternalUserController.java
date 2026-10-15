@@ -1,6 +1,7 @@
 package com.onepage.user.web;
 
 import com.onepage.common.dto.UserSummary;
+import com.onepage.user.dto.UserCursorPage;
 import com.onepage.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -81,6 +82,35 @@ public class InternalUserController {
       HttpServletRequest request, @RequestParam("objectKey") String objectKey) {
     tokenFilter.assertInternal(request);
     userService.clearObjectKey(objectKey);
+  }
+
+  @GetMapping("/users/{userId}/ops/following")
+  public UserCursorPage opsFollowing(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    tokenFilter.assertInternal(request);
+    return userService.opsRelations(userId, true, cursor, limit);
+  }
+
+  @GetMapping("/users/{userId}/ops/followers")
+  public UserCursorPage opsFollowers(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    tokenFilter.assertInternal(request);
+    return userService.opsRelations(userId, false, cursor, limit);
+  }
+
+  @PostMapping("/users/{followerId}/following/{followeeId}/remove")
+  public void opsRemoveFollow(
+      HttpServletRequest request,
+      @PathVariable("followerId") long followerId,
+      @PathVariable("followeeId") long followeeId) {
+    tokenFilter.assertInternal(request);
+    userService.opsRemoveFollow(followerId, followeeId);
   }
 
   @GetMapping("/users/ops")

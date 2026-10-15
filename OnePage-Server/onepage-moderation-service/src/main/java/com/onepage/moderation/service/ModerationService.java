@@ -7,6 +7,7 @@ import com.onepage.common.id.IdGenerator;
 import com.onepage.moderation.client.AuthClient;
 import com.onepage.moderation.client.ContentClient;
 import com.onepage.moderation.client.MessageClient;
+import com.onepage.moderation.client.NotifyClient;
 import com.onepage.moderation.client.UserClient;
 import com.onepage.moderation.dto.ModerationDtos;
 import com.onepage.moderation.entity.Report;
@@ -47,6 +48,7 @@ public class ModerationService {
   private final ContentClient contentClient;
   private final AuthClient authClient;
   private final MessageClient messageClient;
+  private final NotifyClient notifyClient;
   private final StaffGuard staffGuard;
   private final String internalToken;
 
@@ -56,6 +58,7 @@ public class ModerationService {
       ContentClient contentClient,
       AuthClient authClient,
       MessageClient messageClient,
+      NotifyClient notifyClient,
       StaffGuard staffGuard,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
@@ -63,6 +66,7 @@ public class ModerationService {
     this.contentClient = contentClient;
     this.authClient = authClient;
     this.messageClient = messageClient;
+    this.notifyClient = notifyClient;
     this.staffGuard = staffGuard;
     this.internalToken = internalToken;
   }
@@ -458,6 +462,59 @@ public class ModerationService {
       return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", frozen);
     }
     return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
+  }
+
+  public ModerationDtos.OpsPeerPage opsFollowing(long userId, String cursor, Integer limit) {
+    return toPeerPage(userClient.following(internalToken, userId, cursor, limit));
+  }
+
+  public ModerationDtos.OpsPeerPage opsFollowers(long userId, String cursor, Integer limit) {
+    return toPeerPage(userClient.followers(internalToken, userId, cursor, limit));
+  }
+
+  public void removeFollow(long followerId, long followeeId) {
+    userClient.removeFollow(internalToken, followerId, followeeId);
+  }
+
+  public ModerationDtos.OpsNotifyPage opsNotifications(
+      long userId, String group, String cursor, Integer limit) {
+    NotifyClient.NotifyPage page = notifyClient.page(internalToken, userId, group, cursor, limit);
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsNotifyPage(List.of(), null, false);
+    }
+    List<ModerationDtos.OpsNotifyRow> items = new ArrayList<>();
+    for (NotifyClient.NotifyItem row : page.items()) {
+      if (row == null) {
+        continue;
+      }
+      items.add(new ModerationDtos.OpsNotifyRow(
+          row.id(),
+          row.type() == null ? "" : row.type(),
+          row.actor(),
+          row.postId() == null ? "" : row.postId(),
+          row.commentId() == null ? "" : row.commentId(),
+          row.preview() == null ? "" : row.preview(),
+          row.read(),
+          row.createdAt() == null ? "" : row.createdAt()));
+    }
+    return new ModerationDtos.OpsNotifyPage(items, page.nextCursor(), page.hasMore());
+  }
+
+  public void hideNotification(long id) {
+    notifyClient.hide(internalToken, id);
+  }
+
+  private static ModerationDtos.OpsPeerPage toPeerPage(UserClient.PeerPage page) {
+    if (page == null || page.items() == null) {
+      return new ModerationDtos.OpsPeerPage(List.of(), null, false);
+    }
+    List<UserSummary> items = new ArrayList<>();
+    for (UserSummary row : page.items()) {
+      if (row != null) {
+        items.add(row);
+      }
+    }
+    return new ModerationDtos.OpsPeerPage(items, page.nextCursor(), page.hasMore());
   }
 
   private void applyAction(long handlerId, Report row, String action) {

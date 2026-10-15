@@ -2,6 +2,7 @@ package com.onepage.notify.mapper;
 
 import com.onepage.notify.dto.TypeCount;
 import com.onepage.notify.entity.NotificationRow;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
@@ -79,6 +80,16 @@ public interface NotificationMapper {
       GROUP BY type
       """)
   List<TypeCount> countUnreadByType(@Param("userId") long userId);
+
+  @Select("""
+      SELECT id, user_id, type, actor_id, aggregate_key, post_id, comment_id, payload, read_at, created_at
+      FROM notification
+      WHERE id = #{id}
+      """)
+  NotificationRow findById(@Param("id") long id);
+
+  @Delete("DELETE FROM notification WHERE id = #{id}")
+  int deleteById(@Param("id") long id);
 
   @Update("""
       UPDATE notification SET read_at = #{now}
