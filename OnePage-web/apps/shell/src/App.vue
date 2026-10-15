@@ -211,8 +211,8 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
         <RouterView />
       </main>
     </div>
-    <AuthModal />
     <NoteDetailModal />
     <MoreMenu />
+    <AuthModal />
   </div>
 </template>
