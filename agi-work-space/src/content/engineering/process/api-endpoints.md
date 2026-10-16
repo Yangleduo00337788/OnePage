@@ -295,12 +295,12 @@ Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `
 ### POST `/api/v1/ai/chat`
 
 **Body**：`{ "question", "sessionId?" }`（`sessionId` 仅前端会话，服务端不落库）  
-**Response 200**：`{ "answer", "citations": [{ "postId", "snippet" }] }`  
-先 `GET /search?type=post` 再生成。无命中：`answer` 为「暂时不能根据站内笔记回答」。无密钥：仍 200，「暂时不能回答」，不查 ES。温度 / `max_tokens` 读运营配置；本接口始终整段返回。
+**Response 200**：`{ "answer", "citations": [{ "postId", "snippet", "title", "coverUrl", "nickname", "pageId" }] }`  
+先 `GET /search?type=post` 再生成。无命中：`answer` 为「暂时不能根据站内笔记回答」。无密钥：仍 200，「暂时不能回答」，不查 ES。温度 / `max_tokens` 读运营配置；本接口始终整段返回。模型须归纳并标 `[1]`，禁止复述材料全文。
 
 ### POST `/api/v1/ai/chat/stream`
 
-登录。**Body** 同 `/ai/chat`。**Response** `text/event-stream`：`event: delta` 的 `data` 为 `{ "t" }`；结束 `event: done` 的 `data` 为 `{ "citations": [{ "postId", "snippet" }] }`；失败 `event: error` 的 `data` 为 `{ "message" }`。运营打开流式则上游 `stream:true` 按片段推 `delta`；关闭则一次生成后只推一条 `delta`。ai-service 读上游 SSE 用 RestClient `exchange` 原样读流，不要 `retrieve().body(InputStream)`（没有 `text/event-stream` 转换器）。检索逻辑与 `/ai/chat` 相同。润色不走本接口。
+登录。**Body** 同 `/ai/chat`。**Response** `text/event-stream`：过程 `event: stage` 的 `data` 为 `{ "s": "retrieve"|"notes"|"write", "n" }`（`n` 为命中条数）；`event: delta` 的 `data` 为 `{ "t" }`；结束 `event: done` 的 `data` 为 `{ "citations": [{ "postId", "snippet", "title", "coverUrl", "nickname", "pageId" }] }`；失败 `event: error` 的 `data` 为 `{ "message" }`。运营打开流式则上游 `stream:true` 按片段推 `delta`；关闭则一次生成后只推一条 `delta`。ai-service 读上游 SSE 用 RestClient `exchange` 原样读流，不要 `retrieve().body(InputStream)`（没有 `text/event-stream` 转换器）。检索逻辑与 `/ai/chat` 相同。润色不走本接口。
 
 ---
 

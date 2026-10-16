@@ -11,7 +11,7 @@ POM 维护。每条决策单独一节，新的写在上面。聊天结论当天�
 - **日期：** 2026-10-16
 - **状态：** 已采纳
 - **背景：** 模型密钥只在 `.env`；首页三条联想不应一进来就占高度。DEC-038 曾不把 AI 放进运营菜单。
-- **决策：** 运营左侧「AI」分三项：模型、耶耶、发帖。仍读写 `GET/POST /ops/ai`（moderation Feign ai-service），保存只带本页字段。配置落 Redis `onepage:ai:settings`，环境变量当默认。密钥 GET 只回掩码。可改三段 system prompt。耶耶 RAG：先 `GET /search?type=post` 再把笔记注入 user，可配检索条数和正文截断；无命中不调模型。模型页可配温度、`max_tokens`、流式；温度与 token 写入 Chat Completions，流式只作用于 `POST /ai/chat/stream`（社区耶耶走 SSE；关闭流式则一次生成后一条 delta）。润色仍整段 JSON。可清除密钥、`POST /ops/ai/reset` 回到环境变量、`POST /ops/ai/probe` 探测连通。公开 `GET /ai/bootstrap` 只出耶耶预设与联想。首页默认灰字与折叠联想；未点输入框点「问耶耶」发出默认文案；点输入框后清空默认文案并展开联想。
+- **决策：** 运营左侧「AI」分三项：模型、耶耶、发帖。仍读写 `GET/POST /ops/ai`（moderation Feign ai-service），保存只带本页字段。配置落 Redis `onepage:ai:settings`，环境变量当默认。密钥 GET 只回掩码。可改三段 system prompt。耶耶 RAG：先 `GET /search?type=post` 再把笔记注入 user，可配检索条数和正文截断；无命中不调模型。模型页可配温度、`max_tokens`、流式；温度与 token 写入 Chat Completions，流式只作用于 `POST /ai/chat/stream`（社区耶耶走 SSE；关闭流式则一次生成后一条 delta）。润色仍整段 JSON。可清除密钥、`POST /ops/ai/reset` 回到环境变量、`POST /ops/ai/probe` 探测连通。公开 `GET /ai/bootstrap` 只出耶耶预设与联想。首页默认灰字与折叠联想；未点输入框点「问耶耶」发出默认文案；点输入框后清空默认文案并展开联想。问答主文只归纳，用 `[n]` 对来源文字胶囊（点开笔记弹层），不把检索正文贴进回答。
 - **替代：** 单独 MySQL 库（否决：配置量小）；密钥继续只认 `.env`（否决：运营无法改）。
 - **影响：** 须重启 ai、moderation、gateway。见 [API 明细](/engineering/process/api-endpoints)。
 
