@@ -3,10 +3,13 @@ package com.onepage.search.client;
 import com.onepage.search.dto.SearchDtos;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
-/** 回填公开笔记。 */
+import java.util.List;
+
+/** 回填公开笔记；筛选「已看/未看」时取浏览 id。 */
 @FeignClient(name = "onepage-content-service")
 public interface ContentClient {
   @GetMapping("/internal/search/posts")
@@ -14,4 +17,8 @@ public interface ContentClient {
       @RequestHeader("X-Internal-Token") String token,
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit);
+
+  @GetMapping("/internal/users/{userId}/history-ids")
+  List<String> historyIds(
+      @RequestHeader("X-Internal-Token") String token, @PathVariable("userId") long userId);
 }

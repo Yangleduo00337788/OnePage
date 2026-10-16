@@ -30,6 +30,9 @@ public interface PostViewMapper {
   @Delete("DELETE FROM post_view WHERE user_id = #{userId}")
   int deleteAll(@Param("userId") long userId);
 
+  @Select("SELECT post_id FROM post_view WHERE user_id = #{userId} ORDER BY viewed_at DESC LIMIT 500")
+  List<Long> listPostIds(@Param("userId") long userId);
+
   @Lang(XMLLanguageDriver.class)
   @Select("""
       <script>

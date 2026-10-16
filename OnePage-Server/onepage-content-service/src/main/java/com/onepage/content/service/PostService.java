@@ -534,6 +534,17 @@ public class PostService {
     return listByInteraction(userId, cursor, limit, InteractionKind.HISTORY);
   }
 
+  public List<String> listHistoryIds(long userId) {
+    List<Long> ids = postViewMapper.listPostIds(userId);
+    List<String> out = new ArrayList<>();
+    for (Long id : ids) {
+      if (id != null) {
+        out.add(String.valueOf(id));
+      }
+    }
+    return out;
+  }
+
   public void deleteHistory(long userId, long postId) {
     postViewMapper.deleteOne(userId, postId);
   }

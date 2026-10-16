@@ -37,4 +37,15 @@ public final class SearchDtos {
   public record UserPage(List<UserDoc> items, String nextCursor, boolean hasMore) {}
 
   public record SearchResult(List<PostBrief> posts, List<UserDoc> users, String nextCursor, boolean hasMore) {}
+
+  public record PostFilter(
+      String q,
+      String postType,
+      String sort,
+      String time,
+      String scope,
+      List<String> authorIds,
+      List<String> seenIds,
+      int from,
+      int size) {}
 }
