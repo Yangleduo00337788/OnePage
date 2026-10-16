@@ -1,10 +1,10 @@
 <!--
-  搜索结果。笔记/用户接 GET /api/v1/search；话题/直播仍空态。筛选 UI 保留，本期不进查询。
+  搜索结果。笔记/用户走 GET /search（筛选进查询）；话题走 /catalog/topics；直播走 /live/sessions。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, ApiError, type SearchUserHit } from '@onepage/api-client'
+import { api, ApiError, type LiveSession, type OpsTopic, type SearchUserHit } from '@onepage/api-client'
 import { noteFromPost, type NoteCard } from '../data/home'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -31,6 +31,7 @@ function resetFilters() {
   filters.types = []
   filters.time = '不限'
   filters.scope = '不限'
+  closeFilter()
 }
 
 function toggleType(item: (typeof TYPES)[number]) {
@@ -51,6 +52,8 @@ const TABS = ['笔记', '用户', '话题', '直播'] as const
 
 const notes = ref<NoteCard[]>([])
 const users = ref<SearchUserHit[]>([])
+const topics = ref<OpsTopic[]>([])
+const lives = ref<LiveSession[]>([])
 const cursor = ref<string | null>(null)
 const hasMore = ref(false)
 const loading = ref(false)
@@ -66,26 +69,66 @@ function searchType() {
   return null
 }
 
+function extra() {
+  const types: string[] = []
+  if (filters.types.includes('图文')) types.push('image')
+  if (filters.types.includes('视频')) types.push('video')
+  const sortMap: Record<(typeof SORTS)[number], string> = {
+    最新: 'latest',
+    最热: 'hot',
+    最多点赞: 'likes',
+    最多评论: 'comments',
+    最多收藏: 'favorites',
+  }
+  const timeMap: Record<(typeof TIMES)[number], string> = {
+    不限: '',
+    周内: 'week',
+    月内: 'month',
+    半年内: 'half',
+  }
+  const scopeMap: Record<(typeof SCOPES)[number], string> = {
+    不限: '',
+    关注: 'following',
+    已看: 'seen',
+    未看: 'unseen',
+  }
+  return {
+    postType: types.join(',') || undefined,
+    sort: sortMap[filters.sort],
+    time: timeMap[filters.time] || undefined,
+    scope: scopeMap[filters.scope] || undefined,
+  }
+}
+
 async function refresh() {
-  const kind = searchType()
   const token = ++seq
   notes.value = []
   users.value = []
+  topics.value = []
+  lives.value = []
   cursor.value = null
   hasMore.value = false
   failed.value = ''
-  if (!kind || !q.value) {
+  if (!q.value) {
     loading.value = false
     return
   }
   loading.value = true
   try {
-    const page = await api.search(q.value, kind, undefined, 20)
-    if (token !== seq) return
-    notes.value = (page.posts || []).map(noteFromPost)
-    users.value = page.users || []
-    cursor.value = page.nextCursor
-    hasMore.value = page.hasMore
+    if (tab.value === '话题') {
+      topics.value = await api.suggestTopics(q.value)
+    } else if (tab.value === '直播') {
+      lives.value = (await api.liveSessions({ q: q.value })).items
+    } else {
+      const kind = searchType()
+      if (!kind) return
+      const page = await api.search(q.value, kind, undefined, 20, extra())
+      if (token !== seq) return
+      notes.value = (page.posts || []).map(noteFromPost)
+      users.value = page.users || []
+      cursor.value = page.nextCursor
+      hasMore.value = page.hasMore
+    }
   } catch (e) {
     if (token !== seq) return
     failed.value = e instanceof ApiError ? e.message : '搜索失败'
@@ -100,7 +143,7 @@ async function loadMore() {
   const token = seq
   loadingMore.value = true
   try {
-    const page = await api.search(q.value, kind, cursor.value || undefined, 20)
+    const page = await api.search(q.value, kind, cursor.value || undefined, 20, extra())
     if (token !== seq) return
     notes.value = notes.value.concat((page.posts || []).map(noteFromPost))
     users.value = users.value.concat(page.users || [])
@@ -114,16 +157,24 @@ async function loadMore() {
 }
 
 watch(
-  () => [q.value, tab.value] as const,
+  () => [q.value, tab.value, filters.sort, filters.types.join('|'), filters.time, filters.scope] as const,
   () => {
     void refresh()
   },
 )
 
+function openTopic(name: string) {
+  void router.replace({ query: { ...route.query, q: name, tab: '笔记' } })
+}
+
+function openLive(sessionId: string) {
+  void router.push({ path: '/live', query: { s: sessionId } })
+}
+
 const emptyHint = computed(() => {
   if (tab.value === '用户') return '还没有匹配的用户'
-  if (tab.value === '话题') return '还没有热门话题'
-  if (tab.value === '直播') return '还没有直播'
+  if (tab.value === '话题') return q.value ? `没有找到与「${q.value}」相关的话题` : '输入关键词开始搜索'
+  if (tab.value === '直播') return q.value ? `没有找到与「${q.value}」相关的直播` : '输入关键词开始搜索'
   return q.value ? `没有找到与「${q.value}」相关的笔记` : '输入关键词开始搜索'
 })
 
@@ -300,6 +351,33 @@ onUnmounted(() => {
         <div v-else-if="tab === '笔记' && notes.length" class="feed-grid flex flex-wrap justify-center gap-4">
           <NoteFeedCard v-for="note in notes" :key="note.id" :note="note" />
         </div>
+        <div v-else-if="tab === '话题' && topics.length" class="flex flex-wrap gap-2 py-2">
+          <button
+            v-for="item in topics"
+            :key="item.topicId"
+            type="button"
+            class="rounded-[20px] bg-[#f3f3f3] px-4 py-2 text-[14px] text-[#1f1f1f] hover:bg-[#eee]"
+            @click="openTopic(item.name)"
+          >
+            #{{ item.name }}
+          </button>
+        </div>
+        <div v-else-if="tab === '直播' && lives.length" class="feed-grid flex flex-wrap justify-center gap-4">
+          <button
+            v-for="item in lives"
+            :key="item.sessionId"
+            type="button"
+            class="w-[280px] overflow-hidden rounded-[16px] bg-white text-left"
+            @click="openLive(item.sessionId)"
+          >
+            <div class="relative h-[360px] bg-[#111]">
+              <img v-if="item.coverUrl" :src="item.coverUrl" alt="" class="h-full w-full object-cover" />
+              <span class="absolute right-2 top-2 rounded bg-[#ff4d4f] px-1.5 py-0.5 text-[11px] text-white">直播中</span>
+            </div>
+            <p class="mt-2 truncate text-[15px] font-medium">{{ item.title }}</p>
+            <p class="mt-0.5 truncate text-[13px] text-[#8a8a8a]">{{ item.owner?.nickname }} · {{ item.viewerCount }} 人</p>
+          </button>
+        </div>
         <EmptyState v-else :src="emptyArt" :title="emptyHint" />
         <div ref="sentinel" class="feed-more" aria-hidden="true">
           <span v-show="loadingMore" class="feed-spinner is-more" />
@@ -316,7 +394,7 @@ onUnmounted(() => {
             <span class="rounded-full bg-white px-2 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">AI</span>
           </div>
           <p class="mt-3 text-[14px] leading-6 text-[#555]">
-            耶耶尚未接入，无法根据「{{ q || '你感兴趣的内容' }}」整理看法。
+            根据「{{ q || '你感兴趣的内容' }}」去问耶耶，耶耶会先检索站内笔记再回答。
           </p>
         </div>
         <button

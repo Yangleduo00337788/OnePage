@@ -72,6 +72,26 @@ export type SearchResult = {
   hasMore: boolean
 }
 
+export type LiveSession = {
+  sessionId: string
+  roomId: string
+  title: string
+  category: string
+  coverUrl: string
+  playUrlHls: string
+  viewerCount: number
+  owner: UserBrief
+  startedAt?: string
+}
+
+export type LiveStart = {
+  sessionId: string
+  roomId: string
+  pushUrl: string
+  playUrlHls: string
+  streamKey: string
+}
+
 export type PolishResult = {
   title: string
   body: string
@@ -691,15 +711,40 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  search: (q: string, type?: 'post' | 'user' | 'all', cursor?: string, limit?: number) => {
+  search: (
+    q: string,
+    type?: 'post' | 'user' | 'all' | 'topic' | 'live',
+    cursor?: string,
+    limit?: number,
+    extra?: { postType?: string; sort?: string; time?: string; scope?: string },
+  ) => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
     if (type) p.set('type', type)
     if (cursor) p.set('cursor', cursor)
     if (limit) p.set('limit', String(limit))
+    if (extra?.postType) p.set('postType', extra.postType)
+    if (extra?.sort) p.set('sort', extra.sort)
+    if (extra?.time) p.set('time', extra.time)
+    if (extra?.scope) p.set('scope', extra.scope)
     const suffix = p.toString() ? `?${p}` : ''
     return request<SearchResult>(`/api/v1/search${suffix}`)
   },
+  liveSessions: (opts?: { q?: string; category?: string }) => {
+    const p = new URLSearchParams()
+    if (opts?.q) p.set('q', opts.q)
+    if (opts?.category) p.set('category', opts.category)
+    const suffix = p.toString() ? `?${p}` : ''
+    return request<{ items: LiveSession[] }>(`/api/v1/live/sessions${suffix}`)
+  },
+  liveSession: (sessionId: string) =>
+    request<LiveSession>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}`),
+  createLiveRoom: (body: { title: string; category?: string; coverMediaId?: string }) =>
+    request<{ roomId: string }>('/api/v1/live/rooms', { method: 'POST', body: JSON.stringify(body) }),
+  startLive: (roomId: string) =>
+    request<LiveStart>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/start`, { method: 'POST' }),
+  endLive: (roomId: string) =>
+    request<void>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/end`, { method: 'POST' }),
   polishPost: (body: { title?: string; body?: string; mode?: 'optimize' | 'continue' }) =>
     request<PolishResult>('/api/v1/ai/posts/polish', {
       method: 'POST',

@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, ApiError, type AiCitation } from '@onepage/api-client'
+import { api, ApiError, type AiCitation, type PostBrief } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { useAuthModal } from '../stores/authModal'
@@ -42,7 +42,13 @@ const chatLog = ref<HTMLElement | null>(null)
 const homeBox = ref<HTMLTextAreaElement | null>(null)
 const chatBox = ref<HTMLTextAreaElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
-const pendingImages = ref<string[]>([])
+const pendingImages = ref<{ url: string; name: string }[]>([])
+const pendingNotes = ref<{ postId: string; title: string }[]>([])
+const pickKind = ref<'fav' | 'like' | ''>('')
+const pickItems = ref<PostBrief[]>([])
+const pickBusy = ref(false)
+const IMAGE_MAX = 10 * 1024 * 1024
+const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const consumedQuery = ref('')
 const copiedAt = ref(-1)
 const stage = ref<YehStage>('retrieve')
@@ -119,10 +125,14 @@ const groupedHistory = computed(() => {
 
 function payload(raw: string) {
   const text = raw.trim() || preset.value
-  if (!pendingImages.value.length) return text
-  const pics = pendingImages.value.join('、')
+  const pics = pendingImages.value.map((item) => item.url || item.name)
+  const notes = pendingNotes.value.map((item) => item.title)
   pendingImages.value = []
-  return `${text}（附图：${pics}）`
+  pendingNotes.value = []
+  let out = text
+  if (pics.length) out += `（附图：${pics.join('、')}）`
+  if (notes.length) out += `（参考笔记：${notes.join('、')}）`
+  return out
 }
 
 function fitBox(el: HTMLTextAreaElement | null, min: number, max: number) {
@@ -322,6 +332,8 @@ function newSession() {
   composerOpen.value = false
   plusOpen.value = false
   pendingImages.value = []
+  pendingNotes.value = []
+  pickKind.value = ''
 }
 
 function onPlusPick(kind: 'image' | 'fav' | 'like') {
@@ -330,15 +342,58 @@ function onPlusPick(kind: 'image' | 'fav' | 'like') {
     fileInput.value?.click()
     return
   }
-  send(kind === 'fav' ? '根据我收藏过的笔记，再推荐一些类似的内容' : '根据我点赞过的笔记，帮我找类似风格')
+  void openPicker(kind)
 }
 
-function onFiles(e: Event) {
+async function openPicker(kind: 'fav' | 'like') {
+  pickKind.value = kind
+  pickBusy.value = true
+  pickItems.value = []
+  try {
+    const page = kind === 'fav' ? await api.myFavorites(undefined, 20) : await api.myLikes(undefined, 20)
+    pickItems.value = page.items || []
+  } catch (e) {
+    pickKind.value = ''
+    if (e instanceof ApiError && e.status === 401) auth.show('login', '/yehyeh')
+  } finally {
+    pickBusy.value = false
+  }
+}
+
+function pickNote(item: PostBrief) {
+  if (pendingNotes.value.some((row) => row.postId === item.postId)) return
+  pendingNotes.value = [...pendingNotes.value, { postId: item.postId, title: item.title || '笔记' }].slice(0, 6)
+  pickKind.value = ''
+}
+
+function dropNote(postId: string) {
+  pendingNotes.value = pendingNotes.value.filter((row) => row.postId !== postId)
+}
+
+function dropImage(url: string) {
+  pendingImages.value = pendingImages.value.filter((row) => row.url !== url)
+}
+
+async function onFiles(e: Event) {
   const input = e.target as HTMLInputElement
-  const names = [...(input.files ?? [])].map((f) => f.name)
+  const files = [...(input.files ?? [])]
   input.value = ''
-  if (!names.length) return
-  pendingImages.value = [...pendingImages.value, ...names].slice(0, 4)
+  if (!files.length) return
+  for (const file of files.slice(0, 4)) {
+    if (!IMAGE_MIMES.has(file.type) || file.size > IMAGE_MAX) continue
+    try {
+      const ticket = await api.presign(file.type, file.size, 'post_image')
+      await api.putObject(ticket.uploadUrl, file, file.type)
+      const done = await api.completeUpload(ticket.mediaId)
+      const url = done.url || ticket.uploadUrl
+      pendingImages.value = [...pendingImages.value, { url, name: file.name }].slice(0, 4)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        auth.show('login', '/yehyeh')
+        return
+      }
+    }
+  }
 }
 
 function onDocPointer(e: PointerEvent) {
@@ -485,7 +540,26 @@ watch(
                     问耶耶
                   </button>
                 </div>
-                <p v-if="pendingImages.length" class="yeh-attach">已选 {{ pendingImages.join('、') }}</p>
+                <div v-if="pendingImages.length || pendingNotes.length" class="yeh-attach">
+                  <button
+                    v-for="pic in pendingImages"
+                    :key="pic.url"
+                    type="button"
+                    class="yeh-chip"
+                    @click="dropImage(pic.url)"
+                  >
+                    图 {{ pic.name }}
+                  </button>
+                  <button
+                    v-for="note in pendingNotes"
+                    :key="note.postId"
+                    type="button"
+                    class="yeh-chip"
+                    @click="dropNote(note.postId)"
+                  >
+                    {{ note.title }}
+                  </button>
+                </div>
                 <div class="yeh-expand">
                   <div class="yeh-expand-inner">
                     <div class="yeh-composer-line" />
@@ -670,10 +744,52 @@ watch(
                 问耶耶
               </button>
             </div>
+            <div v-if="pendingImages.length || pendingNotes.length" class="yeh-attach">
+              <button
+                v-for="pic in pendingImages"
+                :key="pic.url"
+                type="button"
+                class="yeh-chip"
+                @click="dropImage(pic.url)"
+              >
+                图 {{ pic.name }}
+              </button>
+              <button
+                v-for="note in pendingNotes"
+                :key="note.postId"
+                type="button"
+                class="yeh-chip"
+                @click="dropNote(note.postId)"
+              >
+                {{ note.title }}
+              </button>
+            </div>
           </div>
           <p class="yeh-disclaimer">内容由AI生成，请注意甄别！</p>
         </div>
       </template>
+    </div>
+
+    <div v-if="pickKind" class="yeh-pick" @click.self="pickKind = ''">
+      <div class="yeh-pick-card">
+        <div class="yeh-pick-head">
+          <strong>{{ pickKind === 'fav' ? '我的收藏' : '我的点赞' }}</strong>
+          <button type="button" @click="pickKind = ''">关闭</button>
+        </div>
+        <p v-if="pickBusy" class="yeh-pick-empty">加载中…</p>
+        <p v-else-if="!pickItems.length" class="yeh-pick-empty">还没有笔记</p>
+        <button
+          v-for="item in pickItems"
+          :key="item.postId"
+          type="button"
+          class="yeh-pick-row"
+          @click="pickNote(item)"
+        >
+          <img v-if="item.coverUrl" :src="item.coverUrl" alt="" />
+          <span v-else class="yeh-pick-ph" />
+          <span>{{ item.title || '笔记' }}</span>
+        </button>
+      </div>
     </div>
   </section>
 </template>
