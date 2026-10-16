@@ -27,7 +27,8 @@ public final class AiDtos {
       String yehPreset,
       List<String> yehQuestions,
       boolean chatEnabled,
-      boolean polishEnabled) {}
+      boolean polishEnabled,
+      boolean persisted) {}
 
   public record OpsPatch(
       String llmBaseUrl,
@@ -36,5 +37,8 @@ public final class AiDtos {
       String yehPreset,
       List<String> yehQuestions,
       Boolean chatEnabled,
-      Boolean polishEnabled) {}
+      Boolean polishEnabled,
+      Boolean clearLlmKey) {}
+
+  public record OpsProbe(boolean ok, String message) {}
 }

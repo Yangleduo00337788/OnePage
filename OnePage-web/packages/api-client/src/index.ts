@@ -101,6 +101,12 @@ export type OpsAiConfig = {
   yehQuestions: string[]
   chatEnabled: boolean
   polishEnabled: boolean
+  persisted: boolean
+}
+
+export type OpsAiProbe = {
+  ok: boolean
+  message: string
 }
 
 export type NotificationItem = {
@@ -614,7 +620,11 @@ export const api = {
     yehQuestions?: string[]
     chatEnabled?: boolean
     polishEnabled?: boolean
+    clearLlmKey?: boolean
   }) => request<OpsAiConfig>('/api/v1/ops/ai', { method: 'POST', body: JSON.stringify(body) }),
+  opsResetAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai/reset', { method: 'POST' }),
+  opsProbeAi: (body: { llmBaseUrl?: string; llmApiKey?: string; llmModel?: string }) =>
+    request<OpsAiProbe>('/api/v1/ops/ai/probe', { method: 'POST', body: JSON.stringify(body) }),
   exploreFeed: (cursor?: string, limit?: number, category?: string) => {
     const q = new URLSearchParams()
     if (cursor) q.set('cursor', cursor)

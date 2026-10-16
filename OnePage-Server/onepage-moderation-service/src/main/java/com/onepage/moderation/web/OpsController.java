@@ -462,4 +462,19 @@ public class OpsController {
     staffGuard.requireStaff(userId);
     return aiClient.save(internalToken, body);
   }
+
+  @PostMapping("/ai/reset")
+  public AiClient.OpsAiView resetAiConfig(HttpServletRequest request) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return aiClient.reset(internalToken);
+  }
+
+  @PostMapping("/ai/probe")
+  public AiClient.OpsAiProbe probeAi(
+      HttpServletRequest request, @RequestBody AiClient.OpsAiPatch body) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return aiClient.probe(internalToken, body);
+  }
 }

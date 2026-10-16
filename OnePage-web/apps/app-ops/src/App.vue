@@ -66,7 +66,7 @@ const groups: NavGroup[] = [
 ]
 
 const page = ref<PageId>('home')
-const openGroups = ref<Record<string, boolean>>({ gov: true, content: true })
+const openGroups = ref<Record<string, boolean>>({ gov: true, content: true, ai: true })
 const collapsed = ref(localStorage.getItem('onepage.ops.navCollapsed') === '1')
 const me = ref<UserProfile | null>(null)
 const ready = ref(false)

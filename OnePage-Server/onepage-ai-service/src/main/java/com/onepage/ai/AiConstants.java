@@ -38,4 +38,10 @@ public final class AiConstants {
       "你是一页社区助手耶耶。只根据提供的站内笔记回答生活方式问题。"
           + "不要编造链接或笔记。若材料不够，就直说暂时不能根据站内笔记回答。"
           + "用中文，口语，短段落。";
+
+  public static final String PROBE_SYSTEM = "You are a health check. Reply with the single word ok.";
+  public static final String PROBE_USER = "ping";
+  public static final String MSG_PROBE_OK = "连通正常";
+  public static final String MSG_PROBE_FAIL = "暂时连不上模型";
+  public static final String MSG_PROBE_NO_KEY = "尚未配置密钥或地址";
 }

@@ -58,40 +58,58 @@ public class AiSettings {
         stored.yehPreset(),
         stored.yehQuestions(),
         stored.chatEnabled(),
-        stored.polishEnabled());
+        stored.polishEnabled(),
+        readStored() != null);
+  }
+
+  public Stored overlay(AiDtos.OpsPatch patch) {
+    Stored prev = current();
+    if (patch == null) {
+      return prev;
+    }
+    String baseUrl = StringUtils.hasText(patch.llmBaseUrl()) ? trimSlash(patch.llmBaseUrl()) : prev.llmBaseUrl();
+    String model = StringUtils.hasText(patch.llmModel()) ? patch.llmModel().trim() : prev.llmModel();
+    String apiKey = prev.llmApiKey();
+    if (Boolean.TRUE.equals(patch.clearLlmKey())) {
+      apiKey = "";
+    } else if (StringUtils.hasText(patch.llmApiKey())) {
+      apiKey = patch.llmApiKey().trim();
+    }
+    String preset = StringUtils.hasText(patch.yehPreset())
+        ? patch.yehPreset().trim()
+        : prev.yehPreset();
+    List<String> questions = patch.yehQuestions() == null
+        ? prev.yehQuestions()
+        : cleanQuestions(patch.yehQuestions());
+    if (questions.isEmpty()) {
+      questions = defaultQuestions();
+    }
+    boolean chat = patch.chatEnabled() == null ? prev.chatEnabled() : patch.chatEnabled();
+    boolean polish = patch.polishEnabled() == null ? prev.polishEnabled() : patch.polishEnabled();
+    return new Stored(baseUrl, apiKey, model, preset, questions, chat, polish);
   }
 
   public AiDtos.OpsView save(AiDtos.OpsPatch patch) {
-    Stored prev = current();
-    String baseUrl = patch == null || !StringUtils.hasText(patch.llmBaseUrl())
-        ? prev.llmBaseUrl()
-        : trimSlash(patch.llmBaseUrl());
-    String model = patch == null || !StringUtils.hasText(patch.llmModel())
-        ? prev.llmModel()
-        : patch.llmModel().trim();
-    String apiKey = prev.llmApiKey();
-    if (patch != null && patch.llmApiKey() != null && StringUtils.hasText(patch.llmApiKey().trim())) {
-      apiKey = patch.llmApiKey().trim();
-    }
+    Stored next = overlay(patch);
+    String baseUrl = next.llmBaseUrl();
+    String model = next.llmModel();
     if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.validation("模型地址和模型名必填");
     }
-    String preset = patch == null || !StringUtils.hasText(patch.yehPreset())
-        ? prev.yehPreset()
-        : patch.yehPreset().trim();
-    List<String> questions = patch == null ? prev.yehQuestions() : cleanQuestions(patch.yehQuestions());
-    if (questions.isEmpty()) {
-      questions = prev.yehQuestions();
+    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+      throw BusinessException.validation("模型地址须以 http:// 或 https:// 开头");
     }
-    boolean chat = patch == null || patch.chatEnabled() == null ? prev.chatEnabled() : patch.chatEnabled();
-    boolean polish = patch == null || patch.polishEnabled() == null ? prev.polishEnabled() : patch.polishEnabled();
-    Stored next = new Stored(baseUrl, apiKey, model, preset, questions, chat, polish);
     try {
       redis.opsForValue().set(AiConstants.REDIS_SETTINGS_KEY, objectMapper.writeValueAsString(next));
     } catch (Exception ex) {
       log.warn("ai settings save failed");
       throw BusinessException.configMissing("暂时不能保存 AI 配置");
     }
+    return opsView();
+  }
+
+  public AiDtos.OpsView reset() {
+    redis.delete(AiConstants.REDIS_SETTINGS_KEY);
     return opsView();
   }
 

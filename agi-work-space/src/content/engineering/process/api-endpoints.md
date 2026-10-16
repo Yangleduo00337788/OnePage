@@ -633,11 +633,19 @@ Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
 
 ### GET `/api/v1/ops/ai`
 
-员工。**Response**：`llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled`。密钥不回全文。
+员工。**Response**：`llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `persisted`。密钥不回全文。`persisted=false` 表示尚未写入 Redis，当前用环境变量。
 
 ### POST `/api/v1/ops/ai`
 
-员工。**Body** 同上字段；`llmApiKey` 留空则不改已保存密钥。Feign ai-service 写 Redis `onepage:ai:settings`。
+员工。**Body**：GET 字段 + `llmApiKey?` + `clearLlmKey?`。密钥留空不改；`clearLlmKey=true` 清空已存密钥。联想最多 6 条，空列表回落到内置三条。Feign 写 Redis `onepage:ai:settings`。
+
+### POST `/api/v1/ops/ai/reset`
+
+员工。删 Redis 配置，回到环境变量默认。**Response** 同 GET。
+
+### POST `/api/v1/ops/ai/probe`
+
+员工。用表单里的地址/模型探测（密钥留空则用已保存的）。**Response**：`{ "ok", "message" }`。连不上也是 200 + `ok=false`，不把上游错误原文甩给浏览器。
 
 ---
 

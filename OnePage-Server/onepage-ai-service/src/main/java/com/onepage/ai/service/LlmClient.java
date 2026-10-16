@@ -3,6 +3,7 @@ package com.onepage.ai.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onepage.ai.AiConstants;
+import com.onepage.ai.dto.AiDtos;
 import com.onepage.common.api.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,20 +43,37 @@ public class LlmClient {
 
   public String complete(String system, String user) {
     AiSettings.Stored stored = aiSettings.current();
-    if (!StringUtils.hasText(stored.llmApiKey()) || !StringUtils.hasText(stored.llmBaseUrl())) {
+    return complete(stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, user);
+  }
+
+  public AiDtos.OpsProbe probe(String baseUrl, String apiKey, String model) {
+    if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
+      return new AiDtos.OpsProbe(false, AiConstants.MSG_PROBE_NO_KEY);
+    }
+    try {
+      complete(baseUrl, apiKey, model, AiConstants.PROBE_SYSTEM, AiConstants.PROBE_USER);
+      return new AiDtos.OpsProbe(true, AiConstants.MSG_PROBE_OK);
+    } catch (Exception ex) {
+      log.warn("llm probe failed");
+      return new AiDtos.OpsProbe(false, AiConstants.MSG_PROBE_FAIL);
+    }
+  }
+
+  public String complete(String baseUrl, String apiKey, String model, String system, String user) {
+    if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
     Map<String, Object> body = Map.of(
-        "model", stored.llmModel(),
+        "model", model,
         "temperature", 0.4,
         "messages", List.of(
             Map.of("role", "system", "content", system),
             Map.of("role", "user", "content", user)));
     try {
       String raw = RestClient.builder()
-          .baseUrl(stored.llmBaseUrl())
+          .baseUrl(baseUrl)
           .requestFactory(requestFactory)
-          .defaultHeader("Authorization", "Bearer " + stored.llmApiKey())
+          .defaultHeader("Authorization", "Bearer " + apiKey)
           .build()
           .post()
           .uri("/chat/completions")
