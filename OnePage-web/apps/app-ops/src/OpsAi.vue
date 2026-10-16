@@ -1,10 +1,26 @@
-<!-- 运营 AI：模型、开关、耶耶文案。密钥不回显全文。 -->
+<!-- 运营 AI 按功能分页：模型 / 耶耶 / 发帖。保存只改本页字段。 -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, type OpsAiConfig } from '@onepage/api-client'
+
+const props = defineProps<{ kind: 'model' | 'yeh' | 'polish' }>()
 
 const QUESTION_MAX = 6
 const QUESTION_SLOTS = 3
+
+const titles = {
+  model: {
+    h1: '模型',
+    lead: '兼容 OpenAI Chat Completions。温度、token、流式在本页生效。密钥只显示尾号。「恢复默认」会清掉 Redis 里全部 AI 配置。',
+  },
+  yeh: {
+    h1: '耶耶',
+    lead: '开关、RAG 注入、问答提示词、首页文案。保存只改耶耶，不动模型和发帖。',
+  },
+  polish: { h1: '发帖', lead: '创作者编辑页的优化 / 续写。保存只改发帖，不动模型和耶耶。' },
+} as const
+
+const heading = computed(() => titles[props.kind])
 
 const loading = ref(false)
 const saving = ref(false)
@@ -21,6 +37,14 @@ const yehPreset = ref('')
 const questions = ref<string[]>(['', '', ''])
 const chatEnabled = ref(true)
 const polishEnabled = ref(true)
+const chatSystem = ref('')
+const polishSystem = ref('')
+const continueSystem = ref('')
+const retrieveLimit = ref(8)
+const contextBodyMax = ref(400)
+const temperature = ref(0.4)
+const maxTokens = ref(0)
+const streamEnabled = ref(false)
 
 const questionHint = computed(() => {
   const n = questions.value.filter((item) => item.trim()).length
@@ -47,6 +71,14 @@ function apply(data: OpsAiConfig) {
   chatEnabled.value = data.chatEnabled
   polishEnabled.value = data.polishEnabled
   persisted.value = data.persisted
+  chatSystem.value = data.chatSystem || ''
+  polishSystem.value = data.polishSystem || ''
+  continueSystem.value = data.continueSystem || ''
+  retrieveLimit.value = data.retrieveLimit || 8
+  contextBodyMax.value = data.contextBodyMax || 400
+  temperature.value = data.temperature ?? 0.4
+  maxTokens.value = data.maxTokens ?? 0
+  streamEnabled.value = data.streamEnabled
 }
 
 function questionList() {
@@ -54,15 +86,31 @@ function questionList() {
 }
 
 function patchBody(extra?: { clearLlmKey?: boolean }) {
+  if (props.kind === 'model') {
+    return {
+      llmBaseUrl: llmBaseUrl.value.trim(),
+      llmApiKey: llmApiKey.value.trim() || undefined,
+      llmModel: llmModel.value.trim(),
+      temperature: Number.isFinite(Number(temperature.value)) ? Number(temperature.value) : 0.4,
+      maxTokens: Number.isFinite(Number(maxTokens.value)) ? Math.max(0, Number(maxTokens.value)) : 0,
+      streamEnabled: streamEnabled.value,
+      ...extra,
+    }
+  }
+  if (props.kind === 'yeh') {
+    return {
+      yehPreset: yehPreset.value.trim(),
+      yehQuestions: questionList(),
+      chatEnabled: chatEnabled.value,
+      chatSystem: chatSystem.value,
+      retrieveLimit: retrieveLimit.value,
+      contextBodyMax: contextBodyMax.value,
+    }
+  }
   return {
-    llmBaseUrl: llmBaseUrl.value.trim(),
-    llmApiKey: llmApiKey.value.trim() || undefined,
-    llmModel: llmModel.value.trim(),
-    yehPreset: yehPreset.value.trim(),
-    yehQuestions: questionList(),
-    chatEnabled: chatEnabled.value,
     polishEnabled: polishEnabled.value,
-    ...extra,
+    polishSystem: polishSystem.value,
+    continueSystem: continueSystem.value,
   }
 }
 
@@ -146,6 +194,13 @@ function removeQuestion(index: number) {
   questions.value = next.slice(0, QUESTION_MAX)
 }
 
+watch(
+  () => props.kind,
+  () => {
+    void load()
+  },
+)
+
 onMounted(() => load())
 </script>
 
@@ -154,13 +209,19 @@ onMounted(() => load())
     <section class="card">
       <div class="bar">
         <div>
-          <h1>AI 配置</h1>
-          <p class="lead">
-            兼容 OpenAI Chat Completions。密钥只显示尾号。未单独保存时用环境变量。
-          </p>
+          <h1>{{ heading.h1 }}</h1>
+          <p class="lead">{{ heading.lead }}</p>
         </div>
         <div class="actions">
-          <button type="button" class="ghost" :disabled="saving || loading" @click="reset">恢复默认</button>
+          <button
+            v-if="kind === 'model'"
+            type="button"
+            class="ghost"
+            :disabled="saving || loading"
+            @click="reset"
+          >
+            恢复默认
+          </button>
           <button type="button" class="go" :disabled="saving || loading" @click="save">保存</button>
         </div>
       </div>
@@ -168,11 +229,11 @@ onMounted(() => load())
       <p v-if="failed" class="err">{{ failed }}</p>
       <p v-else-if="loading" class="muted">加载中…</p>
       <form v-else class="form" @submit.prevent="save">
-        <p class="badge" :class="persisted ? 'is-saved' : ''">
+        <p v-if="kind === 'model'" class="badge" :class="persisted ? 'is-saved' : ''">
           {{ persisted ? '已保存到 Redis，优先于环境变量' : '尚未单独保存，当前用环境变量' }}
         </p>
 
-        <h2>模型接入</h2>
+        <template v-if="kind === 'model'">
         <div class="row">
           <label>
             模型地址
@@ -196,8 +257,36 @@ onMounted(() => load())
           <button type="button" class="ghost" :disabled="probing || saving" @click="probe">探测连通</button>
           <button type="button" class="ghost" :disabled="saving || !llmKeySet" @click="clearKey">清除密钥</button>
         </div>
+        <div class="row">
+          <label>
+            温度（0–2）
+            <input v-model.number="temperature" type="number" min="0" max="2" step="0.1" />
+          </label>
+          <label>
+            最大 token（0 不限制）
+            <input v-model.number="maxTokens" type="number" min="0" max="8192" />
+          </label>
+        </div>
+        <p class="hint">温度越高越发散。最大 token 写入上游 max_tokens；0 表示不设上限。探测走整段返回，不走流式。</p>
+        <div class="switch-row">
+          <button
+            type="button"
+            class="switch"
+            :class="{ 'is-on': streamEnabled }"
+            role="switch"
+            :aria-checked="streamEnabled"
+            @click="streamEnabled = !streamEnabled"
+          >
+            <span class="knob" />
+          </button>
+          <div>
+            <p class="switch-title">耶耶流式输出</p>
+            <p class="hint">打开后按片段吐字；关闭则一次生成完再显示。发帖润色始终整段 JSON，不受此开关影响。</p>
+          </div>
+        </div>
+        </template>
 
-        <h2>能力开关</h2>
+        <template v-if="kind === 'yeh'">
         <div class="switch-row">
           <button
             type="button"
@@ -214,24 +303,24 @@ onMounted(() => load())
             <p class="hint">关闭后社区问耶耶会提示暂时不能回答，不调模型。</p>
           </div>
         </div>
-        <div class="switch-row">
-          <button
-            type="button"
-            class="switch"
-            :class="{ 'is-on': polishEnabled }"
-            role="switch"
-            :aria-checked="polishEnabled"
-            @click="polishEnabled = !polishEnabled"
-          >
-            <span class="knob" />
-          </button>
-          <div>
-            <p class="switch-title">发帖优化 / 续写</p>
-            <p class="hint">关闭后创作者编辑页按钮会失败并保留原文。</p>
-          </div>
+        <p class="hint">
+          问答先用问题检索公开笔记，再把命中标题和正文注入 user。搜不到不调模型，回复「暂时不能根据站内笔记回答」。
+        </p>
+        <div class="row">
+          <label>
+            检索条数（1–20）
+            <input v-model.number="retrieveLimit" type="number" min="1" max="20" />
+          </label>
+          <label>
+            每条正文字数（50–2000）
+            <input v-model.number="contextBodyMax" type="number" min="50" max="2000" />
+          </label>
         </div>
-
-        <h2>耶耶首页</h2>
+        <p class="hint">以 system 角色注入模型。用户问题和笔记仍走 user。留空保存则回到内置文案。</p>
+        <label>
+          问答提示词
+          <textarea v-model="chatSystem" rows="5" maxlength="4000" />
+        </label>
         <label>
           默认发送文案
           <input v-model="yehPreset" maxlength="80" placeholder="未点输入框时点问耶耶发出去的话" />
@@ -259,6 +348,35 @@ onMounted(() => load())
         >
           加一条联想
         </button>
+        </template>
+
+        <template v-if="kind === 'polish'">
+        <div class="switch-row">
+          <button
+            type="button"
+            class="switch"
+            :class="{ 'is-on': polishEnabled }"
+            role="switch"
+            :aria-checked="polishEnabled"
+            @click="polishEnabled = !polishEnabled"
+          >
+            <span class="knob" />
+          </button>
+          <div>
+            <p class="switch-title">发帖优化 / 续写</p>
+            <p class="hint">关闭后创作者编辑页按钮会失败并保留原文。</p>
+          </div>
+        </div>
+        <p class="hint">以 system 角色注入模型。留空保存则回到内置文案。</p>
+        <label>
+          优化提示词
+          <textarea v-model="polishSystem" rows="5" maxlength="4000" />
+        </label>
+        <label>
+          续写提示词
+          <textarea v-model="continueSystem" rows="5" maxlength="4000" />
+        </label>
+        </template>
       </form>
     </section>
   </div>
@@ -388,9 +506,9 @@ h2 {
   color: #8a8a8a;
 }
 
-.form input {
+.form input,
+.form textarea {
   width: 100%;
-  height: 36px;
   padding: 0 12px;
   border: 0;
   border-radius: 12px;
@@ -398,6 +516,17 @@ h2 {
   color: #1f1f1f;
   font: inherit;
   outline: none;
+}
+
+.form input {
+  height: 36px;
+}
+
+.form textarea {
+  padding: 10px 12px;
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.5;
 }
 
 .q-line {

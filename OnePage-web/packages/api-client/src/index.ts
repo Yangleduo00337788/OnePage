@@ -102,6 +102,14 @@ export type OpsAiConfig = {
   chatEnabled: boolean
   polishEnabled: boolean
   persisted: boolean
+  chatSystem: string
+  polishSystem: string
+  continueSystem: string
+  retrieveLimit: number
+  contextBodyMax: number
+  temperature: number
+  maxTokens: number
+  streamEnabled: boolean
 }
 
 export type OpsAiProbe = {
@@ -434,6 +442,75 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T
 }
 
+async function chatStream(
+  body: { question: string; sessionId?: string },
+  onDelta: (text: string) => void,
+): Promise<AiChatResult> {
+  const headers = new Headers()
+  headers.set('Content-Type', 'application/json')
+  if (apiAudience === 'ops') {
+    headers.set('X-OnePage-Audience', 'ops')
+  }
+  const res = await fetch('/api/v1/ai/chat/stream', {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let data: { code?: string; message?: string } | null = null
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = null
+    }
+    throw new ApiError(res.status, data?.code ?? 'ERROR', data?.message ?? `请求失败（${res.status}）`)
+  }
+  if (!res.body) {
+    throw new ApiError(503, 'ERROR', '暂时不能回答')
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let answer = ''
+  let citations: AiCitation[] = []
+  const takeFrame = (frame: string) => {
+    let event = 'message'
+    const dataLines: string[] = []
+    for (const line of frame.split('\n')) {
+      if (line.startsWith('event:')) event = line.slice(6).trim()
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+    }
+    if (!dataLines.length) return
+    const parsed = JSON.parse(dataLines.join('\n')) as {
+      t?: string
+      citations?: AiCitation[]
+      message?: string
+    }
+    if (event === 'delta' && parsed.t) {
+      answer += parsed.t
+      onDelta(parsed.t)
+    } else if (event === 'done') {
+      citations = parsed.citations ?? []
+    } else if (event === 'error') {
+      throw new ApiError(503, 'CONFIG_MISSING', parsed.message || '暂时不能回答')
+    }
+  }
+  while (true) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+    const frames = buffer.split('\n\n')
+    buffer = frames.pop() ?? ''
+    for (const frame of frames) {
+      if (frame.trim()) takeFrame(frame)
+    }
+    if (done) break
+  }
+  if (buffer.trim()) takeFrame(buffer)
+  return { answer, citations }
+}
+
 export const api = {
   sendSms: (phone: string, scene: 'login' | 'register' | 'reset') =>
     request<{ cooldownSec: number }>('/api/v1/auth/sms/send', {
@@ -610,6 +687,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  aiChatStream: (
+    body: { question: string; sessionId?: string },
+    onDelta: (text: string) => void,
+  ) => chatStream(body, onDelta),
   aiBootstrap: () => request<AiBootstrap>('/api/v1/ai/bootstrap'),
   opsAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai'),
   opsSaveAiConfig: (body: {
@@ -621,6 +702,14 @@ export const api = {
     chatEnabled?: boolean
     polishEnabled?: boolean
     clearLlmKey?: boolean
+    chatSystem?: string
+    polishSystem?: string
+    continueSystem?: string
+    retrieveLimit?: number
+    contextBodyMax?: number
+    temperature?: number
+    maxTokens?: number
+    streamEnabled?: boolean
   }) => request<OpsAiConfig>('/api/v1/ops/ai', { method: 'POST', body: JSON.stringify(body) }),
   opsResetAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai/reset', { method: 'POST' }),
   opsProbeAi: (body: { llmBaseUrl?: string; llmApiKey?: string; llmModel?: string }) =>

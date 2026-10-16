@@ -13,7 +13,7 @@ const note = ref('正在加载概览…')
 onMounted(async () => {
   try {
     data.value = await api.opsOverview()
-    note.value = '社区用户、笔记、评论与工单；分类 / 活动 / 话题来自内容目录。AI 在左侧「AI / 配置」。'
+    note.value = '社区用户、笔记、评论与工单；分类 / 活动 / 话题来自内容目录。AI 在左侧按模型 / 耶耶 / 发帖分开。'
   } catch (e) {
     data.value = null
     if (e instanceof ApiError && e.status === 403) {
