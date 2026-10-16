@@ -80,11 +80,16 @@ export type PolishResult = {
 export type AiCitation = {
   postId: string
   snippet: string
+  title?: string
+  coverUrl?: string
+  nickname?: string
+  pageId?: string
 }
 
 export type AiChatResult = {
   answer: string
   citations: AiCitation[]
+  stopped?: boolean
 }
 
 export type AiBootstrap = {
@@ -445,18 +450,27 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 async function chatStream(
   body: { question: string; sessionId?: string },
   onDelta: (text: string) => void,
+  onStage?: (stage: string, n: number) => void,
+  signal?: AbortSignal,
 ): Promise<AiChatResult> {
   const headers = new Headers()
   headers.set('Content-Type', 'application/json')
   if (apiAudience === 'ops') {
     headers.set('X-OnePage-Audience', 'ops')
   }
-  const res = await fetch('/api/v1/ai/chat/stream', {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/v1/ai/chat/stream', {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (ex) {
+    if (signal?.aborted) return { answer: '', citations: [], stopped: true }
+    throw ex
+  }
   if (!res.ok) {
     const text = await res.text()
     let data: { code?: string; message?: string } | null = null
@@ -487,8 +501,12 @@ async function chatStream(
       t?: string
       citations?: AiCitation[]
       message?: string
+      s?: string
+      n?: number
     }
-    if (event === 'delta' && parsed.t) {
+    if (event === 'stage' && parsed.s) {
+      onStage?.(parsed.s, parsed.n ?? 0)
+    } else if (event === 'delta' && parsed.t) {
       answer += parsed.t
       onDelta(parsed.t)
     } else if (event === 'done') {
@@ -497,15 +515,20 @@ async function chatStream(
       throw new ApiError(503, 'CONFIG_MISSING', parsed.message || '暂时不能回答')
     }
   }
-  while (true) {
-    const { done, value } = await reader.read()
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
-    const frames = buffer.split('\n\n')
-    buffer = frames.pop() ?? ''
-    for (const frame of frames) {
-      if (frame.trim()) takeFrame(frame)
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+      const frames = buffer.split('\n\n')
+      buffer = frames.pop() ?? ''
+      for (const frame of frames) {
+        if (frame.trim()) takeFrame(frame)
+      }
+      if (done) break
     }
-    if (done) break
+  } catch (ex) {
+    if (signal?.aborted) return { answer, citations, stopped: true }
+    throw ex
   }
   if (buffer.trim()) takeFrame(buffer)
   return { answer, citations }
@@ -690,7 +713,9 @@ export const api = {
   aiChatStream: (
     body: { question: string; sessionId?: string },
     onDelta: (text: string) => void,
-  ) => chatStream(body, onDelta),
+    onStage?: (stage: string, n: number) => void,
+    signal?: AbortSignal,
+  ) => chatStream(body, onDelta, onStage, signal),
   aiBootstrap: () => request<AiBootstrap>('/api/v1/ai/bootstrap'),
   opsAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai'),
   opsSaveAiConfig: (body: {
