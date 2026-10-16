@@ -99,18 +99,22 @@ public class AiService {
       return;
     }
     if (!aiSettings.current().chatEnabled() || !llmClient.configured()) {
+      emit(out, "stage", new AiDtos.StreamStage("notes", 0));
       emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_ANSWER));
       emit(out, "done", new AiDtos.StreamDone(List.of()));
       return;
     }
     AiSettings.Stored stored = aiSettings.current();
+    emit(out, "stage", new AiDtos.StreamStage("retrieve", 0));
     List<SearchClient.PostHit> posts = retrieve(question, stored.retrieveLimit());
     List<AiDtos.Citation> citations = toCitations(posts);
+    emit(out, "stage", new AiDtos.StreamStage("notes", posts.size()));
     if (posts.isEmpty()) {
       emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_NOTES));
       emit(out, "done", new AiDtos.StreamDone(List.of()));
       return;
     }
+    emit(out, "stage", new AiDtos.StreamStage("write", posts.size()));
     String user = buildChatUser(question, posts, stored.contextBodyMax());
     try {
       if (Boolean.TRUE.equals(stored.streamEnabled())) {
@@ -173,14 +177,24 @@ public class AiService {
     List<AiDtos.Citation> out = new ArrayList<>();
     for (SearchClient.PostHit post : posts) {
       String snippet = firstLine(post.title(), post.body());
-      out.add(new AiDtos.Citation(post.postId(), snippet));
+      String nick = post.author() == null ? "" : nullToEmpty(post.author().nickname());
+      String pageId = post.author() == null ? "" : nullToEmpty(post.author().pageId());
+      out.add(
+          new AiDtos.Citation(
+              post.postId(),
+              snippet,
+              nullToEmpty(post.title()),
+              nullToEmpty(post.coverUrl()),
+              nick,
+              pageId));
     }
     return List.copyOf(out);
   }
 
   private static String buildChatUser(String question, List<SearchClient.PostHit> posts, int bodyMax) {
     StringBuilder sb = new StringBuilder();
-    sb.append("问题：").append(question).append("\n\n站内笔记：\n");
+    sb.append("问题：").append(question);
+    sb.append("\n\n回答要求：归纳成短段落，不要复述全文；引用用 [1][2] 对应下面编号。\n\n站内笔记：\n");
     int i = 1;
     for (SearchClient.PostHit post : posts) {
       String nick = post.author() == null ? "" : nullToEmpty(post.author().nickname());
@@ -188,13 +202,12 @@ public class AiService {
       if (body.length() > bodyMax) {
         body = body.substring(0, bodyMax);
       }
-      sb.append(i++)
-          .append(". postId=")
-          .append(post.postId())
+      sb.append('[')
+          .append(i++)
+          .append("] 标题=")
+          .append(nullToEmpty(post.title()))
           .append(" 作者=")
           .append(nick)
-          .append(" 标题=")
-          .append(nullToEmpty(post.title()))
           .append('\n')
           .append(body)
           .append("\n\n");

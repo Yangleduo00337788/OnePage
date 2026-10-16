@@ -17,7 +17,7 @@ public interface SearchClient {
 
   record SearchHit(List<PostHit> posts) {}
 
-  record PostHit(String postId, String title, String body, Author author) {}
+  record PostHit(String postId, String title, String body, String coverUrl, Author author) {}
 
   record Author(String nickname, String pageId) {}
 }

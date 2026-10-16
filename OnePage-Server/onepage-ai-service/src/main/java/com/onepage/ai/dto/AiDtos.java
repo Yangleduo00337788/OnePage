@@ -13,7 +13,8 @@ public final class AiDtos {
 
   public record ChatSpec(String question, String sessionId) {}
 
-  public record Citation(String postId, String snippet) {}
+  public record Citation(
+      String postId, String snippet, String title, String coverUrl, String nickname, String pageId) {}
 
   public record ChatResult(String answer, List<Citation> citations) {}
 
@@ -63,4 +64,6 @@ public final class AiDtos {
   public record StreamDone(List<Citation> citations) {}
 
   public record StreamError(String message) {}
+
+  public record StreamStage(String s, int n) {}
 }

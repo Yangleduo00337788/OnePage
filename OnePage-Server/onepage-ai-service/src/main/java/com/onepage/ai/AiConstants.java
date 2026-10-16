@@ -42,8 +42,11 @@ public final class AiConstants {
 
   public static final String CHAT_SYSTEM =
       "你是一页社区助手耶耶。只根据提供的站内笔记回答生活方式问题。"
-          + "不要编造链接或笔记。若材料不够，就直说暂时不能根据站内笔记回答。"
-          + "用中文，口语，短段落。";
+          + "用中文口语，写 3 到 6 个短段落，可以分点。"
+          + "禁止把材料正文整段复制进回答，只做归纳和建议。"
+          + "每条具体建议末尾用方括号标材料编号，例如 [1]，编号必须对上材料。"
+          + "不要编造链接、笔记或编号。材料不够就直说暂时不能根据站内笔记回答。"
+          + "不要输出 JSON，不要 Markdown 标题。";
 
   public static final String PROBE_SYSTEM = "You are a health check. Reply with the single word ok.";
   public static final String PROBE_USER = "ping";
