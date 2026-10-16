@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-052 P4 直播走独立 `onepage-live-service`，不内嵌 SRS
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** P3 搜索/耶耶已接；`/live` 仍空态。MVP 只要开播、列表、HLS 观看。
+- **决策：** 新建 `onepage-live-service`（8089，库 `onepage_live`）。房间+场次落 MySQL；同一主播同时一场 `live`。推流/HLS 用环境变量前缀拼 `stream_key`，不在本仓跑 SRS。在线人数 Redis 近似。社区 `/live` 列表与点开观看；创作者「去开播」仍进社区直播页。搜索直播 Tab 调 `GET /live/sessions`。礼物/连麦/弹幕不做。
+- **替代：** 把直播塞进 content（否决：边界不同）；本期上完整 SRS 集群（否决：环境未备）。
+- **影响：** `.env` 加 `LIVE_PORT`、`MYSQL_LIVE_DB`、`LIVE_PUSH_BASE`、`LIVE_HLS_BASE`。须执行 `001_init.sql`，重启 gateway + 新起 LiveApplication。本机可用 MediaMTX（HLS `:8888`）；`hlsVariant` 用 `mpegts`。`playUrlHls` 为 `{LIVE_HLS_BASE}/{key}/index.m3u8`；社区弹层用 hls.js（Chrome 不能直接给 `<video src>`）。默认 `lowLatency` 在 VLC 常无画面。
+
 ## DEC-051 运营可配 AI；耶耶默认文案不编辑即发送
 
 - **日期：** 2026-10-16

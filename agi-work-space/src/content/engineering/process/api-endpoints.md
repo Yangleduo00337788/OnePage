@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-P3 已实现：搜索笔记/用户；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P3 已实现：搜索笔记/用户（筛选进查询）；话题走目录、直播走 live 列表；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -444,9 +444,9 @@ Query：`beforeId?`, `limit`
 
 ### GET `/api/v1/search`
 
-公开。Query：`q`（空则空结果）、`type`（`post` | `user` | `all`）、`cursor`（偏移字符串）、`limit`、`postType?`（`image` / `video` / `text`）  
+公开。Query：`q`（空则空结果）、`type`（`post` | `user` | `all` | `topic` | `live`）、`cursor`、`limit`、`postType?`（逗号分隔 `image`/`video`）、`sort?`（`latest`/`hot`/`likes`/`comments`/`favorites`）、`time?`（`week`/`month`/`half`）、`scope?`（`following`/`seen`/`unseen`，须登录，靠 `X-User-Id`）  
 **Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio" }], "nextCursor", "hasMore" }`  
-只查已发布、公开、已到点的笔记，以及用户昵称/一页号/签名。话题与直播未索引。MQ 未消费时由 content/user Feign 写入，search 启动回填。
+笔记/用户走 ES。筛选只作用于 `type=post`。`scope=following` Feign 关注 id；`seen`/`unseen` Feign 浏览 id。话题 Tab 走 `GET /catalog/topics`；直播 Tab 走 `GET /live/sessions`。MQ 未消费时由 content/user Feign 写入，search 启动回填。
 
 ---
 
@@ -454,20 +454,28 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms`
 
-**Body**：`title`, `coverMediaId?`  
-**Response 201**：`{ "roomId" }`
+须登录。**Body**：`title`, `category?`, `coverMediaId?`  
+**Response 201**：`{ "roomId" }`  
+`onepage-live-service`（8089）。同一主播同时只能一场 `live`。
 
 ### POST `/api/v1/live/rooms/{roomId}/start`
 
-**Response 200**：`{ "pushUrl", "playUrlHls", "streamKey" }`
+须登录且是房主。**Response 200**：`{ "sessionId", "roomId", "pushUrl", "playUrlHls", "streamKey" }`  
+推流/HLS 前缀来自 `LIVE_PUSH_BASE` / `LIVE_HLS_BASE`，本服务不内嵌媒体服务器。`playUrlHls` 为 `{LIVE_HLS_BASE}/{streamKey}/index.m3u8`（MediaMTX）。
 
 ### POST `/api/v1/live/rooms/{roomId}/end`
 
-**Response 204**
+须登录且是房主。**Response 204**
 
 ### GET `/api/v1/live/sessions`
 
-正在直播列表 → `items[]`：`roomId`, `title`, `owner`, `playUrlHls`, `viewerCount`
+公开。Query：`q?`, `category?`  
+**Response**：`{ "items": [{ "sessionId", "roomId", "title", "category", "coverUrl", "playUrlHls", "viewerCount", "owner", "startedAt" }] }`  
+只出 `status=live`。在线人数 Redis `live:viewers:{sessionId}` 近似值。
+
+### GET `/api/v1/live/sessions/{sessionId}`
+
+公开。点开观看时 +1 近似人数。**Response** 同列表单项。
 
 ---
 

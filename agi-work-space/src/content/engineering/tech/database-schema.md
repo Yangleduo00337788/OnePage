@@ -348,6 +348,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | id | BIGINT PK | |
 | owner_id | BIGINT | |
 | title | VARCHAR(100) | |
+| category | VARCHAR(32) | 分类，空为未分；对齐直播 Tab |
 | cover_object_key | VARCHAR(512) 可空 | |
 | created_at | DATETIME(3) | |
 
