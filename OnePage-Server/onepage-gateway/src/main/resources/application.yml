@@ -152,6 +152,6 @@ spring:
 onepage:
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS}
   session-cookie-name: ${SESSION_COOKIE_NAME}
-  ops-session-cookie-name: ${SESSION_OPS_COOKIE_NAME:ONEPAGE_OPS_SESSION}
+  ops-session-cookie-name: ${SESSION_OPS_COOKIE_NAME}
   rate-replenish: ${GW_RATE_REPLENISH}
   rate-burst: ${GW_RATE_BURST}

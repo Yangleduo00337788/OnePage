@@ -52,7 +52,7 @@ spring:
 
 onepage:
   session-cookie-name: ${SESSION_COOKIE_NAME}
-  ops-session-cookie-name: ${SESSION_OPS_COOKIE_NAME:ONEPAGE_OPS_SESSION}
+  ops-session-cookie-name: ${SESSION_OPS_COOKIE_NAME}
   internal-token: ${INTERNAL_TOKEN}
   frontend-url: ${FRONTEND_URL}
   ops-staff-user-ids: ${OPS_STAFF_USER_IDS:}
