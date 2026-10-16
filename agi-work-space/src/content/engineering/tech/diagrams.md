@@ -168,7 +168,7 @@ sequenceDiagram
   A->>A: 校验账密或验证码；短信未注册则建号（无密码）
   A->>U: Feign 建档或取摘要
   A->>R: 写入 Spring Session
-  A->>B: Set-Cookie ONEPAGE_SESSION HttpOnly
+  A->>B: Set-Cookie ONEPAGE_SESSION 或 ONEPAGE_OPS_SESSION HttpOnly
   B->>G: GET /api/v1/users/me Cookie
   G->>R: 读取 WebSession
   G->>U: X-User-Id

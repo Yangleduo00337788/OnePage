@@ -26,19 +26,22 @@ import java.util.Map;
  *   <li>其余请求必须能从 Redis Session 读到 {@code userId}，否则 401。</li>
  *   <li>通过后写入 {@code X-User-Id}，下游只信这个头。公开 GET 若已登录也会写入，便于 likedByMe。</li>
  * </ul>
- * Session 由 auth 登录成功时写入 Redis；Cookie 名必须与 auth 一致。
+ * Session 由 auth 登录成功时写入 Redis；C 端与运营 Cookie 名必须与 auth 一致。
  */
 @Component
 public class SessionAuthFilter implements GlobalFilter, Ordered {
 
   private final ObjectMapper objectMapper;
-  private final String sessionCookieName;
+  private final String communityCookie;
+  private final String opsCookie;
 
   public SessionAuthFilter(
       ObjectMapper objectMapper,
-      @Value("${onepage.session-cookie-name}") String sessionCookieName) {
+      @Value("${onepage.session-cookie-name}") String communityCookie,
+      @Value("${onepage.ops-session-cookie-name}") String opsCookie) {
     this.objectMapper = objectMapper;
-    this.sessionCookieName = sessionCookieName;
+    this.communityCookie = communityCookie;
+    this.opsCookie = opsCookie;
   }
 
   /**
@@ -49,8 +52,9 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
   public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
     String path = exchange.getRequest().getURI().getPath();
     HttpMethod method = exchange.getRequest().getMethod();
+    String cookieName = cookieName(exchange);
     if (HttpMethod.OPTIONS.equals(method) || isPublic(path, method)) {
-      if (exchange.getRequest().getCookies().getFirst(sessionCookieName) == null) {
+      if (exchange.getRequest().getCookies().getFirst(cookieName) == null) {
         return chain.filter(exchange);
       }
       return exchange.getSession().flatMap(session -> {
@@ -82,6 +86,14 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
           .build();
       return chain.filter(exchange.mutate().request(mutated).build());
     });
+  }
+
+  private String cookieName(ServerWebExchange exchange) {
+    String path = exchange.getRequest().getURI().getPath();
+    String audience = SessionCookies.resolveAudience(
+        exchange.getRequest().getQueryParams().getFirst("audience"),
+        exchange.getRequest().getHeaders().getFirst(SessionCookies.AUDIENCE_HEADER));
+    return SessionCookies.name(path, audience, communityCookie, opsCookie);
   }
 
   /** 登录/注册/发码/找回密码/OAuth 公开；GET 发现流、笔记详情、评论列表公开。 */

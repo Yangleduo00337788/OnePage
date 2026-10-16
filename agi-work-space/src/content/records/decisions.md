@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-046 C 端与运营两张 Cookie，一份 Redis Session
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** Cookie 按 host 不按端口。本机社区 :5174、创作者 :5175、运营 :5176 共用 `ONEPAGE_SESSION`。员工在运营站登录会覆盖 Redis 里同一份 Session，社区账号被挤下线。
+- **决策：** 仍一套账号库、一份 Redis。C 端（社区+创作者）Cookie **`ONEPAGE_SESSION`**；运营 Cookie **`ONEPAGE_OPS_SESSION`**。选哪一张：路径 `/api/v1/ops/**`，或 query `audience=ops`，或头 `X-OnePage-Audience: ops`。运营登录只读写运营 Cookie，不碰 C 端。运营站 `setApiAudience('ops')`，登出 `POST /auth/logout?audience=ops`。
+- **替代：** 两套账号库（否决：DEC-034）；Cookie 带端口（浏览器不支持）；只靠 Origin（否决：代理会改 Origin）。
+- **影响：** 须重启 auth + 网关。已登录用户重新登录两边。见 [登录注册流程](/engineering/tech/auth-flows)、[接口契约](/engineering/process/contracts)。
+
 ## DEC-045 Session 超时走 yml，启动类不加 EnableRedis*Session
 
 - **日期：** 2026-10-16

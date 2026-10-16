@@ -29,7 +29,7 @@ PC 浏览器访问；登录用 **Cookie + 服务端 Session**（不用 JWT 做 M
 ## 技术怎么搭（记住这几条就够）
 
 1. **入口**：所有 API 走 Spring Cloud Gateway（`:8080`）。下游用 Nacos **`lb://服务名`**，服务自己注册，控制台不用手工点注册。  
-2. **登录态**：Session 放在 Redis；Cookie 名 **`ONEPAGE_SESSION`**；空闲超时 `${SESSION_TIMEOUT}`（默认 7d）。网关验 Cookie，内网只认 `X-User-Id`；服务间内部接口再带 `X-Internal-Token`。  
+2. **登录态**：Session 放在 Redis；C 端 Cookie **`ONEPAGE_SESSION`**，运营 **`ONEPAGE_OPS_SESSION`**；空闲超时 `${SESSION_TIMEOUT}`（默认 7d）。网关验对应 Cookie，内网只认 `X-User-Id`；服务间内部接口再带 `X-Internal-Token`。  
 3. **数据**：业务 **MySQL**（一服务一库）；文件 **MinIO**；搜索 **ES**（P3）；缓存和 Session **Redis**。  
 4. **异步**：只用 **RocketMQ**（P1 起）；发帖等用 **Outbox**。P0 还没有 MQ。  
 5. **前端**：pnpm 仓。已有 **shell**（社区 :5174）、**app-creator**（创作者 :5175）、**app-ops**（运营 :5176，治理接口未接）。feed / 用户 / 私信 / 直播子应用尚未拆。

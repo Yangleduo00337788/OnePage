@@ -9,7 +9,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import org.springframework.web.server.session.CookieWebSessionIdResolver;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Mono;
 
@@ -63,19 +62,14 @@ public class GatewayConfig {
   }
 
   /**
-   * WebFlux 读/写 Session Cookie。必须关 Secure（本地 http）、名称为 ONEPAGE_SESSION。
-   * SameSite=Lax：同站导航带 Cookie，跨站 POST 不带，减少 CSRF。
-   * HttpOnly：JS 读不到 Cookie，降低 XSS 偷 Session 的风险。
+   * WebFlux 读/写 Session Cookie。C 端 {@code ONEPAGE_SESSION}，运营 {@code ONEPAGE_OPS_SESSION}。
+   * 必须关 Secure（本地 http）。SameSite=Lax；HttpOnly。
    */
   @Bean
-  public WebSessionIdResolver webSessionIdResolver() {
-    CookieWebSessionIdResolver resolver = new CookieWebSessionIdResolver();
-    resolver.setCookieName("ONEPAGE_SESSION");
-    resolver.addCookieInitializer(builder -> builder.path("/")
-        .httpOnly(true)
-        .sameSite("Lax")
-        .secure(false));
-    return resolver;
+  public WebSessionIdResolver webSessionIdResolver(
+      @Value("${onepage.session-cookie-name}") String communityCookie,
+      @Value("${onepage.ops-session-cookie-name}") String opsCookie) {
+    return new DualCookieWebSessionIdResolver(communityCookie, opsCookie);
   }
 
   /**

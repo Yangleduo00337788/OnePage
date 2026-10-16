@@ -208,6 +208,7 @@ public class AuthService {
   private UserSummary loginSession(Long userId, HttpServletRequest request) {
     HttpSession session = request.getSession(true);
     session.setAttribute("userId", String.valueOf(userId));
+    // audience=ops 时 CookieSerializer 只读写运营 Cookie，不会覆盖社区 Session。
     return userClient.summary(internalToken, userId);
   }
 

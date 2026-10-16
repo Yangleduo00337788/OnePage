@@ -10,6 +10,8 @@ P0 **已落地**的登录、注册、短信开户、登出，以及 **设置密�
 
 Session 空闲超时来自环境变量 **`SESSION_TIMEOUT`（默认 7d，滑动）**。auth / 网关只靠 yml `spring.session.store-type=redis` + `timeout`，不要在启动类加 `@EnableRedisHttpSession` / `@EnableRedisWebSession`（注解默认 1800 秒会盖掉配置，Redis 里 TTL 只剩约 30 分钟，DEC-045）。
 
+C 端（社区+创作者）Cookie **`ONEPAGE_SESSION`**；运营 Cookie **`ONEPAGE_OPS_SESSION`**。本机三站同 host 不同端口，Cookie 不按端口隔离；两张 Cookie 才能同时登录（DEC-046）。运营请求带 `audience=ops` 或头 `X-OnePage-Audience: ops`。
+
 ## 1. 架构（谁干什么）
 
 ```mermaid
@@ -59,7 +61,7 @@ flowchart TB
 | --- | --- |
 | AuthModal | 社区站登录（短信 / 账密）、注册、找回密码、协议勾选 |
 | CreatorLogin | 创作者独立登录页（短信/账密）；与社区同一 Session，不注册 |
-| OpsLogin | 运营独立登录；`audience=ops`；须在 `OPS_STAFF_USER_IDS` 内，非员工 403 不种 Session；不注册、不短信开户 |
+| OpsLogin | 运营独立登录；`audience=ops`；种 `ONEPAGE_OPS_SESSION`；须在 `OPS_STAFF_USER_IDS` 内，非员工 403 不种 Cookie；不注册、不短信开户 |
 | MePage | 已登录设密 / 改密；资料不展示手机号邮箱 |
 | Gateway | 公开：发码、短信登录、账密登录、注册、OAuth、找回密码。其余要 Session。登出在网关 `invalidate` WebSession |
 | auth | `auth_account`、验证码、密码哈希、种 Session |
@@ -212,9 +214,9 @@ sequenceDiagram
   participant R as Redis
 
   B->>W: 退出登录
-  W->>G: POST /api/v1/auth/logout Cookie
-  G->>R: 读 Session 确认已登录
-  G->>R: WebSession.invalidate
+  W->>G: POST /api/v1/auth/logout Cookie（运营加 audience=ops）
+  G->>R: 读对应 Session 确认已登录
+  G->>R: WebSession.invalidate（只清这一张 Cookie 对应的 Redis）
   G-->>B: 200 {"ok":true}
   W->>W: me=null，回首页
   Note over G: 不要再转发 auth invalidate，否则与网关抢同一份 Redis，请求会挂住

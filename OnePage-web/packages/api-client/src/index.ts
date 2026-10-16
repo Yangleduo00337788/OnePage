@@ -1,5 +1,6 @@
 /**
- * 浏览器调后端的唯一入口。所有方法走 fetch，credentials: 'include' 才会带上 ONEPAGE_SESSION。
+ * 浏览器调后端的唯一入口。所有方法走 fetch，credentials: 'include' 才会带上 Session Cookie。
+ * 运营站须 setApiAudience('ops')，请求带 X-OnePage-Audience，走 ONEPAGE_OPS_SESSION。
  * 不要在组件里直接 fetch，否则容易漏 Cookie 或漏统一错误处理。
  */
 export type UserSummary = {
@@ -343,6 +344,13 @@ export function localMinioPutUrl(uploadUrl: string): string {
   return uploadUrl
 }
 
+/** 运营站入口调用一次。之后请求带 X-OnePage-Audience: ops，不覆盖社区 Cookie。 */
+let apiAudience: 'ops' | undefined
+
+export function setApiAudience(audience?: 'ops') {
+  apiAudience = audience
+}
+
 /**
  * 相对路径请求。开发时由 Vite 代理到网关。
  * 204 无 body；其余当 JSON。HTTP 非 2xx 抛 ApiError，不要当成功。
@@ -351,6 +359,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
+  }
+  if (apiAudience === 'ops' && !headers.has('X-OnePage-Audience')) {
+    headers.set('X-OnePage-Audience', 'ops')
   }
   const res = await fetch(path, { ...init, headers, credentials: 'include' })
   if (res.status === 204) {
@@ -392,7 +403,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
+  logout: (audience?: 'ops') =>
+    request<void>(
+      `/api/v1/auth/logout${audience === 'ops' || apiAudience === 'ops' ? '?audience=ops' : ''}`,
+      { method: 'POST' },
+    ),
   account: () =>
     request<{ phone: string; email: string; hasPassword: boolean }>('/api/v1/auth/account'),
   setPassword: (body: { oldPassword?: string; password: string }) =>

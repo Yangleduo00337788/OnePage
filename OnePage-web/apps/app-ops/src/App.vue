@@ -118,7 +118,7 @@ function setCollapsed(next: boolean) {
 async function logout() {
   menuOpen.value = false
   try {
-    await api.logout()
+    await api.logout('ops')
   } catch {
     /* 网关已清 Cookie 也继续 */
   }

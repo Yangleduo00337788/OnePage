@@ -1,11 +1,11 @@
 package com.onepage.auth.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.session.web.http.CookieSerializer;
-import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -27,17 +27,12 @@ public class AuthConfig {
 
   /**
    * Servlet Session 默认把 Cookie 值 Base64。网关 WebFlux 按原文去 Redis 查，对不上就会 401。
-   * 两边都用明文 SessionId，Cookie 名与网关一致。
+   * C 端与运营两张 Cookie、同一 Redis；运营登录不读写社区 Cookie。
    */
   @Bean
-  public CookieSerializer cookieSerializer() {
-    DefaultCookieSerializer serializer = new DefaultCookieSerializer();
-    serializer.setCookieName("ONEPAGE_SESSION");
-    serializer.setCookiePath("/");
-    serializer.setUseHttpOnlyCookie(true);
-    serializer.setSameSite("Lax");
-    serializer.setUseSecureCookie(false);
-    serializer.setUseBase64Encoding(false);
-    return serializer;
+  public CookieSerializer cookieSerializer(
+      @Value("${onepage.session-cookie-name}") String communityCookie,
+      @Value("${onepage.ops-session-cookie-name}") String opsCookie) {
+    return new AudienceCookieSerializer(communityCookie, opsCookie);
   }
 }

@@ -88,7 +88,7 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 
 **Query**：`audience` 可选。`ops` 时须在 `OPS_STAFF_USER_IDS` 内，否则 403 且不种 Cookie、不自动开户。  
 **Body**：`phone`, `code`  
-**Response 200**：`{ "userId", "pageId", "nickname", "avatarUrl" }`（并 Set-Cookie）
+**Response 200**：`{ "userId", "pageId", "nickname", "avatarUrl" }`（并 Set-Cookie）。`audience=ops` 种运营 Cookie。
 
 ### POST `/api/v1/auth/register`
 
@@ -100,11 +100,12 @@ P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/P
 
 账密登录。**Query**：`audience` 可选，`ops` 时仅白名单员工。  
 **Body**：`account`（手机或邮箱）, `password`  
-**Response 200**：用户摘要 + Cookie。非员工运营登录 403，不种 Cookie。
+**Response 200**：用户摘要 + Cookie。`audience=ops` 种 **`ONEPAGE_OPS_SESSION`**，不改 C 端 `ONEPAGE_SESSION`。非员工运营登录 403，不种 Cookie。
 
 ### POST `/api/v1/auth/logout`
 
-**Response 200** `{ "ok": true }`。由网关清 Redis Session（不要再转发 auth invalidate，否则请求会挂住）。
+**Query**：`audience` 可选，`ops` 时只清运营 Session / `ONEPAGE_OPS_SESSION`。  
+**Response 200** `{ "ok": true }`。由网关清 Redis Session（不要再转发 auth invalidate，否则请求会挂住）。运营站也可带头 `X-OnePage-Audience: ops`。
 
 ### GET `/api/v1/auth/account`
 
@@ -397,7 +398,7 @@ Query：`beforeId?`, `limit`
 
 ### WebSocket `WS /ws/im`
 
-必须登录。浏览器连同源 `/ws/im`（开发时 Vite 转到网关），握手带 `ONEPAGE_SESSION`；网关验 Session 后注入 `X-User-Id` 再 `lb:ws://onepage-message-service`。message-service **不解析 Cookie**。
+必须登录。浏览器连同源 `/ws/im`（开发时 Vite 转到网关），握手带 C 端 `ONEPAGE_SESSION`；网关验 Session 后注入 `X-User-Id` 再 `lb:ws://onepage-message-service`。message-service **不解析 Cookie**。
 
 落库仍走 REST `POST /conversations/{id}/messages`（或 WS 帧 `op=send`，字段同 REST body + `conversationId`）。提交成功后 Redis 频道 `onepage:im:push` 投到发送者与对端本机连接（多实例靠 Redis，不靠单机 Map）。
 
@@ -460,7 +461,7 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ## Ops（P5，运营后台；`onepage-moderation-service` 8086）
 
-员工 Session。非员工 403。名单 `OPS_STAFF_USER_IDS`（空则全部 403）。网关前缀 `/api/v1/ops/**` → moderation-service。运营站登录须带 `audience=ops`（DEC-035）。
+员工 Session（`ONEPAGE_OPS_SESSION`）。非员工 403。名单 `OPS_STAFF_USER_IDS`（空则全部 403）。网关前缀 `/api/v1/ops/**` → moderation-service。运营站登录须带 `audience=ops`（DEC-035 / DEC-046）。
 
 ### GET `/api/v1/ops/me`
 
