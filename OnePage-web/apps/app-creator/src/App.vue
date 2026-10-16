@@ -50,9 +50,9 @@ function onDocClick(e: MouseEvent) {
   if (!userWrap.value?.contains(e.target as Node)) menuOpen.value = false
 }
 
-function openPage(id: PageId) {
+function openPage(id: PageId, notesTab = '') {
   editPostId.value = ''
-  if (id === 'notes') notesFocus.value = ''
+  if (id === 'notes') notesFocus.value = notesTab
   page.value = id
   if (STAT_PAGES.includes(id)) statsOpen.value = true
 }
@@ -240,7 +240,7 @@ function goEdit(postId: string) {
         @publish="goPublish"
         @edit="goEdit"
         @open-stats="openPage('account')"
-        @open-notes="openPage('notes')"
+        @open-notes="(tab?: string) => openPage('notes', tab || '')"
         @open-events="openPage('events')"
       />
     </div>

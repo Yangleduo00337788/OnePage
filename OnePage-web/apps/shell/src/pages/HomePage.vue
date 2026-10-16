@@ -1,5 +1,5 @@
 <!--
-  PC 首页瀑布流。推荐走 GET /feeds/explore，关注走 /feeds/following（已关注作者的公开帖）。
+  PC 首页瀑布流。推荐走 GET /feeds/explore，关注走 /feeds/following（须登录；含好友可见）。
   分类 Tab 按 post.category 筛发现流。点卡片打开详情弹窗。
 -->
 <script setup lang="ts">
@@ -10,9 +10,13 @@ import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import NoteFeedCard from '../components/NoteFeedCard.vue'
 import { api, ApiError, FEED_CATEGORIES } from '@onepage/api-client'
+import { useAuthModal } from '../stores/authModal'
+import { useSession } from '../stores/session'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSession()
+const auth = useAuthModal()
 const loading = ref(false)
 const loadingMore = ref(false)
 const notes = ref<NoteCard[]>([])
@@ -43,6 +47,23 @@ function pull(nextCursor?: string) {
 }
 
 async function refreshFeed() {
+  if (tab.value === '关注' && !session.loaded) {
+    loading.value = true
+    notes.value = []
+    hasMore.value = false
+    return
+  }
+  if (tab.value === '关注' && !session.me) {
+    ++seq
+    notes.value = []
+    cursor.value = null
+    hasMore.value = false
+    failed.value = ''
+    loading.value = false
+    loadingMore.value = false
+    auth.show('login', '/?cat=' + encodeURIComponent('关注'))
+    return
+  }
   const token = ++seq
   loading.value = true
   loadingMore.value = false
@@ -85,6 +106,13 @@ watch(tab, (next, prev) => {
   if (next === prev) return
   void refreshFeed()
 })
+
+watch(
+  () => [session.loaded, session.me?.userId] as const,
+  () => {
+    if (tab.value === '关注') void refreshFeed()
+  },
+)
 
 function toTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -140,8 +168,14 @@ onUnmounted(() => {
     <EmptyState
       v-else-if="!loading && !notes.length"
       :src="tab === '关注' ? '/empty-people.png' : '/empty-me.png'"
-      :title="tab === '关注' ? '还没有关注的人' : '还没有笔记'"
-      :desc="tab === '关注' ? '去发现里看看，关注喜欢的创作者。' : ''"
+      :title="tab === '关注' && !session.me ? '登录后查看关注' : tab === '关注' ? '还没有关注的人' : '还没有笔记'"
+      :desc="
+        tab === '关注' && !session.me
+          ? '关注流只给已登录用户看你关注的人更新的笔记。'
+          : tab === '关注'
+            ? '去发现里看看，关注喜欢的创作者。'
+            : ''
+      "
     />
 
     <div v-else class="feed-grid flex flex-wrap justify-center gap-4" :class="loading ? 'is-refreshing' : ''">

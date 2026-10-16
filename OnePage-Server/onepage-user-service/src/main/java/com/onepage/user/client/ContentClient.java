@@ -2,6 +2,7 @@ package com.onepage.user.client;
 
 import com.onepage.user.dto.PostCursorPage;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -45,6 +46,17 @@ public interface ContentClient {
       @PathVariable("userId") long userId,
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit);
+
+  @DeleteMapping("/internal/users/{userId}/history/{postId}")
+  void deleteHistory(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId,
+      @PathVariable("postId") long postId);
+
+  @DeleteMapping("/internal/users/{userId}/history")
+  void clearHistory(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId);
 
   @GetMapping("/internal/users/{userId}/likes-received")
   ReceivedPage listLikesReceived(

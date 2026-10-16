@@ -121,6 +121,10 @@ public interface ContentClient {
   @PostMapping("/internal/media/{mediaId}/restore")
   void restoreMedia(@RequestHeader("X-Internal-Token") String token, @PathVariable("mediaId") long mediaId);
 
+  @GetMapping("/internal/comments/briefs")
+  List<OpsCommentRow> commentBriefs(
+      @RequestHeader("X-Internal-Token") String token, @RequestParam("ids") List<Long> ids);
+
   @GetMapping("/internal/comments/ops")
   OpsCommentPage opsComments(
       @RequestHeader("X-Internal-Token") String token,

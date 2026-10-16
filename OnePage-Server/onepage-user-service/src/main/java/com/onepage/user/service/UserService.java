@@ -254,6 +254,14 @@ public class UserService {
     return contentClient.listHistory(internalToken, userId, cursor, limit);
   }
 
+  public void deleteHistory(long userId, long postId) {
+    contentClient.deleteHistory(internalToken, userId, postId);
+  }
+
+  public void clearHistory(long userId) {
+    contentClient.clearHistory(internalToken, userId);
+  }
+
   public ReceivedCursorPage myLikesReceived(long userId, String cursor, Integer limit) {
     return hydrateReceived(contentClient.listLikesReceived(internalToken, userId, cursor, limit), userId);
   }

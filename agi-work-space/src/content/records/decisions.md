@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-048 社区互动补齐：评论树、草稿、好友可见、定时、历史删除
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** 运营 P5 可用后，社区详情评论是扁平列表；创作者「暂存」只离开不落库；好友可见/定时在编辑页被拦截；「我的」历史不能删；通知一进列表就全标已读。
+- **决策：** 详情展示 2 层回复并可赞、可举报评论（`targetType=comment`）。发帖 `draft` 写入 `status=draft`；`visibility=friend`（2）进关注流不进发现流；`scheduledAt` 写入 `published_at`，Feed 只出已到点。浏览历史 `DELETE` 单条/清空。通知点开条目再标已读。私信列表预览图片/笔记卡片。创作者待处理始终展示草稿与审核中数量。
+- **替代：** 好友可见另建关注图缓存表（否决：先用 followee-ids）；定时用独立列与扫表任务（否决：先复用 `published_at`）。
+- **影响：** 无新 SQL。须重启 content / user / message / moderation。见 [API 明细](/engineering/process/api-endpoints)。
+
 ## DEC-047 Session 写入 Redis 用 JSON，不用 JDK 序列化
 
 - **日期：** 2026-10-16

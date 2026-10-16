@@ -6,6 +6,7 @@ import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.service.PostService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -66,6 +67,21 @@ public class InternalPostController {
       @RequestParam(value = "limit", required = false) Integer limit) {
     assertInternal(request);
     return postService.listHistory(userId, cursor, limit);
+  }
+
+  @DeleteMapping("/users/{userId}/history/{postId}")
+  public void deleteHistory(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @PathVariable("postId") long postId) {
+    assertInternal(request);
+    postService.deleteHistory(userId, postId);
+  }
+
+  @DeleteMapping("/users/{userId}/history")
+  public void clearHistory(HttpServletRequest request, @PathVariable("userId") long userId) {
+    assertInternal(request);
+    postService.clearHistory(userId);
   }
 
   @GetMapping("/users/{userId}/likes-received")

@@ -6,7 +6,7 @@ import { useAuthModal } from '../stores/authModal'
 
 const props = defineProps<{
   open: boolean
-  targetType: 'post' | 'user'
+  targetType: 'post' | 'user' | 'comment'
   targetId: string
 }>()
 

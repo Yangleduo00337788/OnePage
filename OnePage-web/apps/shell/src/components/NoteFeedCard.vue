@@ -24,10 +24,10 @@ const isText = computed(() => !props.note.video && !props.note.image)
 <template>
   <article
     :data-note-id="note.id"
-    class="flex h-[440px] w-[280px] cursor-pointer flex-col"
+    class="flex w-[280px] cursor-pointer flex-col"
     @click="open"
   >
-    <div class="group relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-[#ececec]">
+    <div class="group relative h-[360px] overflow-hidden rounded-2xl bg-[#ececec]">
       <video
         v-if="note.video && note.image"
         :src="videoSrc"

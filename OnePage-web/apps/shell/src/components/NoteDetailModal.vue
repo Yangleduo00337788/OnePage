@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, ApiError, type PostDetail, type UserProfile, type UserSummary } from '@onepage/api-client'
+import { api, ApiError, type CommentView, type PostDetail, type UserProfile, type UserSummary } from '@onepage/api-client'
 import { useNoteDetail } from '../stores/noteDetail'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
@@ -12,7 +12,33 @@ import ReportDialog from './ReportDialog.vue'
 import TextNoteCover from './TextNoteCover.vue'
 import { formatCount } from '../data/home'
 
-type Comment = { id: string; name: string; text: string; time: string; avatarUrl?: string }
+type Comment = {
+  id: string
+  name: string
+  text: string
+  time: string
+  avatarUrl?: string
+  likeCount: number
+  likedByMe: boolean
+  replyCount: number
+  replies: Comment[]
+  repliesOpen: boolean
+}
+
+function mapComment(c: CommentView): Comment {
+  return {
+    id: c.commentId,
+    name: c.author.nickname,
+    avatarUrl: c.author.avatarUrl,
+    text: c.content,
+    time: relativeTime(c.createdAt),
+    likeCount: c.likeCount,
+    likedByMe: c.likedByMe,
+    replyCount: c.replyCount,
+    replies: [],
+    repliesOpen: false,
+  }
+}
 
 function isLivePost(id?: string): id is string {
   return Boolean(id)
@@ -45,6 +71,9 @@ const liked = ref(false)
 const saved = ref(false)
 const moreOpen = ref(false)
 const reportOpen = ref(false)
+const reportKind = ref<'post' | 'comment'>('post')
+const reportId = ref('')
+const replyTo = ref<{ id: string; name: string; rootId: string } | null>(null)
 const shareOpen = ref(false)
 type SharePeer = { userId: string; pageId: string; nickname: string; avatarUrl: string; conversationId?: string }
 const sharePeers = ref<SharePeer[]>([])
@@ -597,6 +626,7 @@ function needLogin(e: unknown) {
 
 async function loadLive(id: string) {
   const token = ++loadSeq
+  replyTo.value = null
   try {
     const post = await api.post(id)
     if (token !== loadSeq) return
@@ -619,13 +649,7 @@ async function loadLive(id: string) {
     void api.viewPost(id).catch(() => undefined)
     const page = await api.comments(id, undefined, 0, 50)
     if (token !== loadSeq) return
-    comments.value = page.items.map((c) => ({
-      id: c.commentId,
-      name: c.author.nickname,
-      avatarUrl: c.author.avatarUrl,
-      text: c.content,
-      time: relativeTime(c.createdAt),
-    }))
+    comments.value = page.items.map(mapComment)
     commentTotal.value = page.total
   } catch {
     if (token !== loadSeq) return
@@ -848,19 +872,23 @@ async function sendComment() {
   try {
     const ids = mentionKeys(text).map((key) => mentionPicked.value[key] || key)
     const mentionPageIds = [...new Set(ids)]
-    const c = await api.createComment(id, { content: text, mentionPageIds })
-    comments.value = [
-      {
-        id: c.commentId,
-        name: c.author.nickname,
-        avatarUrl: c.author.avatarUrl,
-        text: c.content,
-        time: '刚刚',
-      },
-      ...comments.value,
-    ]
+    const parentId = replyTo.value?.id
+    const rootId = replyTo.value?.rootId
+    const c = await api.createComment(id, { content: text, parentId, mentionPageIds })
+    const row = mapComment(c)
+    if (rootId) {
+      const root = comments.value.find((item) => item.id === rootId)
+      if (root) {
+        root.replies = [...root.replies, row]
+        root.replyCount += 1
+        root.repliesOpen = true
+      }
+    } else {
+      comments.value = [row, ...comments.value]
+    }
     commentTotal.value += 1
     draft.value = ''
+    replyTo.value = null
     mentionPicked.value = {}
     closeMention()
   } catch (e) {
@@ -875,6 +903,55 @@ function report() {
     return
   }
   if (!detail.note?.id) return
+  reportKind.value = 'post'
+  reportId.value = detail.note.id
+  reportOpen.value = true
+}
+
+function startReply(item: Comment, rootId?: string) {
+  if (!session.me) {
+    auth.show('login')
+    return
+  }
+  replyTo.value = { id: item.id, name: item.name, rootId: rootId || item.id }
+  commentBox.value?.focus()
+}
+
+function cancelReply() {
+  replyTo.value = null
+}
+
+async function toggleReplies(item: Comment) {
+  item.repliesOpen = !item.repliesOpen
+  if (!item.repliesOpen || item.replies.length || !item.replyCount) return
+  const id = detail.note?.id
+  if (!isLivePost(id)) return
+  try {
+    const page = await api.comments(id, item.id, 0, 50)
+    item.replies = page.items.map(mapComment)
+  } catch (e) {
+    item.repliesOpen = false
+    if (!needLogin(e)) flash(e instanceof Error ? e.message : '加载回复失败')
+  }
+}
+
+async function toggleCommentLike(item: Comment) {
+  try {
+    const r = await api.likeComment(item.id)
+    item.likedByMe = r.liked
+    item.likeCount = r.likeCount
+  } catch (e) {
+    if (!needLogin(e)) flash(e instanceof Error ? e.message : '点赞失败')
+  }
+}
+
+function reportComment(item: Comment) {
+  if (!session.me) {
+    auth.show('login')
+    return
+  }
+  reportKind.value = 'comment'
+  reportId.value = item.id
   reportOpen.value = true
 }
 
@@ -1309,7 +1386,7 @@ watch(moreOpen, async (on) => {
                 >
                   {{ item.name.slice(0, 1) }}
                 </span>
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                   <p class="text-[13px]">
                     <span class="mr-1.5 text-[#8a8a8a]">{{ item.name }}</span>
                     <template v-for="(part, i) in commentParts(item.text)" :key="i">
@@ -1324,7 +1401,61 @@ watch(moreOpen, async (on) => {
                       <span v-else>{{ part.value }}</span>
                     </template>
                   </p>
-                  <p class="mt-0.5 text-[11px] text-[#bbb]">{{ item.time }}</p>
+                  <p class="mt-0.5 flex flex-wrap items-center gap-3 text-[11px] leading-none text-[#bbb]">
+                    <span>{{ item.time }}</span>
+                    <button type="button" @click="startReply(item)">回复</button>
+                    <button type="button" :class="item.likedByMe ? 'text-[#ff2442]' : ''" @click="toggleCommentLike(item)">
+                      赞{{ item.likeCount ? ` ${item.likeCount}` : '' }}
+                    </button>
+                    <button type="button" @click="reportComment(item)">举报</button>
+                    <button v-if="item.replyCount" type="button" @click="toggleReplies(item)">
+                      {{ item.repliesOpen ? '收起回复' : `展开 ${item.replyCount} 条回复` }}
+                    </button>
+                  </p>
+                  <ul v-if="item.repliesOpen && item.replies.length" class="mt-2 space-y-2 border-l border-[#f2f2f2] pl-3">
+                    <li v-for="reply in item.replies" :key="reply.id" class="flex gap-2">
+                      <img
+                        v-if="reply.avatarUrl"
+                        :src="reply.avatarUrl"
+                        alt=""
+                        class="mt-0.5 h-6 w-6 shrink-0 rounded-full object-cover"
+                      />
+                      <span
+                        v-else
+                        class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[10px] text-[#8a8a8a]"
+                      >
+                        {{ reply.name.slice(0, 1) }}
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-[13px]">
+                          <span class="mr-1.5 text-[#8a8a8a]">{{ reply.name }}</span>
+                          <template v-for="(part, i) in commentParts(reply.text)" :key="i">
+                            <button
+                              v-if="part.kind === 'at'"
+                              type="button"
+                              class="text-[#ff2442]"
+                              @click="goMention(part.value)"
+                            >
+                              @{{ part.value }}
+                            </button>
+                            <span v-else>{{ part.value }}</span>
+                          </template>
+                        </p>
+                        <p class="mt-0.5 flex flex-wrap items-center gap-3 text-[11px] text-[#bbb]">
+                          <span>{{ reply.time }}</span>
+                          <button type="button" @click="startReply(reply, item.id)">回复</button>
+                          <button
+                            type="button"
+                            :class="reply.likedByMe ? 'text-[#ff2442]' : ''"
+                            @click="toggleCommentLike(reply)"
+                          >
+                            赞{{ reply.likeCount ? ` ${reply.likeCount}` : '' }}
+                          </button>
+                          <button type="button" @click="reportComment(reply)">举报</button>
+                        </p>
+                      </div>
+                    </li>
+                  </ul>
                 </div>
               </li>
             </ul>
@@ -1362,11 +1493,15 @@ watch(moreOpen, async (on) => {
                   </li>
                 </ul>
                 <p v-else-if="mentionOpen && mentionHint" class="at-pop at-empty">{{ mentionHint }}</p>
+                <p v-if="replyTo" class="mb-1 flex items-center gap-2 px-1 text-[12px] text-[#8a8a8a]">
+                  回复 {{ replyTo.name }}
+                  <button type="button" class="text-[#bbb]" @click="cancelReply">取消</button>
+                </p>
                 <input
                   ref="commentBox"
                   v-model="draft"
                   class="h-9 w-full rounded-[20px] bg-[#f7f7f7] px-3.5 text-[13px] outline-none"
-                  :placeholder="composing ? '说点什么… @ 可搜昵称或一页号' : '说点什么…'"
+                  :placeholder="replyTo ? `回复 ${replyTo.name}` : composing ? '说点什么… @ 可搜昵称或一页号' : '说点什么…'"
                   @focus="onCommentFocus"
                   @blur="onCommentBlur"
                   @input="scheduleMention"
@@ -1453,8 +1588,8 @@ watch(moreOpen, async (on) => {
 
       <ReportDialog
         :open="reportOpen"
-        target-type="post"
-        :target-id="detail.note?.id || ''"
+        :target-type="reportKind"
+        :target-id="reportId"
         @close="reportOpen = false"
         @done="flash('已提交举报')"
       />

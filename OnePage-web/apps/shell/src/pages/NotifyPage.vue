@@ -87,13 +87,6 @@ async function refresh() {
     items.value = page.items
     cursor.value = page.nextCursor
     hasMore.value = page.hasMore
-    const ids = page.items.filter((n) => !n.read).map((n) => n.id)
-    if (ids.length) {
-      await api.markNotificationsRead({ ids })
-      if (token !== seq) return
-      items.value = items.value.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n))
-      await session.refreshUnread()
-    }
   } catch (e) {
     if (token !== seq) return
     items.value = []
@@ -118,13 +111,6 @@ async function loadMore() {
     items.value = items.value.concat(page.items)
     cursor.value = page.nextCursor
     hasMore.value = page.hasMore
-    const ids = page.items.filter((n) => !n.read).map((n) => n.id)
-    if (ids.length) {
-      await api.markNotificationsRead({ ids })
-      if (token !== seq) return
-      items.value = items.value.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n))
-      await session.refreshUnread()
-    }
   } catch {
     if (token === seq) hasMore.value = false
   } finally {
@@ -133,6 +119,15 @@ async function loadMore() {
 }
 
 async function openItem(row: NotificationItem) {
+  if (!row.read) {
+    try {
+      await api.markNotificationsRead({ ids: [row.id] })
+      items.value = items.value.map((n) => (n.id === row.id ? { ...n, read: true } : n))
+      await session.refreshUnread()
+    } catch {
+      /* 标已读失败不挡打开 */
+    }
+  }
   if (row.postId) {
     try {
       const post = await api.post(row.postId)

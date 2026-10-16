@@ -145,7 +145,7 @@ export type ReportReasonCode = (typeof REPORT_REASONS)[number]['code']
 
 export type OpsReport = {
   reportId: string
-  targetType: 'post' | 'user'
+  targetType: 'post' | 'user' | 'comment'
   targetId: string
   targetTitle?: string
   targetPageId?: string
@@ -437,6 +437,9 @@ export const api = {
     request<CursorPage<PostBrief>>(`/api/v1/users/me/likes${cursorQuery(cursor, limit)}`),
   myHistory: (cursor?: string, limit?: number) =>
     request<CursorPage<PostBrief>>(`/api/v1/users/me/history${cursorQuery(cursor, limit)}`),
+  deleteHistory: (postId: string) =>
+    request<void>(`/api/v1/users/me/history/${encodeURIComponent(postId)}`, { method: 'DELETE' }),
+  clearHistory: () => request<void>('/api/v1/users/me/history', { method: 'DELETE' }),
   likesReceived: (cursor?: string, limit?: number) =>
     request<CursorPage<ReceivedItem>>(`/api/v1/users/me/likes-received${cursorQuery(cursor, limit)}`),
   favoritesReceived: (cursor?: string, limit?: number) =>
@@ -479,14 +482,16 @@ export const api = {
     }),
   createPost: (body: {
     title?: string
-    body: string
+    body?: string
     mediaIds?: string[]
     postType: string
-    category: string
+    category?: string
     original?: boolean
     contentKind?: string
     eventId?: string
     visibility?: string
+    draft?: boolean
+    scheduledAt?: string
   }) =>
     request<{ postId: string; publishedAt: string; reviewStatus?: string }>('/api/v1/posts', {
       method: 'POST',
@@ -497,14 +502,16 @@ export const api = {
     postId: string,
     body: {
       title?: string
-      body: string
+      body?: string
       mediaIds?: string[]
       postType: string
-      category: string
+      category?: string
       original?: boolean
       contentKind?: string
       eventId?: string
       visibility?: string
+      draft?: boolean
+      scheduledAt?: string
     },
   ) =>
     request<PostDetail>(`/api/v1/posts/${encodeURIComponent(postId)}`, {
@@ -622,7 +629,7 @@ export const api = {
     }),
   conversationUnread: () => request<{ count: number }>('/api/v1/conversations/unread-count'),
   createReport: (body: {
-    targetType: 'post' | 'user'
+    targetType: 'post' | 'user' | 'comment'
     targetId: string
     reasonCode: ReportReasonCode
     detail?: string

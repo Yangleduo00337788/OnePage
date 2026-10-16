@@ -23,7 +23,7 @@ const emit = defineEmits<{
   'update:publishKind': [PublishKind]
   publish: [PublishKind]
   'open-stats': []
-  'open-notes': []
+  'open-notes': [tab?: string]
   'open-events': []
   edit: [string]
 }>()
@@ -43,6 +43,7 @@ const statsKind = computed(() => {
       :edit-post-id="props.editPostId"
       @update:kind="emit('update:publishKind', $event)"
       @close="emit('open-notes')"
+      @drafts="emit('open-notes', '草稿')"
     />
 
     <CreatorDash
@@ -50,7 +51,7 @@ const statsKind = computed(() => {
       :me="props.me"
       @publish="emit('publish', $event)"
       @open-stats="emit('open-stats')"
-      @open-notes="emit('open-notes')"
+      @open-notes="(tab?: string) => emit('open-notes', tab)"
       @open-events="emit('open-events')"
     />
 

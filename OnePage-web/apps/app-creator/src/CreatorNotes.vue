@@ -30,7 +30,7 @@ const previewError = ref('')
 watch(
   () => props.focusTab,
   (value) => {
-    if (value === '未通过' || value === '审核中' || value === '已发布') tab.value = value
+    if (value === '未通过' || value === '审核中' || value === '已发布' || value === '草稿') tab.value = value
     else tab.value = 'all'
   },
   { immediate: true },
@@ -41,6 +41,7 @@ const tabs: { id: TabId; label: string }[] = [
   { id: '已发布', label: '已发布' },
   { id: '审核中', label: '审核中' },
   { id: '未通过', label: '未通过' },
+  { id: '草稿', label: '草稿' },
 ]
 
 const filtered = computed(() => {
@@ -82,6 +83,7 @@ function chipsOf(item: Note) {
   const chips: string[] = []
   if (item.category) chips.push(item.category)
   if (item.visibility === 'self') chips.push('仅自己可见')
+  if (item.visibility === 'friend') chips.push('好友可见')
   if (item.rejectReason) chips.push(item.rejectReason)
   return chips
 }

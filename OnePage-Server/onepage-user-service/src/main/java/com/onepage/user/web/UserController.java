@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -97,6 +98,18 @@ public class UserController {
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit) {
     return userService.myHistory(CurrentUser.requireUserId(request), cursor, limit);
+  }
+
+  @DeleteMapping("/me/history/{postId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteHistory(HttpServletRequest request, @PathVariable("postId") long postId) {
+    userService.deleteHistory(CurrentUser.requireUserId(request), postId);
+  }
+
+  @DeleteMapping("/me/history")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void clearHistory(HttpServletRequest request) {
+    userService.clearHistory(CurrentUser.requireUserId(request));
   }
 
   @GetMapping("/me/likes-received")

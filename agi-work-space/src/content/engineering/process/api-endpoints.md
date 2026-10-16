@@ -6,7 +6,7 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
 **契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
@@ -170,7 +170,15 @@ Query：`cursor`, `limit` → `CursorPage<PostBrief>`。GET 公开。非作者�
 
 ### GET `/api/v1/users/me/favorites` | `/likes` | `/history`
 
-Query：`cursor`, `limit` → `CursorPage<PostBrief>`。必须登录。按收藏/点赞/最近浏览时间倒序。已删除或他人改为仅自己可见的帖不出现。网关走 user-service，内部 Feign content `GET /internal/users/{userId}/favorites` `|likes` `|history`。历史仅列表，尚未做单条删除/清空。
+Query：`cursor`, `limit` → `CursorPage<PostBrief>`。必须登录。按收藏/点赞/最近浏览时间倒序。已删除或他人改为仅自己可见的帖不出现。网关走 user-service，内部 Feign content `GET /internal/users/{userId}/favorites` `|likes` `|history`。
+
+### DELETE `/api/v1/users/me/history/{postId}`
+
+必须登录。删本人一条浏览记录。**204**。内部 Feign `DELETE /internal/users/{userId}/history/{postId}`。
+
+### DELETE `/api/v1/users/me/history`
+
+必须登录。清空本人浏览记录。**204**。内部 Feign `DELETE /internal/users/{userId}/history`。
 
 ### GET `/api/v1/users/{pageId}/following` | `/followers`
 
@@ -210,23 +218,25 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 
 ### POST `/api/v1/posts`
 
-创建并发布（或 draft 另议）。**Body**
+创建笔记。**Body**
 
 | 字段 | 类型 | 必填 |
 | --- | --- | --- |
 | title | string | 否 |
-| body | string | 是 |
-| mediaIds | string[] | 否 |
+| body | string | 正式发布是；草稿可空 |
+| mediaIds | string[] | 否；正式发图/视频必须有 |
 | postType | string | 是 |
-| category | string | 是，须为首页 Tab 之一 |
+| category | string | 正式发布是，须为首页 Tab 之一；草稿可空 |
 | original | boolean | 否，默认 false |
 | contentKind | string | 否；空或「不声明」表示不声明 |
 | eventId | string | 否；须为服务端活动目录已有 id |
-| visibility | string | 否；`public`（默认）或 `self`；`friend` 返回校验失败 |
+| visibility | string | 否；`public`（默认）/ `self` / `friend` |
+| draft | boolean | 否；`true` 则 `status=draft`，仅作者可见 |
+| scheduledAt | string | 否；ISO 本地时间（`yyyy-MM-ddTHH:mm`）；写入 `published_at`，未到点不进 Feed |
 
-**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`pending` 待审 / `published` 已通过）。公开笔记先待审，不进 Feed；仅自己可见直接 `published`。
+**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`draft` / `pending` / `published`）。公开笔记先待审，不进 Feed；仅自己与好友可见直接 `published`。好友可见出现在关注者的关注流，不进发现流。
 
-Feed 只出 `status=published` 且 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。分类须为启用中的 `post_category.name`（`GET /catalog`）。
+Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=public`；关注流公开 + 好友可见。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。分类须为启用中的 `post_category.name`（`GET /catalog`）。
 
 ### GET `/api/v1/catalog`
 
@@ -240,15 +250,15 @@ Feed 只出 `status=published` 且 `visibility=public`。仅自己对非作者�
 
 ### GET `/api/v1/posts/mine`
 
-登录作者自己的笔记（已发布 / 审核中 / 未通过，含仅自己可见）。Query：`cursor`, `limit` → `CursorPage<PostBrief>`（含 `viewCount`、`reviewStatus`、`rejectReason`）。
+登录作者自己的笔记（草稿 / 已发布 / 审核中 / 未通过，含仅自己与好友可见）。Query：`cursor`, `limit` → `CursorPage<PostBrief>`（含 `viewCount`、`reviewStatus`、`rejectReason`）。
 
 ### PATCH `/api/v1/posts/{postId}`
 
-作者改已发布、待审或未通过笔记。Body 与发帖相同（title/body/mediaIds/postType/category/original/contentKind/eventId/visibility）。会整表替换媒体绑定。未通过再保存会回到待审。须登录且为作者。**Response 200**：`PostDetail`（含 `reviewStatus`）。`friend` 与定时仍校验失败。
+作者改草稿、已发布、待审或未通过笔记。Body 与发帖相同（另可 `draft`、`scheduledAt`）。会整表替换媒体绑定。未通过再保存会回到待审。草稿带 `draft=true` 仍为草稿。须登录且为作者。**Response 200**：`PostDetail`（含 `reviewStatus`）。
 
 ### PATCH `/api/v1/posts/{postId}/visibility`
 
-作者改可见范围。**Body**：`{ "visibility": "public" | "self" }`。**Response 200**：`PostBrief`。`friend` 校验失败。
+作者改可见范围。**Body**：`{ "visibility": "public" | "self" | "friend" }`。**Response 200**：`PostBrief`。从仅自己/好友改为公开会重新待审。
 
 ### GET `/api/v1/posts/{postId}`
 
@@ -256,7 +266,7 @@ Feed 只出 `status=published` 且 `visibility=public`。仅自己对非作者�
 
 ### GET `/api/v1/feeds/following` | `/feeds/explore`
 
-Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。GET 公开。关注流只出已关注作者的公开帖；未登录或未关注任何人为空页。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部；分类 Tab 只出对应 `post.category`。
+Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。GET 公开。关注流只出已关注作者的公开或好友可见帖（`published_at` 已到）；未登录由社区前端弹登录，接口仍可返回空页。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部公开帖；分类 Tab 只出对应 `post.category`。
 
 ### DELETE `/api/v1/posts/{postId}`
 
@@ -356,7 +366,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注 / `review` 审核）。  
 **Response**：`CursorPage<NotificationItem>`
 
-**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要或审稿回复，最多 120 字）, `read`, `createdAt`。`mention` 归入 `group=comment`；`review_reject` 归入 `group=review`。
+**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要或审稿回复，最多 120 字）, `read`, `createdAt`。`mention` 归入 `group=comment`；`review_reject` 归入 `group=review`。社区通知页拉列表不自动已读，点开条目再 `POST /notifications/read`。
 
 ### POST `/api/v1/notifications/read`
 
@@ -375,7 +385,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 
 ### GET `/api/v1/conversations`
 
-会话列表。**Response**：`items[]`：`conversationId`, `peer` UserBrief, `lastMessage`（`messageId`, `msgType`, `text`, `createdAt`）, `unreadCount`, `updatedAt`
+会话列表。**Response**：`items[]`：`conversationId`, `peer` UserBrief, `lastMessage`（`messageId`, `msgType`, `text`, `createdAt`）, `unreadCount`, `updatedAt`。`text` 为预览：正文、`[图片]`、`[笔记] …`。打开会话拉消息时服务端 `markRead`。
 
 ### POST `/api/v1/conversations`
 
@@ -452,10 +462,10 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ### POST `/api/v1/reports`
 
-**Body**：`targetType`（post/user）, `targetId`, `reasonCode`（`spam` / `porn` / `abuse` / `illegal` / `other`）, `detail?`
+**Body**：`targetType`（`post` / `user` / `comment`）, `targetId`, `reasonCode`（`spam` / `porn` / `abuse` / `illegal` / `other`）, `detail?`
 **Response 201**：`{ "reportId" }`
 
-社区用户提交。详情「更多 → 举报」、他人主页「举报」已接。处理走下面 Ops。
+社区用户提交。详情「更多 → 举报」、评论「举报」、他人主页「举报」已接。处理走下面 Ops。评论工单在治理台显示「删除评论 / 封禁用户」。
 
 ---
 
@@ -496,7 +506,7 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 **Body**：`action` dismiss / takedown / restore / ban / unban，`note?`
 
-**Response**：`{ reportId, status }`。takedown / restore 由 content 内部下架或恢复；ban 由 **auth** `status=1` 冻结（帖举报同时下架该帖）；unban 解冻作者或被举报用户。不能冻结员工或自己。已处理工单仍可 restore / ban / unban / takedown，dismiss 不行。
+**Response**：`{ reportId, status }`。笔记工单：takedown 下架、restore 恢复、ban 封禁作者（同时下架）。评论工单：takedown 隐藏评论、restore 恢复评论、ban 封禁评论作者（同时隐藏该评）。用户工单：ban / unban 冻结/解冻该用户。dismiss 忽略。不能冻结员工或自己。已处理工单仍可 restore / ban / unban / takedown，dismiss 不行。
 
 ### GET `/api/v1/ops/posts`
 

@@ -36,16 +36,7 @@ public class PostController {
   public ResponseEntity<FeedDtos.CreateResult> create(HttpServletRequest request, @Valid @RequestBody CreateRequest body) {
     FeedDtos.CreateResult result = postService.publish(
         CurrentUser.requireUserId(request),
-        new FeedDtos.PublishSpec(
-            body.title(),
-            body.body(),
-            body.mediaIds(),
-            body.postType(),
-            body.category(),
-            body.original(),
-            body.contentKind(),
-            body.eventId(),
-            body.visibility()));
+        specOf(body));
     return ResponseEntity.status(HttpStatus.CREATED).body(result);
   }
 
@@ -65,16 +56,7 @@ public class PostController {
     return postService.update(
         CurrentUser.requireUserId(request),
         postId,
-        new FeedDtos.PublishSpec(
-            body.title(),
-            body.body(),
-            body.mediaIds(),
-            body.postType(),
-            body.category(),
-            body.original(),
-            body.contentKind(),
-            body.eventId(),
-            body.visibility()));
+        specOf(body));
   }
 
   @PatchMapping("/{postId}/visibility")
@@ -150,14 +132,31 @@ public class PostController {
 
   public record CreateRequest(
       String title,
-      @NotBlank String body,
+      String body,
       List<String> mediaIds,
       @NotBlank String postType,
-      @NotBlank String category,
+      String category,
       Boolean original,
       String contentKind,
       String eventId,
-      String visibility) {}
+      String visibility,
+      Boolean draft,
+      String scheduledAt) {}
+
+  private static FeedDtos.PublishSpec specOf(CreateRequest body) {
+    return new FeedDtos.PublishSpec(
+        body.title(),
+        body.body(),
+        body.mediaIds(),
+        body.postType(),
+        body.category(),
+        body.original(),
+        body.contentKind(),
+        body.eventId(),
+        body.visibility(),
+        body.draft(),
+        body.scheduledAt());
+  }
 
   public record CreateCommentRequest(@NotBlank String content, String parentId, List<String> mentionPageIds) {}
 

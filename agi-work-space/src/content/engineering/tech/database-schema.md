@@ -134,6 +134,8 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | category | VARCHAR(32) | 首页 Tab，对应 `post_category.name` |
 | status | VARCHAR(16) | `draft` / `pending` / `published` / `rejected` / `deleted`；Feed 只出 published |
 | reject_reason | VARCHAR(200) 可空 | 未通过原因 |
+| visibility | TINYINT | 0 公开（发现流）；1 仅自己；2 好友可见（关注流） |
+| published_at | DATETIME(3) | 定时发布：未到点不进 Feed |
 
 ### post_category
 
@@ -173,7 +175,7 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | event_id | VARCHAR(32) | 关联活动 id，可空串 |
 | event_title | VARCHAR(64) | 关联活动标题快照 |
 | status | VARCHAR(16) | `draft` / `published` / `deleted` |
-| visibility | TINYINT | 0 公开；1 仅自己（不进发现流） |
+| visibility | TINYINT | 0 公开（发现流）；1 仅自己；2 好友可见（关注流，互关作者可见） |
 | published_at | DATETIME(3) 可空 | |
 | created_at | DATETIME(3) | |
 | updated_at | DATETIME(3) | |

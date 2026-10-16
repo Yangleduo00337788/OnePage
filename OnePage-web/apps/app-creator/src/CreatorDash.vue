@@ -12,7 +12,7 @@ const props = defineProps<{ me: UserProfile | null }>()
 const emit = defineEmits<{
   publish: [PublishKind]
   'open-stats': []
-  'open-notes': []
+  'open-notes': [tab?: string]
   'open-events': []
 }>()
 
@@ -74,11 +74,13 @@ const notices = [
 
 const recent = ref<Note[]>([])
 const pendingCount = ref(0)
+const draftCount = ref(0)
 
 async function loadRecent() {
   if (!props.me) {
     recent.value = []
     pendingCount.value = 0
+    draftCount.value = 0
     return
   }
   try {
@@ -86,9 +88,11 @@ async function loadRecent() {
     const notes = page.items.map(noteFromMine)
     recent.value = notes.slice(0, 5)
     pendingCount.value = notes.filter((item) => item.status === '审核中').length
+    draftCount.value = notes.filter((item) => item.status === '草稿').length
   } catch {
     recent.value = []
     pendingCount.value = 0
+    draftCount.value = 0
   }
 }
 
@@ -185,11 +189,11 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
       <article class="card">
         <h3>待处理</h3>
         <div class="todo">
-          <button type="button" @click="emit('publish', 'image')">
+          <button type="button" @click="emit('open-notes', '草稿')">
             草稿
-            <b>0</b>
+            <b>{{ draftCount }}</b>
           </button>
-          <button type="button" @click="emit('open-notes')">
+          <button type="button" @click="emit('open-notes', '审核中')">
             审核中
             <b>{{ pendingCount }}</b>
           </button>

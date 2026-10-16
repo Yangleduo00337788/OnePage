@@ -27,6 +27,13 @@ public class InternalCommentController {
     this.expectedToken = expectedToken;
   }
 
+  @GetMapping("/comments/briefs")
+  public java.util.List<FeedDtos.OpsCommentRow> briefs(
+      HttpServletRequest request, @RequestParam("ids") java.util.List<Long> ids) {
+    assertInternal(request);
+    return commentService.opsBriefs(ids);
+  }
+
   @GetMapping("/comments/ops")
   public FeedDtos.OpsCommentPage opsComments(
       HttpServletRequest request,

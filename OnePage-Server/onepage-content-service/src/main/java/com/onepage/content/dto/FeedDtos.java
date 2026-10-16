@@ -65,7 +65,9 @@ public final class FeedDtos {
       Boolean original,
       String contentKind,
       String eventId,
-      String visibility) {}
+      String visibility,
+      Boolean draft,
+      String scheduledAt) {}
 
   public record CreateResult(String postId, String publishedAt, String reviewStatus) {}
 

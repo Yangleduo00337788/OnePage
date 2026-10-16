@@ -1,7 +1,7 @@
 /** 笔记管理：列表类型。数据来自 GET /posts/mine。 */
 import type { PostBrief } from '@onepage/api-client'
 
-export type NoteStatus = '已发布' | '审核中' | '未通过'
+export type NoteStatus = '已发布' | '审核中' | '未通过' | '草稿'
 
 export type Note = {
   id: string
@@ -38,6 +38,7 @@ export function isTextNote(item: Pick<Note, 'postType' | 'cover'>) {
 }
 
 function reviewLabel(status?: string): NoteStatus {
+  if (status === 'draft') return '草稿'
   if (status === 'pending') return '审核中'
   if (status === 'rejected') return '未通过'
   return '已发布'

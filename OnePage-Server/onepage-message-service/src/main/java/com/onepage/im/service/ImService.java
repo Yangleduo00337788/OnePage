@@ -134,7 +134,7 @@ public class ImService {
         last = new ImDtos.LastMessage(
             String.valueOf(hit.getLastMessageId()),
             hit.getLastMsgType() == null ? "text" : hit.getLastMsgType(),
-            preview(hit.getLastContent()),
+            preview(hit.getLastContent(), hit.getLastMsgType()),
             iso(hit.getLastCreatedAt()));
       }
       items.add(new ImDtos.ConversationItem(
@@ -351,7 +351,7 @@ public class ImService {
           String.valueOf(hit.getConversationId()),
           opsBrief(users, hit.getLeftId()),
           opsBrief(users, hit.getRightId()),
-          preview(hit.getLastContent()),
+          preview(hit.getLastContent(), null),
           iso(hit.getUpdatedAt())));
     }
     String next = null;
@@ -393,7 +393,7 @@ public class ImService {
           String.valueOf(row.getConversationId()),
           opsBrief(users, row.getSenderId()),
           row.getMsgType() == null ? "text" : row.getMsgType(),
-          preview(row.getContent()),
+          preview(row.getContent(), row.getMsgType()),
           textOf(body, "url"),
           textOf(body, "postId"),
           row.getDeletedAt() != null,
@@ -511,7 +511,7 @@ public class ImService {
     }
   }
 
-  private String preview(String raw) {
+  private String preview(String raw, String msgType) {
     JsonNode node = parseJson(raw);
     JsonNode text = node.get("text");
     if (text != null && text.isTextual() && StringUtils.hasText(text.asText())) {
@@ -524,6 +524,12 @@ public class ImService {
     JsonNode url = node.get("url");
     if (url != null && url.isTextual() && StringUtils.hasText(url.asText())) {
       return "[图片]";
+    }
+    if ("image".equals(msgType)) {
+      return "[图片]";
+    }
+    if ("post_card".equals(msgType)) {
+      return "[笔记]";
     }
     return "";
   }

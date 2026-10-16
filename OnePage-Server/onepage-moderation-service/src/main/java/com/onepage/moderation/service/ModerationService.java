@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 @Service
 public class ModerationService {
   private static final Logger log = LoggerFactory.getLogger(ModerationService.class);
-  private static final Set<String> TARGETS = Set.of("post", "user");
+  private static final Set<String> TARGETS = Set.of("post", "user", "comment");
   private static final Set<String> ACTIONS = Set.of("dismiss", "takedown", "restore", "ban", "unban");
   private static final Set<String> REASONS = Set.of("spam", "porn", "abuse", "illegal", "other");
   private static final int STATUS_PENDING = 0;
@@ -78,7 +78,7 @@ public class ModerationService {
     }
     String type = body.targetType().trim();
     if (!TARGETS.contains(type)) {
-      throw BusinessException.validation("targetType 须为 post 或 user");
+      throw BusinessException.validation("targetType 须为 post、user 或 comment");
     }
     long targetId = parseId(body.targetId(), "targetId");
     if ("user".equals(type) && targetId == reporterId) {
@@ -129,10 +129,11 @@ public class ModerationService {
       rows = rows.subList(0, size);
     }
     Map<Long, ContentClient.PostBrief> posts = loadPosts(rows);
-    Map<Long, UserSummary> people = loadPeople(rows, posts);
+    Map<Long, ContentClient.OpsCommentRow> comments = loadComments(rows);
+    Map<Long, UserSummary> people = loadPeople(rows, posts, comments);
     List<ModerationDtos.OpsReport> items = new ArrayList<>();
     for (Report row : rows) {
-      items.add(toView(row, people, posts));
+      items.add(toView(row, people, posts, comments));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -536,11 +537,19 @@ public class ModerationService {
       return;
     }
     if ("takedown".equals(action)) {
+      if ("comment".equals(row.getTargetType())) {
+        contentClient.hideComment(internalToken, row.getTargetId());
+        return;
+      }
       requirePost(row);
       contentClient.takedown(internalToken, row.getTargetId());
       return;
     }
     if ("restore".equals(action)) {
+      if ("comment".equals(row.getTargetType())) {
+        contentClient.restoreComment(internalToken, row.getTargetId());
+        return;
+      }
       requirePost(row);
       contentClient.restore(internalToken, row.getTargetId());
       return;
@@ -550,6 +559,8 @@ public class ModerationService {
     if ("ban".equals(action)) {
       if ("post".equals(row.getTargetType())) {
         contentClient.takedown(internalToken, row.getTargetId());
+      } else if ("comment".equals(row.getTargetType())) {
+        contentClient.hideComment(internalToken, row.getTargetId());
       }
       authClient.freeze(internalToken, punishId);
       return;
@@ -567,6 +578,18 @@ public class ModerationService {
     if ("user".equals(row.getTargetType())) {
       return row.getTargetId();
     }
+    if ("comment".equals(row.getTargetType())) {
+      List<ContentClient.OpsCommentRow> list = contentClient.commentBriefs(internalToken, List.of(row.getTargetId()));
+      if (list == null || list.isEmpty() || list.get(0).author() == null
+          || !StringUtils.hasText(list.get(0).author().userId())) {
+        throw BusinessException.notFound("找不到评论作者");
+      }
+      try {
+        return Long.parseLong(list.get(0).author().userId());
+      } catch (NumberFormatException ex) {
+        throw BusinessException.notFound("找不到评论作者");
+      }
+    }
     requirePost(row);
     List<ContentClient.PostBrief> list = contentClient.postBriefs(internalToken, List.of(row.getTargetId()));
     if (list == null || list.isEmpty() || !StringUtils.hasText(list.get(0).authorId())) {
@@ -579,7 +602,10 @@ public class ModerationService {
     }
   }
 
-  private Map<Long, UserSummary> loadPeople(List<Report> rows, Map<Long, ContentClient.PostBrief> posts) {
+  private Map<Long, UserSummary> loadPeople(
+      List<Report> rows,
+      Map<Long, ContentClient.PostBrief> posts,
+      Map<Long, ContentClient.OpsCommentRow> comments) {
     Set<Long> ids = new LinkedHashSet<>();
     for (Report row : rows) {
       if (row.getReporterId() != null) {
@@ -596,6 +622,15 @@ public class ModerationService {
       if (brief != null && StringUtils.hasText(brief.authorId())) {
         try {
           ids.add(Long.parseLong(brief.authorId()));
+        } catch (NumberFormatException ignored) {
+          // skip
+        }
+      }
+    }
+    for (ContentClient.OpsCommentRow comment : comments.values()) {
+      if (comment != null && comment.author() != null && StringUtils.hasText(comment.author().userId())) {
+        try {
+          ids.add(Long.parseLong(comment.author().userId()));
         } catch (NumberFormatException ignored) {
           // skip
         }
@@ -634,8 +669,34 @@ public class ModerationService {
     return map;
   }
 
+  private Map<Long, ContentClient.OpsCommentRow> loadComments(List<Report> rows) {
+    List<Long> ids = new ArrayList<>();
+    for (Report row : rows) {
+      if ("comment".equals(row.getTargetType()) && row.getTargetId() != null) {
+        ids.add(row.getTargetId());
+      }
+    }
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    List<ContentClient.OpsCommentRow> list = contentClient.commentBriefs(internalToken, ids);
+    if (list == null) {
+      return Map.of();
+    }
+    Map<Long, ContentClient.OpsCommentRow> map = new java.util.HashMap<>();
+    for (ContentClient.OpsCommentRow brief : list) {
+      if (brief != null && StringUtils.hasText(brief.commentId())) {
+        map.put(Long.parseLong(brief.commentId()), brief);
+      }
+    }
+    return map;
+  }
+
   private static ModerationDtos.OpsReport toView(
-      Report row, Map<Long, UserSummary> people, Map<Long, ContentClient.PostBrief> posts) {
+      Report row,
+      Map<Long, UserSummary> people,
+      Map<Long, ContentClient.PostBrief> posts,
+      Map<Long, ContentClient.OpsCommentRow> comments) {
     String title = "";
     String pageId = "";
     String authorId = "";
@@ -662,6 +723,17 @@ public class ModerationService {
       if (target != null) {
         title = target.nickname() == null ? "" : target.nickname();
         pageId = target.pageId() == null ? "" : target.pageId();
+      }
+    } else if ("comment".equals(row.getTargetType())) {
+      ContentClient.OpsCommentRow brief = comments.get(row.getTargetId());
+      if (brief != null) {
+        String raw = brief.content() == null ? "" : brief.content().trim();
+        title = raw.length() > 40 ? raw.substring(0, 40) + "…" : raw;
+        takenDown = brief.hidden();
+        if (brief.author() != null) {
+          authorId = brief.author().userId() == null ? "" : brief.author().userId();
+          pageId = brief.author().pageId() == null ? "" : brief.author().pageId();
+        }
       }
     }
     return new ModerationDtos.OpsReport(

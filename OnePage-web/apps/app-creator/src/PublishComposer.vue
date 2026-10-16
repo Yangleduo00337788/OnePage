@@ -1,6 +1,6 @@
 <!-- 发布落地页：只提示规格和上传。点上传 / 开始写作后进入编辑页。 -->
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { api, ApiError } from '@onepage/api-client'
 import ImageCropDialog from '@onepage/image-crop'
 import Icon from './Icon.vue'
@@ -10,7 +10,7 @@ import type { LocalFile, PublishKind, PublishSeed } from './publishTypes'
 export type { PublishKind }
 
 const props = defineProps<{ kind: PublishKind; editPostId?: string }>()
-const emit = defineEmits<{ 'update:kind': [PublishKind]; close: [] }>()
+const emit = defineEmits<{ 'update:kind': [PublishKind]; close: []; drafts: [] }>()
 
 const kinds: { id: PublishKind; label: string }[] = [
   { id: 'video', label: '上传视频' },
@@ -24,7 +24,20 @@ const dragging = ref(false)
 const seed = ref<PublishSeed | null>(null)
 const editError = ref('')
 const editLoading = ref(false)
-const drafts = computed(() => files.value.length)
+const drafts = ref(0)
+
+async function loadDraftCount() {
+  try {
+    const page = await api.myPosts(undefined, 50)
+    drafts.value = page.items.filter((item) => item.reviewStatus === 'draft').length
+  } catch {
+    drafts.value = 0
+  }
+}
+
+onMounted(() => {
+  void loadDraftCount()
+})
 const maxFiles = computed(() => (props.kind === 'video' ? 1 : 9))
 
 watch(
@@ -60,7 +73,8 @@ async function loadEdit() {
       original: Boolean(detail.original),
       contentKind: detail.contentKind || '',
       eventId: detail.eventId || '',
-      visibility: detail.visibility === 'self' ? 'self' : 'public',
+      visibility: detail.visibility === 'self' ? 'self' : detail.visibility === 'friend' ? 'friend' : 'public',
+      isDraft: detail.reviewStatus === 'draft',
     }
     phase.value = 'editor'
   } catch (e) {
@@ -299,7 +313,7 @@ function switchKind(id: PublishKind) {
           {{ item.label }}
         </button>
       </div>
-      <button type="button" class="drafts">草稿箱({{ drafts }})</button>
+      <button type="button" class="drafts" @click="emit('drafts')">草稿箱({{ drafts }})</button>
     </div>
 
     <div

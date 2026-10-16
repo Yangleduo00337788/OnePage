@@ -243,6 +243,21 @@ public class CommentService {
     commentMapper.updateById(row);
   }
 
+  public List<FeedDtos.OpsCommentRow> opsBriefs(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    List<Comment> rows = commentMapper.selectBatchIds(ids);
+    if (rows == null || rows.isEmpty()) {
+      return List.of();
+    }
+    List<FeedDtos.OpsCommentRow> items = new ArrayList<>();
+    for (Comment row : rows) {
+      items.add(toOpsRow(row));
+    }
+    return items;
+  }
+
   /** 运营评论列表。hidden=yes 仅已隐藏，no 仅可见。 */
   public FeedDtos.OpsCommentPage opsPage(String q, String hidden, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
@@ -286,13 +301,7 @@ public class CommentService {
     }
     List<FeedDtos.OpsCommentRow> items = new ArrayList<>();
     for (Comment row : rows) {
-      items.add(new FeedDtos.OpsCommentRow(
-          String.valueOf(row.getId()),
-          row.getPostId() == null ? "" : String.valueOf(row.getPostId()),
-          authorLookup.brief(row.getUserId()),
-          row.getContent() == null ? "" : row.getContent(),
-          row.getStatus() == null || row.getStatus() != 0,
-          PostService.iso(row.getCreatedAt())));
+      items.add(toOpsRow(row));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -325,6 +334,16 @@ public class CommentService {
     }
     row.setStatus(0);
     commentMapper.updateById(row);
+  }
+
+  private FeedDtos.OpsCommentRow toOpsRow(Comment row) {
+    return new FeedDtos.OpsCommentRow(
+        String.valueOf(row.getId()),
+        row.getPostId() == null ? "" : String.valueOf(row.getPostId()),
+        authorLookup.brief(row.getUserId()),
+        row.getContent() == null ? "" : row.getContent(),
+        row.getStatus() == null || row.getStatus() != 0,
+        PostService.iso(row.getCreatedAt()));
   }
 
   private FeedDtos.CommentView toView(Long viewerId, Comment row) {

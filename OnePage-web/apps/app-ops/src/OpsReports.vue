@@ -1,7 +1,7 @@
 <!-- 举报工单：待处理 / 已处理。翻页、备注、对象标题。 -->
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { api, ApiError, REPORT_REASONS, type OpsPostView, type OpsReport, type OpsResolveAction, type OpsUser } from '@onepage/api-client'
+import { api, ApiError, REPORT_REASONS, type OpsCommentRow, type OpsPostView, type OpsReport, type OpsResolveAction, type OpsUser } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
 import OpsPager from './OpsPager.vue'
@@ -20,9 +20,10 @@ const failed = ref('')
 const toast = ref('')
 const busyId = ref('')
 const previewOpen = ref(false)
-const previewKind = ref<'post' | 'user'>('post')
+const previewKind = ref<'post' | 'user' | 'comment'>('post')
 const previewPost = ref<OpsPostView | null>(null)
 const previewUser = ref<OpsUser | null>(null)
+const previewComment = ref<OpsCommentRow | null>(null)
 const previewLoading = ref(false)
 const previewError = ref('')
 
@@ -43,6 +44,15 @@ const actionLabel: Record<string, string> = {
   unban: '解冻',
 }
 
+function actionName(item: OpsReport, action: string) {
+  if (item.targetType === 'comment' && action === 'takedown') return '删除评论'
+  if (item.targetType === 'comment' && action === 'ban') return '封禁用户'
+  if (item.targetType === 'comment' && action === 'unban') return '解冻用户'
+  if (item.targetType === 'post' && action === 'ban') return '封禁作者'
+  if (item.targetType === 'post' && action === 'unban') return '解冻作者'
+  return actionLabel[action] || action
+}
+
 function flash(text: string) {
   toast.value = text
   window.setTimeout(() => {
@@ -51,8 +61,10 @@ function flash(text: string) {
 }
 
 function targetLabel(item: OpsReport) {
-  if (item.targetTitle) return item.targetTitle
-  return item.targetType === 'post' ? `笔记 ${item.targetId}` : `用户 ${item.targetId}`
+  if (item.targetTitle) return item.targetType === 'comment' ? `评论：${item.targetTitle}` : item.targetTitle
+  if (item.targetType === 'post') return `笔记 ${item.targetId}`
+  if (item.targetType === 'comment') return `评论 ${item.targetId}`
+  return `用户 ${item.targetId}`
 }
 
 async function openTarget(item: OpsReport) {
@@ -60,11 +72,16 @@ async function openTarget(item: OpsReport) {
   previewKind.value = item.targetType
   previewPost.value = null
   previewUser.value = null
+  previewComment.value = null
   previewError.value = ''
   previewLoading.value = true
   try {
     if (item.targetType === 'post') {
       previewPost.value = await api.opsPost(item.targetId)
+    } else if (item.targetType === 'comment') {
+      const page = await api.opsComments({ q: item.targetId, limit: 1 })
+      previewComment.value = page.items.find((row) => row.commentId === item.targetId) || page.items[0] || null
+      if (!previewComment.value) previewError.value = '评论不存在或已删除'
     } else {
       previewUser.value = await api.opsUser(item.targetId)
     }
@@ -125,7 +142,7 @@ async function resolve(item: OpsReport, action: OpsResolveAction) {
   busyId.value = item.reportId
   try {
     await api.opsResolveReport(item.reportId, { action, note: note.value.trim() || undefined })
-    flash(actionLabel[action] ? `已${actionLabel[action]}` : '已处理')
+    flash(`已${actionName(item, action)}`)
     closePreview()
     await load(1, true)
   } catch (e) {
@@ -164,7 +181,7 @@ watch(tab, () => load(1, true))
         v-model="note"
         class="note"
         maxlength="500"
-        placeholder="处理备注（可选，随忽略/下架/恢复/封禁/解冻一起提交）"
+        placeholder="处理备注（可选，随忽略/下架或删评/恢复/封禁/解冻一起提交）"
       />
 
       <p v-if="toast" class="toast">{{ toast }}</p>
@@ -196,13 +213,14 @@ watch(tab, () => load(1, true))
             <td>
               <button type="button" class="link" @click="openTarget(item)">{{ targetLabel(item) }}</button>
               <span v-if="item.targetType === 'post' && item.takenDown" class="tag">已下架</span>
+              <span v-else-if="item.targetType === 'comment' && item.takenDown" class="tag">已删除</span>
             </td>
             <td>{{ reasonLabel[item.reasonCode] || item.reasonCode }}</td>
             <td class="detail">{{ item.detail || '—' }}</td>
             <td>{{ item.reporter?.nickname || item.reporter?.pageId || '—' }}</td>
             <td>{{ clock(item.createdAt) }}</td>
             <td v-if="tab === 'done'" class="detail">
-              {{ actionLabel[item.handleAction || ''] || item.handleAction || '—' }}
+              {{ actionName(item, item.handleAction || '') || '—' }}
               <span v-if="item.handler?.nickname"> · {{ item.handler.nickname }}</span>
               <span v-if="item.handleNote"> · {{ item.handleNote }}</span>
             </td>
@@ -225,6 +243,15 @@ watch(tab, () => load(1, true))
                 下架
               </button>
               <button
+                v-if="item.targetType === 'comment' && !item.takenDown"
+                type="button"
+                class="danger"
+                :disabled="busyId === item.reportId"
+                @click="resolve(item, 'takedown')"
+              >
+                删除评论
+              </button>
+              <button
                 v-if="item.targetType === 'post' && item.takenDown"
                 type="button"
                 :disabled="busyId === item.reportId"
@@ -233,15 +260,23 @@ watch(tab, () => load(1, true))
                 恢复
               </button>
               <button
+                v-if="item.targetType === 'comment' && item.takenDown"
+                type="button"
+                :disabled="busyId === item.reportId"
+                @click="resolve(item, 'restore')"
+              >
+                恢复评论
+              </button>
+              <button
                 type="button"
                 class="danger"
                 :disabled="busyId === item.reportId"
                 @click="resolve(item, 'ban')"
               >
-                {{ item.targetType === 'post' ? '封禁作者' : '封禁' }}
+                {{ item.targetType === 'user' ? '封禁' : item.targetType === 'comment' ? '封禁用户' : '封禁作者' }}
               </button>
               <button type="button" :disabled="busyId === item.reportId" @click="resolve(item, 'unban')">
-                {{ item.targetType === 'post' ? '解冻作者' : '解冻' }}
+                {{ item.targetType === 'user' ? '解冻' : item.targetType === 'comment' ? '解冻用户' : '解冻作者' }}
               </button>
             </td>
           </tr>
@@ -263,6 +298,7 @@ watch(tab, () => load(1, true))
       :kind="previewKind"
       :post="previewPost"
       :user="previewUser"
+      :comment="previewComment"
       :loading="previewLoading"
       :error="previewError"
       @close="closePreview"

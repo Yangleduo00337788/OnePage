@@ -142,7 +142,7 @@ function applySeed(seed: PublishSeed) {
   original.value = seed.original
   contentType.value = seed.contentKind || '不声明'
   linkedEventId.value = seed.eventId
-  visibility.value = seed.visibility === 'self' ? 'self' : 'public'
+  visibility.value = seed.visibility === 'friend' ? 'friend' : seed.visibility === 'self' ? 'self' : 'public'
 }
 
 watch(
@@ -183,18 +183,37 @@ async function submit() {
     posted.value = '请选择笔记分类'
     return
   }
-  if (visibility.value === 'friend') {
-    posted.value = '好友可见尚未接入'
+  if (scheduleOn.value && !scheduleAt.value) {
+    posted.value = '请选择定时发布时间'
     return
   }
-  if (scheduleOn.value) {
-    posted.value = '定时发布尚未接入'
+  await savePost(false)
+}
+
+async function stash() {
+  if (busy.value) return
+  if (props.editPostId && !props.seed?.isDraft) {
+    emit('leave')
     return
   }
+  if (!title.value.trim() && !body.value.trim() && !props.files.length) {
+    posted.value = '请先写点内容再暂存'
+    return
+  }
+  await savePost(true)
+}
+
+async function savePost(asDraft: boolean) {
   const text =
     [body.value.trim(), topics.value.map((tag) => `#${tag}`).join(' ')].filter(Boolean).join('\n') ||
-    title.value.trim()
+    title.value.trim() ||
+    (asDraft ? '草稿' : '')
+  if (!asDraft && !text) {
+    posted.value = '请填写正文'
+    return
+  }
   busy.value = true
+  posted.value = ''
   try {
     const mediaIds: string[] = []
     for (const item of props.files) mediaIds.push(await uploadOne(item))
@@ -208,23 +227,35 @@ async function submit() {
       contentKind: contentType.value === '不声明' ? '' : contentType.value,
       eventId: linkedEventId.value || undefined,
       visibility: visibility.value,
+      draft: asDraft || undefined,
+      scheduledAt: scheduleOn.value && scheduleAt.value ? scheduleAt.value : undefined,
     }
     if (props.editPostId) {
       const saved = await api.patchPost(props.editPostId, payload)
-      posted.value =
-        saved.reviewStatus === 'pending' ? '已保存并提交审核' : '已保存'
+      posted.value = asDraft
+        ? '已暂存'
+        : saved.reviewStatus === 'pending'
+          ? '已保存并提交审核'
+          : '已保存'
     } else {
       const created = await api.createPost(payload)
-      posted.value =
-        visibility.value === 'self'
-          ? `发布成功 #${created.postId}（仅自己可见，发现流不展示）`
-          : created.reviewStatus === 'pending'
-            ? `已提交审核 #${created.postId}，通过后出现在发现流`
-            : `发布成功 #${created.postId}`
+      if (asDraft) {
+        posted.value = '已暂存到草稿箱'
+      } else if (visibility.value === 'self') {
+        posted.value = `发布成功 #${created.postId}（仅自己可见，发现流不展示）`
+      } else if (visibility.value === 'friend') {
+        posted.value = `发布成功 #${created.postId}（好友可见，关注流可见）`
+      } else if (created.reviewStatus === 'pending') {
+        posted.value = scheduleOn.value
+          ? `已提交审核 #${created.postId}，通过且到达定时后出现在发现流`
+          : `已提交审核 #${created.postId}，通过后出现在发现流`
+      } else {
+        posted.value = `发布成功 #${created.postId}`
+      }
     }
     window.setTimeout(() => emit('done'), 600)
   } catch (e) {
-    posted.value = e instanceof ApiError ? e.message : props.editPostId ? '保存失败' : '发布失败'
+    posted.value = e instanceof ApiError ? e.message : asDraft ? '暂存失败' : props.editPostId ? '保存失败' : '发布失败'
   } finally {
     busy.value = false
   }
@@ -431,7 +462,7 @@ async function submit() {
             <div class="cell-top">
               <div>
                 <p class="row-l">定时发布</p>
-                <p class="sub">尚未接入，打开后无法发布</p>
+                <p class="sub">到点后公开笔记进入审核或发现流；好友/仅自己直接按该时间可见</p>
               </div>
               <button
                 type="button"
@@ -457,8 +488,8 @@ async function submit() {
 
     <footer class="bar">
       <span class="msg">{{ posted }}</span>
-      <button type="button" class="ghost" @click="emit('leave')">
-        {{ props.editPostId ? '取消' : '暂存离开' }}
+      <button type="button" class="ghost" :disabled="busy" @click="stash">
+        {{ props.editPostId && !props.seed?.isDraft ? '取消' : busy ? '暂存中…' : '暂存离开' }}
       </button>
       <button type="button" class="post" :disabled="busy" @click="submit">
         {{ busy ? (props.editPostId ? '保存中…' : '发布中…') : props.editPostId ? '保存' : '发布' }}

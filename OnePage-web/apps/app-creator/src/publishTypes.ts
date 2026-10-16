@@ -9,5 +9,6 @@ export type PublishSeed = {
   original: boolean
   contentKind: string
   eventId: string
-  visibility: 'public' | 'self'
+  visibility: 'public' | 'self' | 'friend'
+  isDraft?: boolean
 }

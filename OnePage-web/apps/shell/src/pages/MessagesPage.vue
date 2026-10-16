@@ -37,7 +37,12 @@ const IM_IMAGE_MAX = 10 * 1024 * 1024
 const IM_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
 function previewOf(item: ConversationItem) {
-  return item.lastMessage?.text || '暂无消息'
+  const last = item.lastMessage
+  if (!last) return '暂无消息'
+  if (last.text) return last.text
+  if (last.msgType === 'image') return '[图片]'
+  if (last.msgType === 'post_card') return '[笔记]'
+  return '暂无消息'
 }
 
 function bubbleText(row: ImMessage) {
@@ -111,6 +116,7 @@ async function loadThread(opts?: { silent?: boolean }) {
     const row = list.value.find((it) => it.conversationId === activeId.value)
     if (row) row.unreadCount = 0
     await session.refreshUnread()
+    if (!opts?.silent) void loadList()
   } catch (e) {
     if (!opts?.silent) {
       messages.value = []

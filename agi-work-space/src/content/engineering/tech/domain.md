@@ -27,7 +27,7 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 | 对象 | 关键属性 | 主权服务 |
 | --- | --- | --- |
 | User | `userId`、一页号 `pageId` | user |
-| Post | `postId`、作者、类型图文视频、状态 | content |
+| Post | `postId`、作者、类型图文视频、`status`（含 draft）、`visibility`（0 公开 / 1 自己 / 2 好友） | content |
 | Comment | `commentId`、`rootId`、`parentId` | social |
 | Conversation | 成员、最后消息时间 | message |
 | Notification | 类型、聚合键、已读 | notification |

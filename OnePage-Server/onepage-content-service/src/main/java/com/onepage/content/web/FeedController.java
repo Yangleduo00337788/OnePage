@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 发现流公开；关注流公开但未登录时为空。 */
+/** 发现流公开；关注流须登录，未登录由前端拦到登录。 */
 @RestController
 @RequestMapping("/api/v1/feeds")
 public class FeedController {

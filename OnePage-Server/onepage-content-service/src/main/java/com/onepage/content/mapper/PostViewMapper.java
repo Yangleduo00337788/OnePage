@@ -1,6 +1,7 @@
 package com.onepage.content.mapper;
 
 import com.onepage.content.dto.InteractionHit;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
@@ -22,6 +23,12 @@ public interface PostViewMapper {
 
   @Select("SELECT COUNT(*) FROM post_view WHERE post_id = #{postId}")
   long countByPostId(@Param("postId") long postId);
+
+  @Delete("DELETE FROM post_view WHERE user_id = #{userId} AND post_id = #{postId}")
+  int deleteOne(@Param("userId") long userId, @Param("postId") long postId);
+
+  @Delete("DELETE FROM post_view WHERE user_id = #{userId}")
+  int deleteAll(@Param("userId") long userId);
 
   @Lang(XMLLanguageDriver.class)
   @Select("""

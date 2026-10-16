@@ -1,12 +1,13 @@
 <!-- 运营站内预览笔记或用户，不跳社区。 -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { OpsPostView, OpsUser } from '@onepage/api-client'
+import type { OpsCommentRow, OpsPostView, OpsUser } from '@onepage/api-client'
 
 const props = defineProps<{
-  kind: 'post' | 'user'
+  kind: 'post' | 'user' | 'comment'
   post: OpsPostView | null
   user: OpsUser | null
+  comment?: OpsCommentRow | null
   loading: boolean
   error: string
 }>()
@@ -70,6 +71,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           <p class="author">{{ post.author?.nickname || post.author?.pageId || '作者' }}</p>
           <h2>{{ post.title || '无标题' }}</h2>
           <p class="body">{{ post.body }}</p>
+        </div>
+      </div>
+      <div v-else-if="kind === 'comment' && comment" class="person">
+        <div>
+          <p v-if="comment.hidden" class="badge">已删除</p>
+          <p class="author">{{ comment.author?.nickname || '用户' }}</p>
+          <p class="sub">笔记 {{ comment.postId }}</p>
+          <p class="body">{{ comment.content }}</p>
         </div>
       </div>
       <div v-else-if="kind === 'user' && user" class="person">

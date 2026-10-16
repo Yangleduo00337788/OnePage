@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.content.client.ImClient;
+import com.onepage.content.client.UserClient;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.dto.InteractionHit;
 import com.onepage.content.dto.ReceivedActorHit;
@@ -35,6 +36,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,10 +53,13 @@ import java.util.Set;
 public class PostService {
   private static final Logger log = LoggerFactory.getLogger(PostService.class);
   private static final Set<String> POST_TYPES = Set.of("text", "image", "video", "mixed");
+  private static final String STATUS_DRAFT = "draft";
   private static final String STATUS_PENDING = "pending";
   private static final String STATUS_PUBLISHED = "published";
   private static final String STATUS_REJECTED = "rejected";
   private static final String STATUS_DELETED = "deleted";
+  private static final DateTimeFormatter SCHEDULE_MIN =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
   private static final Set<String> CATEGORIES =
       Set.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐");
   private static final Set<String> CONTENT_KINDS =
@@ -68,6 +74,7 @@ public class PostService {
   private final PostViewMapper postViewMapper;
   private final AuthorLookup authorLookup;
   private final CatalogService catalogService;
+  private final UserClient userClient;
   private final InteractionNotifier interactionNotifier;
   private final ObjectMapper objectMapper;
   private final ImClient imClient;
@@ -86,6 +93,7 @@ public class PostService {
       PostViewMapper postViewMapper,
       AuthorLookup authorLookup,
       CatalogService catalogService,
+      UserClient userClient,
       InteractionNotifier interactionNotifier,
       ObjectMapper objectMapper,
       ImClient imClient,
@@ -102,6 +110,7 @@ public class PostService {
     this.postViewMapper = postViewMapper;
     this.authorLookup = authorLookup;
     this.catalogService = catalogService;
+    this.userClient = userClient;
     this.interactionNotifier = interactionNotifier;
     this.objectMapper = objectMapper;
     this.imClient = imClient;
@@ -112,64 +121,45 @@ public class PostService {
 
   @Transactional
   public FeedDtos.CreateResult publish(long userId, FeedDtos.PublishSpec spec) {
-    if (!StringUtils.hasText(spec.body())) {
-      throw BusinessException.validation("正文不能为空");
-    }
+    boolean draft = Boolean.TRUE.equals(spec.draft());
     String type = spec.postType() == null ? "" : spec.postType().trim().toLowerCase();
-    if (!POST_TYPES.contains(type)) {
-      throw BusinessException.validation("postType 不支持");
-    }
     String cat = spec.category() == null ? "" : spec.category().trim();
-    if (!catalogService.isEnabledCategory(cat)) {
-      throw BusinessException.validation("请选择笔记分类");
-    }
     List<MediaAsset> assets = loadOwnedReadyMedia(userId, spec.mediaIds());
-    if ("text".equals(type) && !assets.isEmpty()) {
-      throw BusinessException.validation("纯文本笔记不能带媒体");
-    }
-    if (!"text".equals(type) && assets.isEmpty()) {
-      throw BusinessException.validation("该类型需要媒体");
-    }
+    validatePublish(spec, type, cat, assets, draft);
     LocalDateTime now = LocalDateTime.now();
+    LocalDateTime publishedAt = resolvePublishedAt(spec.scheduledAt(), now, !draft);
     long postId = IdGenerator.nextId();
     Post post = new Post();
     post.setId(postId);
     post.setAuthorId(userId);
     post.setTitle(spec.title() == null ? "" : spec.title().trim());
-    post.setBody(spec.body().trim());
+    post.setBody(spec.body() == null ? "" : spec.body().trim());
     post.setPostType(type);
     post.setCategory(cat);
     post.setOriginal(Boolean.TRUE.equals(spec.original()) ? 1 : 0);
     post.setContentKind(normalizeKind(spec.contentKind()));
     applyCampaign(post, spec.eventId());
     int vis = parseVisibility(spec.visibility());
-    boolean queue = vis == 0;
-    post.setStatus(queue ? STATUS_PENDING : STATUS_PUBLISHED);
-    post.setRejectReason(null);
     post.setVisibility(vis);
-    post.setPublishedAt(now);
+    post.setRejectReason(null);
+    if (draft) {
+      post.setStatus(STATUS_DRAFT);
+    } else {
+      post.setStatus(vis == 0 ? STATUS_PENDING : STATUS_PUBLISHED);
+    }
+    post.setPublishedAt(publishedAt);
     post.setCreatedAt(now);
     post.setUpdatedAt(now);
     postMapper.insert(post);
-    int i = 0;
-    for (MediaAsset asset : assets) {
-      PostMedia link = new PostMedia();
-      link.setId(IdGenerator.nextId());
-      link.setPostId(postId);
-      link.setMediaId(asset.getId());
-      link.setSortOrder(i);
-      link.setRole(roleFor(asset, i));
-      postMediaMapper.insert(link);
-      i++;
-    }
-    if (!queue) {
+    bindMedia(postId, assets);
+    if (!draft && vis != 0) {
       writeOutbox("post", String.valueOf(postId), "post.published", Map.of(
           "postId", String.valueOf(postId),
           "authorId", String.valueOf(userId),
           "postType", type));
     }
-    catalogService.rememberHashtags(spec.body());
-    return new FeedDtos.CreateResult(String.valueOf(postId), now.toString(), post.getStatus());
+    catalogService.rememberHashtags(post.getBody());
+    return new FeedDtos.CreateResult(String.valueOf(postId), publishedAt.toString(), post.getStatus());
   }
 
   @Transactional
@@ -181,27 +171,14 @@ public class PostService {
     if (post.getAuthorId() == null || post.getAuthorId() != userId) {
       throw BusinessException.forbidden("只能修改自己的笔记");
     }
-    if (!StringUtils.hasText(spec.body())) {
-      throw BusinessException.validation("正文不能为空");
-    }
+    boolean keepDraft = STATUS_DRAFT.equals(post.getStatus()) && Boolean.TRUE.equals(spec.draft());
     String type = spec.postType() == null ? "" : spec.postType().trim().toLowerCase();
-    if (!POST_TYPES.contains(type)) {
-      throw BusinessException.validation("postType 不支持");
-    }
     String cat = spec.category() == null ? "" : spec.category().trim();
-    if (!catalogService.isEnabledCategory(cat)) {
-      throw BusinessException.validation("请选择笔记分类");
-    }
     List<MediaAsset> assets = loadOwnedReadyMedia(userId, spec.mediaIds());
-    if ("text".equals(type) && !assets.isEmpty()) {
-      throw BusinessException.validation("纯文本笔记不能带媒体");
-    }
-    if (!"text".equals(type) && assets.isEmpty()) {
-      throw BusinessException.validation("该类型需要媒体");
-    }
+    validatePublish(spec, type, cat, assets, keepDraft);
     LocalDateTime now = LocalDateTime.now();
     post.setTitle(spec.title() == null ? "" : spec.title().trim());
-    post.setBody(spec.body().trim());
+    post.setBody(spec.body() == null ? "" : spec.body().trim());
     post.setPostType(type);
     post.setCategory(cat);
     post.setOriginal(Boolean.TRUE.equals(spec.original()) ? 1 : 0);
@@ -209,31 +186,34 @@ public class PostService {
     applyCampaign(post, spec.eventId());
     int vis = parseVisibility(spec.visibility());
     post.setVisibility(vis);
-    if (vis == 1 && (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus()))) {
+    if (keepDraft) {
+      post.setStatus(STATUS_DRAFT);
+      if (StringUtils.hasText(spec.scheduledAt())) {
+        post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, false));
+      }
+    } else if (vis != 0 && (STATUS_PENDING.equals(post.getStatus())
+        || STATUS_REJECTED.equals(post.getStatus())
+        || STATUS_DRAFT.equals(post.getStatus()))) {
       post.setStatus(STATUS_PUBLISHED);
       post.setRejectReason(null);
-    } else if (STATUS_REJECTED.equals(post.getStatus()) || (vis == 0 && !STATUS_PUBLISHED.equals(post.getStatus()))) {
+      post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, true));
+    } else if (STATUS_REJECTED.equals(post.getStatus())
+        || STATUS_DRAFT.equals(post.getStatus())
+        || (vis == 0 && !STATUS_PUBLISHED.equals(post.getStatus()))) {
       post.setStatus(STATUS_PENDING);
       post.setRejectReason(null);
+      post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, true));
+    } else if (StringUtils.hasText(spec.scheduledAt())) {
+      post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, true));
     }
     post.setUpdatedAt(now);
     postMapper.updateById(post);
     postMediaMapper.delete(Wrappers.<PostMedia>lambdaQuery().eq(PostMedia::getPostId, postId));
-    int i = 0;
-    for (MediaAsset asset : assets) {
-      PostMedia link = new PostMedia();
-      link.setId(IdGenerator.nextId());
-      link.setPostId(postId);
-      link.setMediaId(asset.getId());
-      link.setSortOrder(i);
-      link.setRole(roleFor(asset, i));
-      postMediaMapper.insert(link);
-      i++;
-    }
+    bindMedia(postId, assets);
     writeOutbox("post", String.valueOf(postId), "post.updated", Map.of(
         "postId", String.valueOf(postId),
         "authorId", String.valueOf(userId)));
-    catalogService.rememberHashtags(spec.body());
+    catalogService.rememberHashtags(post.getBody());
     return detail(userId, postId);
   }
 
@@ -550,6 +530,14 @@ public class PostService {
     return listByInteraction(userId, cursor, limit, InteractionKind.HISTORY);
   }
 
+  public void deleteHistory(long userId, long postId) {
+    postViewMapper.deleteOne(userId, postId);
+  }
+
+  public void clearHistory(long userId) {
+    postViewMapper.deleteAll(userId);
+  }
+
   /** 别人给自己笔记点的赞，按时间倒序。 */
   public FeedDtos.ReceivedPage listLikesReceived(long authorId, String cursor, Integer limit) {
     return listReceived(authorId, cursor, limit, true);
@@ -567,9 +555,15 @@ public class PostService {
         .eq(Post::getAuthorId, authorId)
         .isNull(Post::getDeletedAt);
     if (self) {
-      query.in(Post::getStatus, List.of(STATUS_PUBLISHED, STATUS_PENDING, STATUS_REJECTED));
+      query.in(Post::getStatus, List.of(STATUS_DRAFT, STATUS_PUBLISHED, STATUS_PENDING, STATUS_REJECTED));
     } else {
-      query.eq(Post::getStatus, STATUS_PUBLISHED).eq(Post::getVisibility, 0);
+      query.eq(Post::getStatus, STATUS_PUBLISHED)
+          .le(Post::getPublishedAt, LocalDateTime.now());
+      if (viewerId != null && follows(viewerId, authorId)) {
+        query.in(Post::getVisibility, List.of(0, 2));
+      } else {
+        query.eq(Post::getVisibility, 0);
+      }
     }
     applyCursor(query, cursor);
     query.orderByDesc(Post::getPublishedAt)
@@ -607,12 +601,12 @@ public class PostService {
     int vis = parseVisibility(visibility);
     int old = post.getVisibility() == null ? 0 : post.getVisibility();
     post.setVisibility(vis);
-    if (vis == 0 && old == 1 && STATUS_PUBLISHED.equals(post.getStatus())) {
+    if (vis == 0 && old != 0 && STATUS_PUBLISHED.equals(post.getStatus())) {
       post.setStatus(STATUS_PENDING);
     } else if (vis == 0 && STATUS_REJECTED.equals(post.getStatus())) {
       post.setStatus(STATUS_PENDING);
       post.setRejectReason(null);
-    } else if (vis == 1 && (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus()))) {
+    } else if (vis != 0 && (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus()))) {
       post.setStatus(STATUS_PUBLISHED);
       post.setRejectReason(null);
     }
@@ -672,7 +666,7 @@ public class PostService {
     }
     boolean author = viewerId != null && viewerId.equals(post.getAuthorId());
     String status = post.getStatus();
-    if (STATUS_PENDING.equals(status) || STATUS_REJECTED.equals(status)) {
+    if (STATUS_DRAFT.equals(status) || STATUS_PENDING.equals(status) || STATUS_REJECTED.equals(status)) {
       if (!author) {
         throw BusinessException.notFound("笔记不存在");
       }
@@ -681,7 +675,14 @@ public class PostService {
     if (!STATUS_PUBLISHED.equals(status)) {
       throw BusinessException.notFound("笔记不存在");
     }
-    if (Integer.valueOf(1).equals(post.getVisibility()) && !author) {
+    int vis = post.getVisibility() == null ? 0 : post.getVisibility();
+    if (vis == 1 && !author) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (vis == 2 && !author && !follows(viewerId, post.getAuthorId())) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (post.getPublishedAt() != null && post.getPublishedAt().isAfter(LocalDateTime.now()) && !author) {
       throw BusinessException.notFound("笔记不存在");
     }
     return post;
@@ -848,7 +849,13 @@ public class PostService {
   }
 
   private static String visLabel(Integer visibility) {
-    return visibility != null && visibility == 1 ? "self" : "public";
+    if (visibility != null && visibility == 1) {
+      return "self";
+    }
+    if (visibility != null && visibility == 2) {
+      return "friend";
+    }
+    return "public";
   }
 
   private static String blankToEmpty(String value) {
@@ -874,7 +881,7 @@ public class PostService {
       return 1;
     }
     if ("friend".equals(raw)) {
-      throw BusinessException.validation("好友可见尚未接入");
+      return 2;
     }
     throw BusinessException.validation("可见范围不支持");
   }
@@ -998,7 +1005,8 @@ public class PostService {
   }
 
   private static boolean authorEditable(String status) {
-    return STATUS_PUBLISHED.equals(status)
+    return STATUS_DRAFT.equals(status)
+        || STATUS_PUBLISHED.equals(status)
         || STATUS_PENDING.equals(status)
         || STATUS_REJECTED.equals(status);
   }
@@ -1008,9 +1016,93 @@ public class PostService {
       return STATUS_PUBLISHED;
     }
     if (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus())
-        || STATUS_PUBLISHED.equals(post.getStatus())) {
+        || STATUS_PUBLISHED.equals(post.getStatus()) || STATUS_DRAFT.equals(post.getStatus())) {
       return post.getStatus();
     }
     return STATUS_PUBLISHED;
+  }
+
+  private void validatePublish(
+      FeedDtos.PublishSpec spec, String type, String cat, List<MediaAsset> assets, boolean draft) {
+    if (!POST_TYPES.contains(type)) {
+      throw BusinessException.validation("postType 不支持");
+    }
+    if ("text".equals(type) && !assets.isEmpty()) {
+      throw BusinessException.validation("纯文本笔记不能带媒体");
+    }
+    if (draft) {
+      boolean empty = !StringUtils.hasText(spec.title())
+          && !StringUtils.hasText(spec.body())
+          && assets.isEmpty();
+      if (empty) {
+        throw BusinessException.validation("请先写点内容再暂存");
+      }
+      if (StringUtils.hasText(cat) && !catalogService.isEnabledCategory(cat)) {
+        throw BusinessException.validation("请选择笔记分类");
+      }
+      return;
+    }
+    if (!StringUtils.hasText(spec.body())) {
+      throw BusinessException.validation("正文不能为空");
+    }
+    if (!catalogService.isEnabledCategory(cat)) {
+      throw BusinessException.validation("请选择笔记分类");
+    }
+    if (!"text".equals(type) && assets.isEmpty()) {
+      throw BusinessException.validation("该类型需要媒体");
+    }
+  }
+
+  private LocalDateTime resolvePublishedAt(String scheduledAt, LocalDateTime now, boolean requireFuture) {
+    if (!StringUtils.hasText(scheduledAt)) {
+      return now;
+    }
+    LocalDateTime at = parseSchedule(scheduledAt);
+    if (at.isAfter(now)) {
+      return at;
+    }
+    if (requireFuture) {
+      throw BusinessException.validation("定时须晚于当前时间");
+    }
+    return now;
+  }
+
+  private static LocalDateTime parseSchedule(String raw) {
+    String value = raw.trim();
+    try {
+      if (value.length() == 16) {
+        return LocalDateTime.parse(value, SCHEDULE_MIN);
+      }
+      return LocalDateTime.parse(value);
+    } catch (DateTimeParseException ex) {
+      throw BusinessException.validation("定时时间不合法");
+    }
+  }
+
+  private void bindMedia(long postId, List<MediaAsset> assets) {
+    int i = 0;
+    for (MediaAsset asset : assets) {
+      PostMedia link = new PostMedia();
+      link.setId(IdGenerator.nextId());
+      link.setPostId(postId);
+      link.setMediaId(asset.getId());
+      link.setSortOrder(i);
+      link.setRole(roleFor(asset, i));
+      postMediaMapper.insert(link);
+      i++;
+    }
+  }
+
+  private boolean follows(Long viewerId, Long authorId) {
+    if (viewerId == null || authorId == null) {
+      return false;
+    }
+    try {
+      List<Long> ids = userClient.followeeIds(internalToken, viewerId);
+      return ids != null && ids.contains(authorId);
+    } catch (Exception ex) {
+      log.warn("查关注失败 viewerId={} authorId={}", viewerId, authorId, ex);
+      return false;
+    }
   }
 }

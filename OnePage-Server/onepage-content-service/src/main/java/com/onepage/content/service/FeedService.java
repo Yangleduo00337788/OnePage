@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 发现流：已发布公开笔记按时间倒序。关注流只出已关注作者；未登录或未关注任何人为空页。
+ * 发现流：已发布公开且到达展示时间的笔记。关注流含公开与好友可见；未登录由前端拦登录。
  */
 @Service
 public class FeedService {
@@ -66,10 +66,13 @@ public class FeedService {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
         .eq(Post::getStatus, "published")
-        .eq(Post::getVisibility, 0)
-        .isNull(Post::getDeletedAt);
+        .isNull(Post::getDeletedAt)
+        .le(Post::getPublishedAt, LocalDateTime.now());
     if (authorIds != null) {
       query.in(Post::getAuthorId, authorIds);
+      query.in(Post::getVisibility, List.of(0, 2));
+    } else {
+      query.eq(Post::getVisibility, 0);
     }
     if (StringUtils.hasText(category)) {
       query.eq(Post::getCategory, category.trim());
