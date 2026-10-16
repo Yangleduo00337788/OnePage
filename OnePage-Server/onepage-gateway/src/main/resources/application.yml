@@ -141,6 +141,12 @@ spring:
           metadata:
             sensitiveHeaders: ""
             response-timeout: 60000
+        - id: live
+          uri: lb://onepage-live-service
+          predicates:
+            - Path=/api/v1/live,/api/v1/live/**
+          metadata:
+            sensitiveHeaders: ""
         - id: reports
           uri: lb://onepage-moderation-service
           predicates:

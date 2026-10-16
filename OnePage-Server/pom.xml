@@ -21,6 +21,7 @@
     <module>onepage-moderation-service</module>
     <module>onepage-search-service</module>
     <module>onepage-ai-service</module>
+    <module>onepage-live-service</module>
   </modules>
 
   <properties>
