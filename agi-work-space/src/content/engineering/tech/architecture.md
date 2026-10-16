@@ -37,7 +37,7 @@ packages/ui、api-client、types
 - **Java 21**，**Spring Boot 3.4.5** + **Spring Cloud 2024.0.1** + **Spring Cloud Alibaba 2023.0.3.2（Nacos 发现）**。  
 - **Gateway** 对外（8080）；服务之间马上要结果用 **Feign + lb**；可以晚一点的用 **RocketMQ**（P1 只写 Outbox，暂不消费）。  
 - **MyBatis-Plus** 访问 **MySQL**；DDL 手工脚本，**不用 Flyway**。完整 SQL 在工作空间 [数据库脚本](/engineering/tech/sql)，P0 执行入口在各服务 `db/sql/001_init.sql`。  
-- 登录：**Spring Session + Redis**（Boot 自动配置，`store-type=redis`，超时 `${SESSION_TIMEOUT}` 默认 7 天空闲滑动）。C 端 Cookie **`ONEPAGE_SESSION`**，运营 Cookie **`ONEPAGE_OPS_SESSION`**（同一 Redis，DEC-046；见 [接口契约](/engineering/process/contracts)）。启动类不要加 `@EnableRedisHttpSession` / `@EnableRedisWebSession`。  
+- 登录：**Spring Session + Redis**（Boot 自动配置，`store-type=redis`，超时 `${SESSION_TIMEOUT}` 默认 7 天空闲滑动）。C 端 Cookie **`ONEPAGE_SESSION`**，运营 Cookie **`ONEPAGE_OPS_SESSION`**（同一 Redis，DEC-046；见 [接口契约](/engineering/process/contracts)）。Session Hash 用 JSON 序列化（DEC-047）。启动类不要加 `@EnableRedisHttpSession` / `@EnableRedisWebSession`。  
 - 文件 **MinIO** 预签名直传；搜索 **ES**、消息 **仅 RocketMQ**（尚未接到 P0）。
 
 本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动七个主类（user 8082 → auth 8081 → content 8083 → notification 8084 → message 8085 → **moderation 8086** → gateway 8080）。须执行 `onepage-moderation-service/db/sql/001_init.sql`。`.env` 加 `MODERATION_PORT`、`MYSQL_MODERATION_DB`；`OPS_STAFF_USER_IDS` 必填（空则运营登录与 `/ops` 403，见 DEC-035）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准（每键有中文注释），与各服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。

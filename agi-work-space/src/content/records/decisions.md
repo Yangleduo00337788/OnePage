@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-047 Session 写入 Redis 用 JSON，不用 JDK 序列化
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** Redis 里 `spring:session:sessions:*` 的 Hash 值是 JDK 二进制，工具里看起来像乱码。
+- **决策：** auth 与网关都提供同名 Bean `springSessionDefaultRedisSerializer`，实现为 `GenericJackson2JsonRedisSerializer`。**读写都只认 JSON**。两边必须同一实现。本机已重新登录后不再兼容 JDK 二进制。
+- **替代：** 继续 JDK（否决：无法人读）；读写 JSON、读取再兼容 JDK（过渡期已过，去掉）。
+- **影响：** 重启 auth+网关。Redis 里残留的 JDK Hash 可手动删，或等 TTL；带着旧 Cookie 访问按未登录处理。见 [登录注册流程](/engineering/tech/auth-flows)。
+
 ## DEC-046 C 端与运营两张 Cookie，一份 Redis Session
 
 - **日期：** 2026-10-16

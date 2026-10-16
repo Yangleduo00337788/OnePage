@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.web.client.RestClient;
 
@@ -23,6 +25,14 @@ public class AuthConfig {
   @Bean
   public RestClient restClient() {
     return RestClient.create();
+  }
+
+  /**
+   * Session Hash 只认 JSON。Bean 名必须是这个，auth 与网关各注册一份。
+   */
+  @Bean
+  public RedisSerializer<Object> springSessionDefaultRedisSerializer() {
+    return new GenericJackson2JsonRedisSerializer();
   }
 
   /**

@@ -66,7 +66,7 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
             .header("X-User-Id", userId.toString())
             .build();
         return chain.filter(exchange.mutate().request(mutated).build());
-      });
+      }).onErrorResume(ex -> chain.filter(exchange));
     }
     return exchange.getSession().flatMap(session -> {
       Object userId = session.getAttribute("userId");
@@ -85,7 +85,10 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
           .header("X-User-Id", userId.toString())
           .build();
       return chain.filter(exchange.mutate().request(mutated).build());
-    });
+    }).onErrorResume(ex -> json(exchange.getResponse(), HttpStatus.UNAUTHORIZED, Map.of(
+        "code", "UNAUTHORIZED",
+        "message", "未登录",
+        "requestId", "")));
   }
 
   private String cookieName(ServerWebExchange exchange) {

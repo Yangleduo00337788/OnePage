@@ -26,6 +26,7 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-16 — Session 写入 Redis 改为 JSON，只认 JSON，不再读 JDK 二进制（DEC-047）
 - 2026-10-16 — 运营与 C 端拆成两张 Session Cookie（`ONEPAGE_OPS_SESSION` / `ONEPAGE_SESSION`），同机可同时登录（DEC-046）
 - 2026-10-16 — 创作者中心顶栏加铃铛「创作消息」，审核未通过从首页待处理改到这里
 - 2026-10-16 — Session 超时改走 yml `SESSION_TIMEOUT`（默认 7d）；去掉启动类 `@EnableRedisHttpSession` / `@EnableRedisWebSession`，须重启 auth+网关后重新登录（DEC-045）

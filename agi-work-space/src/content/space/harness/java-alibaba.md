@@ -43,7 +43,7 @@ ONEPAGE：对外 JSON 字段跟 [API 明细](/engineering/process/api-endpoints)
 | 推荐 | 相关常量进枚举或一类 `XxxConstants`，不要一个类堆全服务常量 |
 | 推荐 | 未赋值固定字面用 `static final`；可变配置走环境变量 / yml `${}`，禁止写死密码 |
 
-ONEPAGE：C 端 Cookie `ONEPAGE_SESSION`、运营 Cookie `ONEPAGE_OPS_SESSION`（DEC-046），内部令牌 `onepage.internal-token`，不要再造别名。Session 超时只写 yml `spring.session.timeout: ${SESSION_TIMEOUT}`（Boot 自动配置），**禁止**启动类 `@EnableRedisHttpSession` / `@EnableRedisWebSession`（注解默认 1800 秒会盖掉环境变量）。
+ONEPAGE：C 端 Cookie `ONEPAGE_SESSION`、运营 Cookie `ONEPAGE_OPS_SESSION`（DEC-046），内部令牌 `onepage.internal-token`，不要再造别名。Session 超时只写 yml `spring.session.timeout: ${SESSION_TIMEOUT}`（Boot 自动配置），**禁止**启动类 `@EnableRedisHttpSession` / `@EnableRedisWebSession`（注解默认 1800 秒会盖掉环境变量）。Session Redis **只认 JSON**：auth 与网关都提供 Bean 名 `springSessionDefaultRedisSerializer`（DEC-047），禁止只改一边。
 
 ### 1.3 代码格式
 

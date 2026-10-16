@@ -24,6 +24,7 @@ spring:
       password: ${REDIS_PASSWORD:}
   session:
     # 不要在启动类加 @EnableRedisWebSession，否则超时被钉死成 1800 秒
+    # Hash 值序列化由 Bean springSessionDefaultRedisSerializer（JSON）接管，不要用 JDK 二进制
     store-type: redis
     timeout: ${SESSION_TIMEOUT}
   cloud:

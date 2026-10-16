@@ -8,7 +8,7 @@ P0 **已落地**的登录、注册、短信开户、登出，以及 **设置密�
 
 本机短信 `onepage.sms.mock=true` 时验证码固定 **`888888`**，不调运营商。
 
-Session 空闲超时来自环境变量 **`SESSION_TIMEOUT`（默认 7d，滑动）**。auth / 网关只靠 yml `spring.session.store-type=redis` + `timeout`，不要在启动类加 `@EnableRedisHttpSession` / `@EnableRedisWebSession`（注解默认 1800 秒会盖掉配置，Redis 里 TTL 只剩约 30 分钟，DEC-045）。
+Session 空闲超时来自环境变量 **`SESSION_TIMEOUT`（默认 7d，滑动）**。auth / 网关只靠 yml `spring.session.store-type=redis` + `timeout`，不要在启动类加 `@EnableRedisHttpSession` / `@EnableRedisWebSession`（注解默认 1800 秒会盖掉配置，Redis 里 TTL 只剩约 30 分钟，DEC-045）。Redis Hash 值**只认 JSON**（Bean `springSessionDefaultRedisSerializer`，DEC-047）。不要只改 auth 或只改网关。残留 JDK 二进制 Session 不算登录。
 
 C 端（社区+创作者）Cookie **`ONEPAGE_SESSION`**；运营 Cookie **`ONEPAGE_OPS_SESSION`**。本机三站同 host 不同端口，Cookie 不按端口隔离；两张 Cookie 才能同时登录（DEC-046）。运营请求带 `audience=ops` 或头 `X-OnePage-Audience: ops`。
 

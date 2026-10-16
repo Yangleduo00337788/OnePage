@@ -6,6 +6,8 @@ import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -59,6 +61,14 @@ public class GatewayConfig {
       @Value("${onepage.rate-replenish}") int replenish,
       @Value("${onepage.rate-burst}") int burst) {
     return new RedisRateLimiter(replenish, burst);
+  }
+
+  /**
+   * 与 auth 同名 Bean：Session Hash 只认 JSON。
+   */
+  @Bean
+  public RedisSerializer<Object> springSessionDefaultRedisSerializer() {
+    return new GenericJackson2JsonRedisSerializer();
   }
 
   /**

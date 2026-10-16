@@ -70,7 +70,7 @@ order: 3
 
 P0 未接 Spring CSRF。本地 Vite 同源代理 `/api`，Cookie `SameSite=Lax`。上线 HTTPS 后再定自定义头或 CSRF token，并写进本页。
 
-网关路由 `sensitiveHeaders` 必须为空（不要拦 `Set-Cookie`），否则登录种不上 Session。auth 的 Cookie **不要 Base64**（`CookieSerializer.useBase64Encoding=false`），否则网关 WebFlux 用原文去 Redis 对不上，登录会闪一下回到未登录。auth / 网关启动类不要写 `@EnableRedisHttpSession` / `@EnableRedisWebSession`，超时只走 yml `spring.session.timeout`，否则 Redis TTL 会被钉成 30 分钟（DEC-045）。
+网关路由 `sensitiveHeaders` 必须为空（不要拦 `Set-Cookie`），否则登录种不上 Session。auth 的 Cookie **不要 Base64**（`CookieSerializer.useBase64Encoding=false`），否则网关 WebFlux 用原文去 Redis 对不上，登录会闪一下回到未登录。auth / 网关启动类不要写 `@EnableRedisHttpSession` / `@EnableRedisWebSession`，超时只走 yml `spring.session.timeout`，否则 Redis TTL 会被钉成 30 分钟（DEC-045）。Session Redis 只认 JSON（`springSessionDefaultRedisSerializer`），auth 与网关必须同一实现（DEC-047）。
 
 ## 改契约时的顺序
 
