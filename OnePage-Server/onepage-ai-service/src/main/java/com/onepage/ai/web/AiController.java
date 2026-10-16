@@ -5,11 +5,14 @@ import com.onepage.ai.service.AiService;
 import com.onepage.ai.service.AiSettings;
 import com.onepage.common.web.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /** 发帖润色与耶耶问答。只认网关 {@code X-User-Id}。首页文案公开。 */
 @RestController
@@ -38,5 +41,16 @@ public class AiController {
   public AiDtos.ChatResult chat(HttpServletRequest request, @RequestBody AiDtos.ChatSpec spec) {
     CurrentUser.requireUserId(request);
     return aiService.chat(spec);
+  }
+
+  @PostMapping(value = "/ai/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  public StreamingResponseBody chatStream(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      @RequestBody AiDtos.ChatSpec spec) {
+    CurrentUser.requireUserId(request);
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("X-Accel-Buffering", "no");
+    return out -> aiService.writeChatStream(spec, out);
   }
 }

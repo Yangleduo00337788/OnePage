@@ -11,6 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,7 +48,8 @@ public class AiService {
       throw BusinessException.configMissing(AiConstants.MSG_NO_POLISH);
     }
     boolean continueWrite = isContinue(spec == null ? null : spec.mode());
-    String system = continueWrite ? AiConstants.CONTINUE_SYSTEM : AiConstants.POLISH_SYSTEM;
+    AiSettings.Stored stored = aiSettings.current();
+    String system = continueWrite ? stored.continueSystem() : stored.polishSystem();
     String user = "title: " + title + "\nbody:\n" + body;
     String raw = llmClient.complete(system, user);
     JsonNode node = readObject(raw);
@@ -74,16 +78,74 @@ public class AiService {
     if (!aiSettings.current().chatEnabled() || !llmClient.configured()) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_ANSWER, List.of());
     }
-    List<SearchClient.PostHit> posts = retrieve(question);
+    AiSettings.Stored stored = aiSettings.current();
+    List<SearchClient.PostHit> posts = retrieve(question, stored.retrieveLimit());
     List<AiDtos.Citation> citations = toCitations(posts);
     if (posts.isEmpty()) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_NOTES, List.of());
     }
-    String answer = llmClient.complete(AiConstants.CHAT_SYSTEM, buildChatUser(question, posts));
+    String answer = llmClient.complete(
+        stored.chatSystem(), buildChatUser(question, posts, stored.contextBodyMax()));
     if (!StringUtils.hasText(answer)) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_ANSWER, citations);
     }
     return new AiDtos.ChatResult(answer, citations);
+  }
+
+  public void writeChatStream(AiDtos.ChatSpec spec, OutputStream out) throws IOException {
+    String question = spec == null || spec.question() == null ? "" : spec.question().trim();
+    if (!StringUtils.hasText(question)) {
+      emit(out, "error", new AiDtos.StreamError("请输入问题"));
+      return;
+    }
+    if (!aiSettings.current().chatEnabled() || !llmClient.configured()) {
+      emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_ANSWER));
+      emit(out, "done", new AiDtos.StreamDone(List.of()));
+      return;
+    }
+    AiSettings.Stored stored = aiSettings.current();
+    List<SearchClient.PostHit> posts = retrieve(question, stored.retrieveLimit());
+    List<AiDtos.Citation> citations = toCitations(posts);
+    if (posts.isEmpty()) {
+      emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_NOTES));
+      emit(out, "done", new AiDtos.StreamDone(List.of()));
+      return;
+    }
+    String user = buildChatUser(question, posts, stored.contextBodyMax());
+    try {
+      if (Boolean.TRUE.equals(stored.streamEnabled())) {
+        llmClient.completeStream(
+            stored.chatSystem(),
+            user,
+            piece -> {
+              try {
+                emit(out, "delta", new AiDtos.StreamDelta(piece));
+              } catch (IOException ex) {
+                throw new IllegalStateException(ex);
+              }
+            });
+      } else {
+        String answer = llmClient.complete(stored.chatSystem(), user);
+        if (!StringUtils.hasText(answer)) {
+          answer = AiConstants.MSG_NO_ANSWER;
+        }
+        emit(out, "delta", new AiDtos.StreamDelta(answer));
+      }
+      emit(out, "done", new AiDtos.StreamDone(citations));
+    } catch (BusinessException ex) {
+      emit(out, "error", new AiDtos.StreamError(ex.getMessage()));
+    } catch (IllegalStateException ex) {
+      log.warn("ai stream write failed", ex);
+    } catch (Exception ex) {
+      log.warn("ai stream failed", ex);
+      emit(out, "error", new AiDtos.StreamError(AiConstants.MSG_NO_ANSWER));
+    }
+  }
+
+  private void emit(OutputStream out, String event, Object payload) throws IOException {
+    String json = objectMapper.writeValueAsString(payload);
+    out.write(("event: " + event + "\ndata: " + json + "\n\n").getBytes(StandardCharsets.UTF_8));
+    out.flush();
   }
 
   private static boolean isContinue(String mode) {
@@ -94,10 +156,9 @@ public class AiService {
     return AiConstants.MODE_CONTINUE.equals(value) || "续写".equals(mode.trim());
   }
 
-  private List<SearchClient.PostHit> retrieve(String question) {
+  private List<SearchClient.PostHit> retrieve(String question, int limit) {
     try {
-      SearchClient.SearchHit page =
-          searchClient.search(question, "post", AiConstants.RETRIEVE_LIMIT);
+      SearchClient.SearchHit page = searchClient.search(question, "post", limit);
       if (page == null || page.posts() == null) {
         return List.of();
       }
@@ -117,15 +178,15 @@ public class AiService {
     return List.copyOf(out);
   }
 
-  private static String buildChatUser(String question, List<SearchClient.PostHit> posts) {
+  private static String buildChatUser(String question, List<SearchClient.PostHit> posts, int bodyMax) {
     StringBuilder sb = new StringBuilder();
     sb.append("问题：").append(question).append("\n\n站内笔记：\n");
     int i = 1;
     for (SearchClient.PostHit post : posts) {
       String nick = post.author() == null ? "" : nullToEmpty(post.author().nickname());
       String body = nullToEmpty(post.body());
-      if (body.length() > AiConstants.CONTEXT_BODY_MAX) {
-        body = body.substring(0, AiConstants.CONTEXT_BODY_MAX);
+      if (body.length() > bodyMax) {
+        body = body.substring(0, bodyMax);
       }
       sb.append(i++)
           .append(". postId=")

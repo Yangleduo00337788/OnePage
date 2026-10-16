@@ -13,9 +13,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /** 兼容 OpenAI 的 {@code POST /chat/completions}。地址和密钥读运营配置。 */
 @Component
@@ -46,6 +51,12 @@ public class LlmClient {
     return complete(stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, user);
   }
 
+  public void completeStream(String system, String user, Consumer<String> onDelta) {
+    AiSettings.Stored stored = aiSettings.current();
+    completeStream(
+        stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, user, onDelta);
+  }
+
   public AiDtos.OpsProbe probe(String baseUrl, String apiKey, String model) {
     if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       return new AiDtos.OpsProbe(false, AiConstants.MSG_PROBE_NO_KEY);
@@ -63,12 +74,7 @@ public class LlmClient {
     if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
-    Map<String, Object> body = Map.of(
-        "model", model,
-        "temperature", 0.4,
-        "messages", List.of(
-            Map.of("role", "system", "content", system),
-            Map.of("role", "user", "content", user)));
+    Map<String, Object> body = chatBody(model, system, user, false);
     try {
       String raw = RestClient.builder()
           .baseUrl(baseUrl)
@@ -92,6 +98,100 @@ public class LlmClient {
     } catch (Exception ex) {
       log.warn("llm complete failed", ex);
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
+    }
+  }
+
+  public void completeStream(
+      String baseUrl,
+      String apiKey,
+      String model,
+      String system,
+      String user,
+      Consumer<String> onDelta) {
+    if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
+      throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
+    }
+    Map<String, Object> body = chatBody(model, system, user, true);
+    try {
+      RestClient.builder()
+          .baseUrl(baseUrl)
+          .requestFactory(requestFactory)
+          .defaultHeader("Authorization", "Bearer " + apiKey)
+          .build()
+          .post()
+          .uri("/chat/completions")
+          .contentType(MediaType.APPLICATION_JSON)
+          .accept(MediaType.TEXT_EVENT_STREAM)
+          .body(body)
+          .exchange((request, response) -> {
+            if (response.getStatusCode().isError()) {
+              throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
+            }
+            try (BufferedReader reader =
+                new BufferedReader(
+                    new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
+              String line;
+              while ((line = reader.readLine()) != null) {
+                String payload = sseData(line);
+                if (payload == null) {
+                  continue;
+                }
+                if ("[DONE]".equals(payload)) {
+                  break;
+                }
+                String piece = deltaContent(payload);
+                if (StringUtils.hasText(piece)) {
+                  onDelta.accept(piece);
+                }
+              }
+            }
+            return null;
+          });
+    } catch (BusinessException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      log.warn("llm stream failed", ex);
+      throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
+    }
+  }
+
+  private Map<String, Object> chatBody(String model, String system, String user, boolean stream) {
+    AiSettings.Stored stored = aiSettings.current();
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("model", model);
+    body.put("temperature", stored.temperature() == null
+        ? AiConstants.TEMPERATURE_DEFAULT
+        : stored.temperature());
+    if (stored.maxTokens() != null && stored.maxTokens() > 0) {
+      body.put("max_tokens", stored.maxTokens());
+    }
+    body.put("stream", stream);
+    body.put(
+        "messages",
+        List.of(
+            Map.of("role", "system", "content", system),
+            Map.of("role", "user", "content", user)));
+    return body;
+  }
+
+  private static String sseData(String line) {
+    if (!StringUtils.hasText(line) || !line.startsWith("data:")) {
+      return null;
+    }
+    return line.substring(5).trim();
+  }
+
+  private String deltaContent(String payload) {
+    try {
+      JsonNode choice = objectMapper.readTree(payload).path("choices").path(0);
+      JsonNode content = choice.path("delta").path("content");
+      if (content.isTextual()) {
+        return content.asText();
+      }
+      JsonNode text = choice.path("text");
+      return text.isTextual() ? text.asText() : "";
+    } catch (Exception ex) {
+      return "";
     }
   }
 }

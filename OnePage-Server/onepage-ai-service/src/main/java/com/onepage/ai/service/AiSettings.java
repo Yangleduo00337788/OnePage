@@ -59,7 +59,15 @@ public class AiSettings {
         stored.yehQuestions(),
         stored.chatEnabled(),
         stored.polishEnabled(),
-        readStored() != null);
+        readStored() != null,
+        stored.chatSystem(),
+        stored.polishSystem(),
+        stored.continueSystem(),
+        stored.retrieveLimit(),
+        stored.contextBodyMax(),
+        stored.temperature(),
+        stored.maxTokens(),
+        stored.streamEnabled());
   }
 
   public Stored overlay(AiDtos.OpsPatch patch) {
@@ -86,7 +94,50 @@ public class AiSettings {
     }
     boolean chat = patch.chatEnabled() == null ? prev.chatEnabled() : patch.chatEnabled();
     boolean polish = patch.polishEnabled() == null ? prev.polishEnabled() : patch.polishEnabled();
-    return new Stored(baseUrl, apiKey, model, preset, questions, chat, polish);
+    String chatSystem = overlayPrompt(patch.chatSystem(), prev.chatSystem(), AiConstants.CHAT_SYSTEM);
+    String polishSystem = overlayPrompt(
+        patch.polishSystem(), prev.polishSystem(), AiConstants.POLISH_SYSTEM);
+    String continueSystem = overlayPrompt(
+        patch.continueSystem(), prev.continueSystem(), AiConstants.CONTINUE_SYSTEM);
+    int retrieveLimit = patch.retrieveLimit() == null
+        ? prev.retrieveLimit()
+        : clamp(
+            patch.retrieveLimit(),
+            AiConstants.RETRIEVE_LIMIT,
+            1,
+            AiConstants.RETRIEVE_MAX);
+    int contextBodyMax = patch.contextBodyMax() == null
+        ? prev.contextBodyMax()
+        : clamp(
+            patch.contextBodyMax(),
+            AiConstants.CONTEXT_BODY_MAX,
+            50,
+            AiConstants.CONTEXT_BODY_CAP);
+    double temperature = patch.temperature() == null
+        ? clampTemp(prev.temperature())
+        : clampTemp(patch.temperature());
+    int maxTokens = patch.maxTokens() == null
+        ? clampMaxTokens(prev.maxTokens())
+        : clampMaxTokens(patch.maxTokens());
+    boolean stream = patch.streamEnabled() == null
+        ? Boolean.TRUE.equals(prev.streamEnabled())
+        : patch.streamEnabled();
+    return new Stored(
+        baseUrl,
+        apiKey,
+        model,
+        preset,
+        questions,
+        chat,
+        polish,
+        chatSystem,
+        polishSystem,
+        continueSystem,
+        retrieveLimit,
+        contextBodyMax,
+        temperature,
+        maxTokens,
+        stream);
   }
 
   public AiDtos.OpsView save(AiDtos.OpsPatch patch) {
@@ -135,7 +186,19 @@ public class AiSettings {
           preset,
           questions,
           stored.chatEnabled(),
-          stored.polishEnabled());
+          stored.polishEnabled(),
+          readPrompt(stored.chatSystem(), AiConstants.CHAT_SYSTEM),
+          readPrompt(stored.polishSystem(), AiConstants.POLISH_SYSTEM),
+          readPrompt(stored.continueSystem(), AiConstants.CONTINUE_SYSTEM),
+          clamp(stored.retrieveLimit(), AiConstants.RETRIEVE_LIMIT, 1, AiConstants.RETRIEVE_MAX),
+          clamp(
+              stored.contextBodyMax(),
+              AiConstants.CONTEXT_BODY_MAX,
+              50,
+              AiConstants.CONTEXT_BODY_CAP),
+          clampTemp(stored.temperature()),
+          clampMaxTokens(stored.maxTokens()),
+          Boolean.TRUE.equals(stored.streamEnabled()));
     } catch (Exception ex) {
       log.warn("ai settings read failed, fallback env");
       return null;
@@ -150,7 +213,15 @@ public class AiSettings {
         AiConstants.DEFAULT_YEH_PRESET,
         defaultQuestions(),
         true,
-        true);
+        true,
+        AiConstants.CHAT_SYSTEM,
+        AiConstants.POLISH_SYSTEM,
+        AiConstants.CONTINUE_SYSTEM,
+        AiConstants.RETRIEVE_LIMIT,
+        AiConstants.CONTEXT_BODY_MAX,
+        AiConstants.TEMPERATURE_DEFAULT,
+        0,
+        false);
   }
 
   private static List<String> defaultQuestions() {
@@ -172,6 +243,56 @@ public class AiSettings {
       }
     }
     return out;
+  }
+
+  private static String overlayPrompt(String patch, String prev, String fallback) {
+    if (patch == null) {
+      return promptOrDefault(prev, fallback);
+    }
+    return promptOrDefault(patch, fallback);
+  }
+
+  private static String promptOrDefault(String value, String fallback) {
+    if (!StringUtils.hasText(value)) {
+      return fallback;
+    }
+    String text = value.trim();
+    if (text.length() > AiConstants.PROMPT_MAX) {
+      throw BusinessException.validation("系统提示词过长");
+    }
+    return text;
+  }
+
+  private static String readPrompt(String value, String fallback) {
+    if (!StringUtils.hasText(value)) {
+      return fallback;
+    }
+    String text = value.trim();
+    if (text.length() > AiConstants.PROMPT_MAX) {
+      return text.substring(0, AiConstants.PROMPT_MAX);
+    }
+    return text;
+  }
+
+  private static int clamp(int value, int fallback, int min, int max) {
+    if (value < min) {
+      return fallback;
+    }
+    return Math.min(value, max);
+  }
+
+  private static double clampTemp(Double value) {
+    if (value == null || value.isNaN() || value < 0d) {
+      return AiConstants.TEMPERATURE_DEFAULT;
+    }
+    return Math.min(value, AiConstants.TEMPERATURE_MAX);
+  }
+
+  private static int clampMaxTokens(Integer value) {
+    if (value == null || value < 0) {
+      return 0;
+    }
+    return Math.min(value, AiConstants.MAX_TOKENS_CAP);
   }
 
   private static String trimSlash(String url) {
@@ -201,5 +322,13 @@ public class AiSettings {
       String yehPreset,
       List<String> yehQuestions,
       boolean chatEnabled,
-      boolean polishEnabled) {}
+      boolean polishEnabled,
+      String chatSystem,
+      String polishSystem,
+      String continueSystem,
+      int retrieveLimit,
+      int contextBodyMax,
+      Double temperature,
+      Integer maxTokens,
+      Boolean streamEnabled) {}
 }

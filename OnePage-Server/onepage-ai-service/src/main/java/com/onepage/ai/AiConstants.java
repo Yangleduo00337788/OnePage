@@ -7,10 +7,16 @@ public final class AiConstants {
   private AiConstants() {}
 
   public static final int RETRIEVE_LIMIT = 8;
+  public static final int RETRIEVE_MAX = 20;
   public static final int TITLE_MAX = 20;
   public static final int SNIPPET_MAX = 280;
   public static final int CONTEXT_BODY_MAX = 400;
+  public static final int CONTEXT_BODY_CAP = 2000;
   public static final int QUESTIONS_MAX = 6;
+  public static final int PROMPT_MAX = 4000;
+  public static final double TEMPERATURE_DEFAULT = 0.4;
+  public static final double TEMPERATURE_MAX = 2.0;
+  public static final int MAX_TOKENS_CAP = 8192;
 
   public static final String MSG_NO_ANSWER = "暂时不能回答";
   public static final String MSG_NO_NOTES = "暂时不能根据站内笔记回答";

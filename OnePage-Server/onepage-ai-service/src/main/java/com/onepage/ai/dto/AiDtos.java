@@ -28,7 +28,15 @@ public final class AiDtos {
       List<String> yehQuestions,
       boolean chatEnabled,
       boolean polishEnabled,
-      boolean persisted) {}
+      boolean persisted,
+      String chatSystem,
+      String polishSystem,
+      String continueSystem,
+      int retrieveLimit,
+      int contextBodyMax,
+      double temperature,
+      int maxTokens,
+      boolean streamEnabled) {}
 
   public record OpsPatch(
       String llmBaseUrl,
@@ -38,7 +46,21 @@ public final class AiDtos {
       List<String> yehQuestions,
       Boolean chatEnabled,
       Boolean polishEnabled,
-      Boolean clearLlmKey) {}
+      Boolean clearLlmKey,
+      String chatSystem,
+      String polishSystem,
+      String continueSystem,
+      Integer retrieveLimit,
+      Integer contextBodyMax,
+      Double temperature,
+      Integer maxTokens,
+      Boolean streamEnabled) {}
 
   public record OpsProbe(boolean ok, String message) {}
+
+  public record StreamDelta(String t) {}
+
+  public record StreamDone(List<Citation> citations) {}
+
+  public record StreamError(String message) {}
 }
