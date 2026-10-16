@@ -1,6 +1,6 @@
 <!--
   耶耶首页 + 对话。无顶搜、左上圆形展开、白底输入卡。
-  发送走 POST /ai/chat（先检索再生成）；历史仍在本机 localStorage。
+  发送走 POST /ai/chat/stream（先检索再生成）；历史仍在本机 localStorage。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -85,18 +85,22 @@ async function send(raw: string) {
   chatDraft.value = ''
   if (route.query.q) router.replace({ path: '/yehyeh' })
   yeh.appendUser(text)
+  yeh.beginAi()
   sending.value = true
   await nextTick()
   chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight, behavior: 'smooth' })
   try {
-    const res = await api.aiChat({ question: text, sessionId: yeh.currentId || undefined })
-    yeh.appendAi(res.answer || '暂时不能回答', res.citations)
+    const res = await api.aiChatStream({ question: text, sessionId: yeh.currentId || undefined }, (delta) => {
+      yeh.patchLastAi(delta)
+      chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight })
+    })
+    yeh.finishLastAi(res.citations, res.answer || '暂时不能回答')
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
-      yeh.appendAi('请先登录后再问耶耶')
+      yeh.finishLastAi(undefined, '请先登录后再问耶耶')
       auth.show('login', '/yehyeh')
     } else {
-      yeh.appendAi(e instanceof ApiError ? e.message : '暂时不能回答')
+      yeh.finishLastAi(undefined, e instanceof ApiError ? e.message : '暂时不能回答')
     }
   }
   sending.value = false
@@ -318,14 +322,13 @@ watch(
           <div v-for="(msg, i) in yeh.current?.messages" :key="i" class="yeh-msg" :class="msg.role === 'user' ? 'is-user' : 'is-ai'">
             <div v-if="msg.role === 'user'" class="yeh-bubble">{{ msg.text }}</div>
             <div v-else>
-              <p class="yeh-ai-text">{{ msg.text }}</p>
+              <p class="yeh-ai-text" :class="{ 'yeh-thinking': sending && !msg.text }">
+                {{ msg.text || (sending ? '耶耶正在想…' : '') }}
+              </p>
               <p v-if="msg.citations?.length" class="yeh-cites">
                 来自站内笔记：{{ msg.citations.map((c) => c.snippet).filter(Boolean).join(' · ') }}
               </p>
             </div>
-          </div>
-          <div v-if="sending" class="yeh-msg is-ai">
-            <p class="yeh-ai-text yeh-thinking">耶耶正在想…</p>
           </div>
         </div>
         <div class="yeh-chat-foot">

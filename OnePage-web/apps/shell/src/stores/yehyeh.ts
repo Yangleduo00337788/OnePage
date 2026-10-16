@@ -1,5 +1,5 @@
 /**
- * 耶耶会话：对话落 localStorage；回复走 POST /ai/chat。
+ * 耶耶会话：对话落 localStorage；回复走 POST /ai/chat/stream。
  * 历史、当前会话、新建 / 删除都走这一份状态。
  */
 import { defineStore } from 'pinia'
@@ -97,10 +97,46 @@ export const useYehYeh = defineStore('yehyeh', () => {
     touch(session)
   }
 
+  function beginAi() {
+    appendAi('')
+  }
+
+  function patchLastAi(delta: string) {
+    const session = current.value
+    if (!session) return
+    const last = session.messages[session.messages.length - 1]
+    if (!last || last.role !== 'ai') return
+    last.text += delta
+    persist()
+  }
+
+  function finishLastAi(citations?: AiCitation[], fallback?: string) {
+    const session = current.value
+    if (!session) return
+    const last = session.messages[session.messages.length - 1]
+    if (!last || last.role !== 'ai') return
+    if (!last.text.trim() && fallback) last.text = fallback
+    last.citations = citations?.length ? citations : undefined
+    touch(session)
+  }
+
   function append(userText: string, aiText: string, citations?: AiCitation[]) {
     appendUser(userText)
     appendAi(aiText, citations)
   }
 
-  return { sessions, currentId, current, open, startFresh, remove, append, appendUser, appendAi }
+  return {
+    sessions,
+    currentId,
+    current,
+    open,
+    startFresh,
+    remove,
+    append,
+    appendUser,
+    appendAi,
+    beginAi,
+    patchLastAi,
+    finishLastAi,
+  }
 })
