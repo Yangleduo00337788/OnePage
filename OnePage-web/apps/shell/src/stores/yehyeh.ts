@@ -7,7 +7,19 @@ import { computed, ref } from 'vue'
 import type { AiCitation } from '@onepage/api-client'
 
 export type YehRole = 'user' | 'ai'
-export type YehMsg = { role: YehRole; text: string; citations?: AiCitation[] }
+export type YehStage = 'retrieve' | 'notes' | 'write'
+export type YehProcess = {
+  question: string
+  noteCount: number
+  open: boolean
+  openStep: YehStage | ''
+}
+export type YehMsg = {
+  role: YehRole
+  text: string
+  citations?: AiCitation[]
+  process?: YehProcess
+}
 export type YehSession = {
   id: string
   title: string
@@ -97,8 +109,27 @@ export const useYehYeh = defineStore('yehyeh', () => {
     touch(session)
   }
 
-  function beginAi() {
+  function dropLastAi() {
+    const session = current.value
+    if (!session) return
+    const last = session.messages[session.messages.length - 1]
+    if (!last || last.role !== 'ai') return
+    session.messages.pop()
+    persist()
+  }
+
+  function beginAi(question?: string) {
     appendAi('')
+    const session = current.value
+    const last = session?.messages[session.messages.length - 1]
+    if (!last || last.role !== 'ai') return
+    last.process = {
+      question: (question || '').trim(),
+      noteCount: 0,
+      open: false,
+      openStep: '',
+    }
+    persist()
   }
 
   function patchLastAi(delta: string) {
@@ -117,7 +148,29 @@ export const useYehYeh = defineStore('yehyeh', () => {
     if (!last || last.role !== 'ai') return
     if (!last.text.trim() && fallback) last.text = fallback
     last.citations = citations?.length ? citations : undefined
+    last.process = {
+      question: last.process?.question || '',
+      noteCount: citations?.length ?? last.process?.noteCount ?? 0,
+      open: false,
+      openStep: '',
+    }
     touch(session)
+  }
+
+  function patchProcess(index: number, patch: Partial<YehProcess>) {
+    const session = current.value
+    if (!session) return
+    const msg = session.messages[index]
+    if (!msg || msg.role !== 'ai') return
+    msg.process = {
+      question: msg.process?.question || '',
+      noteCount: msg.process?.noteCount || 0,
+      open: false,
+      openStep: '',
+      ...msg.process,
+      ...patch,
+    }
+    persist()
   }
 
   function append(userText: string, aiText: string, citations?: AiCitation[]) {
@@ -136,7 +189,9 @@ export const useYehYeh = defineStore('yehyeh', () => {
     appendUser,
     appendAi,
     beginAi,
+    dropLastAi,
     patchLastAi,
     finishLastAi,
+    patchProcess,
   }
 })
