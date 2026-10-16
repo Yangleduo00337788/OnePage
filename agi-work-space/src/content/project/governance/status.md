@@ -26,7 +26,9 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
-- 2026-10-16 — 运营 AI 配置补探测连通、清密钥、恢复环境变量；耶耶默认折叠联想，点输入框才展开（DEC-051）
+- 2026-10-16 — 耶耶流式：上游 `text/event-stream` 改 RestClient `exchange` 读原始流（不要 `body(InputStream)`）
+- 2026-10-16 — 运营模型页可配温度、最大 token、耶耶流式；社区问答走 `POST /ai/chat/stream`（DEC-051）
+- 2026-10-16 — 运营 AI 分模型 / 耶耶 / 发帖；耶耶可配 RAG 条数与正文截断、system prompt（DEC-051）
 - 2026-10-16 — 发帖拆「AI 优化 / 续写」；耶耶先出用户气泡再等回复，避免整页卡住
 - 2026-10-16 — P3 耶耶/润色：`onepage-ai-service` HTTP LLM，不引入 Spring AI（DEC-050）
 - 2026-10-16 — P3 全局搜索：`onepage-search-service` + ES，壳 `/search` 接笔记/用户（DEC-049）

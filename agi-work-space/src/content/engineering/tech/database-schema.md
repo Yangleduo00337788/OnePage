@@ -381,7 +381,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 键 | 说明 |
 | --- | --- |
-| `onepage:ai:settings` | AI 运营配置 JSON（模型地址/密钥/耶耶文案/开关）；未写入或 `POST /ops/ai/reset` 后用环境变量 |
+| `onepage:ai:settings` | AI 运营配置 JSON（模型、密钥、温度/maxTokens/流式、三段 prompt、RAG 条数/正文截断、耶耶文案、开关）；未写入或 reset 后用环境变量与内置 prompt |
 
 ## Elasticsearch 索引（非 MySQL）
 
