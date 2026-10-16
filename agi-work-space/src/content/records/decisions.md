@@ -6,6 +6,24 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-045 Session 超时走 yml，启动类不加 EnableRedis*Session
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** `SESSION_TIMEOUT=7d` 写在 yml，但 Redis 里 Session TTL 只有约 30 分钟。原因是 auth `@EnableRedisHttpSession`、网关 `@EnableRedisWebSession` 默认 `maxInactiveIntervalInSeconds=1800`，抢在 Boot 自动配置前面，环境变量进不去。
+- **决策：** 两个启动类去掉上述注解，保留 `spring.session.store-type=redis` 与 `timeout: ${SESSION_TIMEOUT}`。Cookie 名、不 Base64、网关 `WebSessionIdResolver` 不变。已有 30 分钟 Session 不会自动变 7 天，须重启 auth+网关后重新登录。
+- **替代：** 注解上写死秒数（否决：不再跟环境变量）；单独 Bean 再 setMaxInactiveInterval（否决：重复配置）。
+- **影响：** 只改启动类与 yml 注释。见 [登录注册流程](/engineering/tech/auth-flows)、[接口契约](/engineering/process/contracts)。
+
+## DEC-044 公开笔记先待审，运营通过后进 Feed
+
+- **日期：** 2026-10-15
+- **状态：** 已采纳
+- **背景：** 创作者笔记管理已有「审核中 / 未通过」Tab，但发帖直接 `published` 进发现流。治理台需要审稿，不要另建 CMS。
+- **决策：** 复用 `post.status`：公开发布写 `pending`；仅自己可见仍 `published`。运营 `POST /ops/posts/{id}/approve|reject`（Feign 内网 POST）。通过 → `published` 并写 Outbox；驳回必须填回复（运营弹窗，禁止浏览器 prompt），写 `rejected` + `reject_reason`，事务提交后投递通知 `review_reject`（`group=review`，preview 为回复）。作者可改待审/未通过，未通过再保存回到待审。仅自己改公开重新排队。已有已发布笔记保持 `published`。Feed / 他人主页仍只出 `published`。创作者 Tab 与首页待处理展示未通过回复。精细权限与 CMS 仍不做（DEC-034）。
+- **替代：** 新表 `post_review`（否决：状态已在 `post.status`）；所有可见范围都审（否决：仅自己本来不进 Feed）；驳回不通知（否决：作者看不到原因）。
+- **影响：** 已有库执行 `007_post_review.sql`，重启 content / moderation / notification。见 [API 明细](/engineering/process/api-endpoints)。
+
 ## DEC-043 运营用户详情可拆关注、删通知
 
 - **日期：** 2026-10-15

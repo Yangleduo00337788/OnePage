@@ -110,7 +110,8 @@ public class CatalogService {
   }
 
   public FeedDtos.ContentStats stats() {
-    long live = postMapper.selectCount(Wrappers.<Post>lambdaQuery().isNull(Post::getDeletedAt));
+    long live = postMapper.selectCount(
+        Wrappers.<Post>lambdaQuery().isNull(Post::getDeletedAt).eq(Post::getStatus, "published"));
     long down = postMapper.selectCount(Wrappers.<Post>lambdaQuery().isNotNull(Post::getDeletedAt));
     long comments = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery().eq(Comment::getStatus, 0));
     return new FeedDtos.ContentStats(live, down, comments);

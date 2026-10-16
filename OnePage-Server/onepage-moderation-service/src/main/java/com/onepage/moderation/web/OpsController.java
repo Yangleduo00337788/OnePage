@@ -110,6 +110,25 @@ public class OpsController {
     return moderationService.restorePost(postId);
   }
 
+  @PostMapping("/posts/{postId}/approve")
+  public ModerationDtos.OpsPostView approvePost(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.approvePost(postId);
+  }
+
+  @PostMapping("/posts/{postId}/reject")
+  public ModerationDtos.OpsPostView rejectPost(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId,
+      @RequestParam(value = "reason", required = false) String reason) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.rejectPost(postId, reason, userId);
+  }
+
   @GetMapping("/comments")
   public ModerationDtos.OpsCommentPage comments(
       HttpServletRequest request,

@@ -132,6 +132,8 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | body | TEXT | 正文 |
 | post_type | VARCHAR(16) | `text` / `image` / `video` / `mixed` |
 | category | VARCHAR(32) | 首页 Tab，对应 `post_category.name` |
+| status | VARCHAR(16) | `draft` / `pending` / `published` / `rejected` / `deleted`；Feed 只出 published |
+| reject_reason | VARCHAR(200) 可空 | 未通过原因 |
 
 ### post_category
 
@@ -314,6 +316,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | `favorite_post` | 藏笔记 |
 | `like_comment` | 赞评论 |
 | `follow` | 新关注 |
+| `review_reject` | 笔记未通过（preview 为运营回复） |
 
 ## onepage_moderation
 

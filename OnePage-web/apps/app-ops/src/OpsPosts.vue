@@ -1,16 +1,17 @@
-<!-- 全站笔记：预览、下架、恢复。已下架也能看。 -->
+<!-- 全站笔记：审稿、预览、下架、恢复。已下架也能看。 -->
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { api, ApiError, type OpsPostRow, type OpsPostView } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
+import OpsDialog from './OpsDialog.vue'
 import OpsPager from './OpsPager.vue'
 import OpsTargetPreview from './OpsTargetPreview.vue'
 import { useCursorPages } from './useCursorPages'
 
-type Taken = '' | 'live' | 'down'
+type Taken = '' | 'pending' | 'live' | 'rejected' | 'down'
 
-const taken = ref<Taken>('')
+const taken = ref<Taken>('pending')
 const query = ref('')
 const items = ref<OpsPostRow[]>([])
 const { page, pageSize, hasMore, resetCursors, cursorFor, applyResult } = useCursorPages()
@@ -22,10 +23,14 @@ const previewOpen = ref(false)
 const previewPost = ref<OpsPostView | null>(null)
 const previewLoading = ref(false)
 const previewError = ref('')
+const rejectRow = ref<OpsPostRow | null>(null)
+const rejectReason = ref('')
 
 const tabs: { id: Taken; label: string }[] = [
   { id: '', label: '全部' },
+  { id: 'pending', label: '待审' },
   { id: 'live', label: '在线' },
+  { id: 'rejected', label: '未通过' },
   { id: 'down', label: '已下架' },
 ]
 
@@ -80,13 +85,46 @@ async function openPost(id: string) {
   }
 }
 
-async function act(row: OpsPostRow, kind: 'takedown' | 'restore') {
+function reviewLabel(status?: string) {
+  if (status === 'pending') return '待审'
+  if (status === 'rejected') return '未通过'
+  if (status === 'published') return ''
+  return ''
+}
+
+function openReject(row: OpsPostRow) {
+  rejectRow.value = row
+  rejectReason.value = ''
+}
+
+function closeReject() {
+  rejectRow.value = null
+  rejectReason.value = ''
+}
+
+async function confirmReject() {
+  const row = rejectRow.value
+  const reason = rejectReason.value.trim()
+  if (!row) return
+  if (!reason) {
+    flash('请填写回复信息')
+    return
+  }
+  await act(row, 'reject', reason)
+}
+
+async function act(row: OpsPostRow, kind: 'approve' | 'reject' | 'takedown' | 'restore', reason?: string) {
   busyId.value = row.postId
   try {
-    if (kind === 'takedown') await api.opsTakedownPost(row.postId)
+    if (kind === 'approve') await api.opsApprovePost(row.postId)
+    else if (kind === 'reject') await api.opsRejectPost(row.postId, reason)
+    else if (kind === 'takedown') await api.opsTakedownPost(row.postId)
     else await api.opsRestorePost(row.postId)
-    flash(kind === 'takedown' ? '已下架' : '已恢复')
+    const msg =
+      kind === 'approve' ? '已通过' : kind === 'reject' ? '已驳回' : kind === 'takedown' ? '已下架' : '已恢复'
+    flash(msg)
     previewOpen.value = false
+    closeReject()
     await load(page.value)
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
@@ -147,13 +185,31 @@ watch(taken, () => load(1, true))
                 {{ row.title || `笔记 ${row.postId}` }}
               </button>
               <span v-if="row.takenDown" class="tag">已下架</span>
+              <span v-else-if="reviewLabel(row.reviewStatus)" class="tag">{{ reviewLabel(row.reviewStatus) }}</span>
             </td>
             <td>{{ row.author?.nickname || row.author?.pageId || '—' }}</td>
             <td>{{ row.category || '—' }}</td>
             <td>{{ clock(row.publishedAt) }}</td>
             <td class="acts">
               <button
-                v-if="!row.takenDown"
+                v-if="row.reviewStatus === 'pending' || row.reviewStatus === 'rejected'"
+                type="button"
+                :disabled="busyId === row.postId"
+                @click="act(row, 'approve')"
+              >
+                通过
+              </button>
+              <button
+                v-if="row.reviewStatus === 'pending'"
+                type="button"
+                class="danger"
+                :disabled="busyId === row.postId"
+                @click="openReject(row)"
+              >
+                驳回
+              </button>
+              <button
+                v-else-if="!row.takenDown && row.reviewStatus === 'published'"
                 type="button"
                 class="danger"
                 :disabled="busyId === row.postId"
@@ -162,7 +218,7 @@ watch(taken, () => load(1, true))
                 下架
               </button>
               <button
-                v-else
+                v-else-if="row.takenDown"
                 type="button"
                 :disabled="busyId === row.postId"
                 @click="act(row, 'restore')"
@@ -193,6 +249,24 @@ watch(taken, () => load(1, true))
       :error="previewError"
       @close="previewOpen = false"
     />
+    <OpsDialog v-if="rejectRow" title="回复作者" @close="closeReject">
+      <label class="form">
+        回复信息
+        <textarea v-model="rejectReason" maxlength="200" rows="5" placeholder="说明未通过原因，作者会在创作者中心看到" />
+      </label>
+      <p class="muted">{{ rejectReason.length }}/200</p>
+      <template #footer>
+        <button type="button" class="ghost" @click="closeReject">取消</button>
+        <button
+          type="button"
+          class="go"
+          :disabled="busyId === rejectRow.postId || !rejectReason.trim()"
+          @click="confirmReject"
+        >
+          确定驳回
+        </button>
+      </template>
+    </OpsDialog>
   </div>
 </template>
 
@@ -332,5 +406,25 @@ th {
   background: rgb(248, 248, 248);
   color: #555;
   font-size: 13px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #555;
+  font-size: 13px;
+}
+
+.form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(248, 248, 248);
+  color: #1f1f1f;
+  font: inherit;
+  resize: vertical;
+  outline: none;
 }
 </style>

@@ -1,5 +1,5 @@
 <!--
-  通知中心。三 Tab 对应 GET /notifications?group=comment|reaction|follow。
+  通知中心。Tab 对应 GET /notifications?group=comment|reaction|follow|review。
   未登录弹登录。点关注类进主页；有 postId 的打开笔记详情。
 -->
 <script setup lang="ts">
@@ -12,19 +12,21 @@ import { useSession } from '../stores/session'
 import { noteFromPost } from '../data/home'
 import EmptyState from '../components/EmptyState.vue'
 
-const NOTIFY_TABS = ['评论和@', '点赞和收藏', '新增关注'] as const
+const NOTIFY_TABS = ['评论和@', '点赞和收藏', '新增关注', '审核'] as const
 type NotifyTab = (typeof NOTIFY_TABS)[number]
 
 const GROUP: Record<NotifyTab, string> = {
   '评论和@': 'comment',
   点赞和收藏: 'reaction',
   新增关注: 'follow',
+  审核: 'review',
 }
 
 function tabUnread(item: NotifyTab) {
   const g = GROUP[item]
   if (g === 'comment') return session.unreadNotifyGroups.comment
   if (g === 'reaction') return session.unreadNotifyGroups.reaction
+  if (g === 'review') return session.unreadNotifyGroups.review
   return session.unreadNotifyGroups.follow
 }
 
@@ -36,6 +38,7 @@ const ACTION: Record<string, string> = {
   favorite_post: '收藏了你的笔记',
   like_comment: '赞了你的评论',
   follow: '关注了你',
+  review_reject: '未通过你的笔记',
 }
 
 const route = useRoute()

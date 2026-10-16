@@ -71,6 +71,7 @@ function chipsOf(item: Note) {
   const chips: string[] = []
   if (item.category) chips.push(item.category)
   if (item.visibility === 'self') chips.push('仅自己可见')
+  if (item.rejectReason) chips.push(item.rejectReason)
   return chips
 }
 
@@ -281,7 +282,8 @@ onMounted(() => {
 
     <div v-else class="empty">
       <img class="empty-art" src="/empty-me.png" alt="" width="160" height="160" />
-      <p v-if="tab === '审核中' || tab === '未通过'">审核尚未接入</p>
+      <p v-if="tab === '审核中'">没有审核中的笔记</p>
+      <p v-else-if="tab === '未通过'">没有未通过的笔记</p>
       <p v-else>没有找到相关笔记</p>
     </div>
 

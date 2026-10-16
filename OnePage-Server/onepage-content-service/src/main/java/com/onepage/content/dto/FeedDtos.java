@@ -27,7 +27,9 @@ public final class FeedDtos {
       long favoriteCount,
       long commentCount,
       long viewCount,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   public record CursorPage(List<PostBrief> items, String nextCursor, boolean hasMore) {}
 
@@ -50,7 +52,9 @@ public final class FeedDtos {
       long commentCount,
       boolean likedByMe,
       boolean favoritedByMe,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   public record PublishSpec(
       String title,
@@ -63,7 +67,7 @@ public final class FeedDtos {
       String eventId,
       String visibility) {}
 
-  public record CreateResult(String postId, String publishedAt) {}
+  public record CreateResult(String postId, String publishedAt, String reviewStatus) {}
 
   public record LikeResult(boolean liked, long likeCount) {}
 
@@ -104,7 +108,9 @@ public final class FeedDtos {
       String visibility,
       List<MediaItem> media,
       boolean takenDown,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   public record OpsPostRow(
       String postId,
@@ -113,7 +119,9 @@ public final class FeedDtos {
       String postType,
       String category,
       boolean takenDown,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 

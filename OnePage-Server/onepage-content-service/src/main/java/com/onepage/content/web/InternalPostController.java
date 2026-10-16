@@ -125,6 +125,22 @@ public class InternalPostController {
     postService.opsRestore(postId);
   }
 
+  @PostMapping("/posts/{postId}/approve")
+  public void approve(HttpServletRequest request, @PathVariable("postId") long postId) {
+    assertInternal(request);
+    postService.opsApprove(postId);
+  }
+
+  @PostMapping("/posts/{postId}/reject")
+  public void reject(
+      HttpServletRequest request,
+      @PathVariable("postId") long postId,
+      @RequestParam(value = "reason", required = false) String reason,
+      @RequestParam(value = "handlerId", required = false) Long handlerId) {
+    assertInternal(request);
+    postService.opsReject(postId, reason, handlerId);
+  }
+
   private void assertInternal(HttpServletRequest request) {
     String token = request.getHeader(GatewayHeaders.INTERNAL_TOKEN);
     if (token == null || !token.equals(expectedToken)) {

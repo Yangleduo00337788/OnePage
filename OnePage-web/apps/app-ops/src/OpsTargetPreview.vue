@@ -64,6 +64,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         </div>
         <div class="copy">
           <p v-if="post.takenDown" class="badge">已下架</p>
+          <p v-else-if="post.reviewStatus === 'pending'" class="badge">待审</p>
+          <p v-else-if="post.reviewStatus === 'rejected'" class="badge">未通过</p>
+          <p v-if="post.rejectReason" class="sub">{{ post.rejectReason }}</p>
           <p class="author">{{ post.author?.nickname || post.author?.pageId || '作者' }}</p>
           <h2>{{ post.title || '无标题' }}</h2>
           <p class="body">{{ post.body }}</p>

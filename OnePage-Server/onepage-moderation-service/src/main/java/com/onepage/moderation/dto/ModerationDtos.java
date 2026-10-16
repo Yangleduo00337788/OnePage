@@ -48,7 +48,9 @@ public final class ModerationDtos {
       String visibility,
       List<ContentMedia> media,
       boolean takenDown,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   public record ContentMedia(String mediaId, String url, String mimeType, String role) {}
 
@@ -68,7 +70,9 @@ public final class ModerationDtos {
       String postType,
       String category,
       boolean takenDown,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 

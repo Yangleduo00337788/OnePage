@@ -7,7 +7,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api, type UserProfile } from '@onepage/api-client'
 
-const emptyGroups = { comment: 0, reaction: 0, follow: 0 }
+const emptyGroups = { comment: 0, reaction: 0, follow: 0, review: 0 }
 
 export const useSession = defineStore('session', () => {
   const me = ref<UserProfile | null>(null)
@@ -30,6 +30,7 @@ export const useSession = defineStore('session', () => {
         comment: data.comment ?? 0,
         reaction: data.reaction ?? 0,
         follow: data.follow ?? 0,
+        review: data.review ?? 0,
       }
     } catch {
       unreadNotify.value = 0

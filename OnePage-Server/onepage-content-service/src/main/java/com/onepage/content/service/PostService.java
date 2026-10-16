@@ -50,6 +50,10 @@ import java.util.Set;
 public class PostService {
   private static final Logger log = LoggerFactory.getLogger(PostService.class);
   private static final Set<String> POST_TYPES = Set.of("text", "image", "video", "mixed");
+  private static final String STATUS_PENDING = "pending";
+  private static final String STATUS_PUBLISHED = "published";
+  private static final String STATUS_REJECTED = "rejected";
+  private static final String STATUS_DELETED = "deleted";
   private static final Set<String> CATEGORIES =
       Set.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐");
   private static final Set<String> CONTENT_KINDS =
@@ -64,6 +68,7 @@ public class PostService {
   private final PostViewMapper postViewMapper;
   private final AuthorLookup authorLookup;
   private final CatalogService catalogService;
+  private final InteractionNotifier interactionNotifier;
   private final ObjectMapper objectMapper;
   private final ImClient imClient;
   private final String mediaPublicBase;
@@ -81,6 +86,7 @@ public class PostService {
       PostViewMapper postViewMapper,
       AuthorLookup authorLookup,
       CatalogService catalogService,
+      InteractionNotifier interactionNotifier,
       ObjectMapper objectMapper,
       ImClient imClient,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
@@ -96,6 +102,7 @@ public class PostService {
     this.postViewMapper = postViewMapper;
     this.authorLookup = authorLookup;
     this.catalogService = catalogService;
+    this.interactionNotifier = interactionNotifier;
     this.objectMapper = objectMapper;
     this.imClient = imClient;
     this.mediaPublicBase = trimSlash(mediaPublicBase);
@@ -135,8 +142,11 @@ public class PostService {
     post.setOriginal(Boolean.TRUE.equals(spec.original()) ? 1 : 0);
     post.setContentKind(normalizeKind(spec.contentKind()));
     applyCampaign(post, spec.eventId());
-    post.setStatus("published");
-    post.setVisibility(parseVisibility(spec.visibility()));
+    int vis = parseVisibility(spec.visibility());
+    boolean queue = vis == 0;
+    post.setStatus(queue ? STATUS_PENDING : STATUS_PUBLISHED);
+    post.setRejectReason(null);
+    post.setVisibility(vis);
     post.setPublishedAt(now);
     post.setCreatedAt(now);
     post.setUpdatedAt(now);
@@ -152,18 +162,20 @@ public class PostService {
       postMediaMapper.insert(link);
       i++;
     }
-    writeOutbox("post", String.valueOf(postId), "post.published", Map.of(
-        "postId", String.valueOf(postId),
-        "authorId", String.valueOf(userId),
-        "postType", type));
+    if (!queue) {
+      writeOutbox("post", String.valueOf(postId), "post.published", Map.of(
+          "postId", String.valueOf(postId),
+          "authorId", String.valueOf(userId),
+          "postType", type));
+    }
     catalogService.rememberHashtags(spec.body());
-    return new FeedDtos.CreateResult(String.valueOf(postId), now.toString());
+    return new FeedDtos.CreateResult(String.valueOf(postId), now.toString(), post.getStatus());
   }
 
   @Transactional
   public FeedDtos.PostDetail update(long userId, long postId, FeedDtos.PublishSpec spec) {
     Post post = postMapper.selectById(postId);
-    if (post == null || post.getDeletedAt() != null || !"published".equals(post.getStatus())) {
+    if (post == null || post.getDeletedAt() != null || !authorEditable(post.getStatus())) {
       throw BusinessException.notFound("笔记不存在");
     }
     if (post.getAuthorId() == null || post.getAuthorId() != userId) {
@@ -195,7 +207,15 @@ public class PostService {
     post.setOriginal(Boolean.TRUE.equals(spec.original()) ? 1 : 0);
     post.setContentKind(normalizeKind(spec.contentKind()));
     applyCampaign(post, spec.eventId());
-    post.setVisibility(parseVisibility(spec.visibility()));
+    int vis = parseVisibility(spec.visibility());
+    post.setVisibility(vis);
+    if (vis == 1 && (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus()))) {
+      post.setStatus(STATUS_PUBLISHED);
+      post.setRejectReason(null);
+    } else if (STATUS_REJECTED.equals(post.getStatus()) || (vis == 0 && !STATUS_PUBLISHED.equals(post.getStatus()))) {
+      post.setStatus(STATUS_PENDING);
+      post.setRejectReason(null);
+    }
     post.setUpdatedAt(now);
     postMapper.updateById(post);
     postMediaMapper.delete(Wrappers.<PostMedia>lambdaQuery().eq(PostMedia::getPostId, postId));
@@ -262,7 +282,9 @@ public class PostService {
         comments,
         liked,
         favorited,
-        iso(post.getPublishedAt()));
+        iso(post.getPublishedAt()),
+        reviewStatusOf(post),
+        blankToEmpty(post.getRejectReason()));
   }
 
   @Transactional
@@ -275,7 +297,7 @@ public class PostService {
       throw BusinessException.forbidden("只能删除自己的笔记");
     }
     LocalDateTime now = LocalDateTime.now();
-    post.setStatus("deleted");
+    post.setStatus(STATUS_DELETED);
     post.setDeletedAt(now);
     post.setUpdatedAt(now);
     postMapper.updateById(post);
@@ -344,7 +366,9 @@ public class PostService {
         visLabel(post.getVisibility()),
         media,
         post.getDeletedAt() != null,
-        iso(post.getPublishedAt()));
+        iso(post.getPublishedAt()),
+        reviewStatusOf(post),
+        blankToEmpty(post.getRejectReason()));
   }
 
   /** 运营下架：不校验作者，已删则当作成功。 */
@@ -358,7 +382,7 @@ public class PostService {
       return;
     }
     LocalDateTime now = LocalDateTime.now();
-    post.setStatus("deleted");
+    post.setStatus(STATUS_DELETED);
     post.setDeletedAt(now);
     post.setUpdatedAt(now);
     postMapper.updateById(post);
@@ -378,21 +402,89 @@ public class PostService {
     LocalDateTime now = LocalDateTime.now();
     LambdaUpdateWrapper<Post> update = Wrappers.lambdaUpdate();
     update.eq(Post::getId, postId)
-        .set(Post::getStatus, "published")
+        .set(Post::getStatus, STATUS_PUBLISHED)
+        .set(Post::getRejectReason, null)
         .set(Post::getDeletedAt, null)
         .set(Post::getUpdatedAt, now);
     postMapper.update(null, update);
     writeOutbox("post", String.valueOf(postId), "post.restored", Map.of("postId", String.valueOf(postId)));
   }
 
-  /** 运营笔记列表：含已下架。taken=live 仅在线，down 仅下架。 */
+  /** 运营通过待审或未通过笔记，写入 Feed。 */
+  @Transactional
+  public void opsApprove(long postId) {
+    Post post = postMapper.selectById(postId);
+    if (post == null || post.getDeletedAt() != null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (STATUS_PUBLISHED.equals(post.getStatus())) {
+      return;
+    }
+    if (!STATUS_PENDING.equals(post.getStatus()) && !STATUS_REJECTED.equals(post.getStatus())) {
+      throw BusinessException.validation("当前状态不能通过");
+    }
+    LocalDateTime now = LocalDateTime.now();
+    LambdaUpdateWrapper<Post> update = Wrappers.lambdaUpdate();
+    update.eq(Post::getId, postId)
+        .set(Post::getStatus, STATUS_PUBLISHED)
+        .set(Post::getRejectReason, null)
+        .set(Post::getUpdatedAt, now);
+    if (post.getPublishedAt() == null) {
+      update.set(Post::getPublishedAt, now);
+    }
+    postMapper.update(null, update);
+    writeOutbox("post", String.valueOf(postId), "post.published", Map.of(
+        "postId", String.valueOf(postId),
+        "authorId", post.getAuthorId() == null ? "" : String.valueOf(post.getAuthorId()),
+        "postType", post.getPostType() == null ? "" : post.getPostType()));
+  }
+
+  /** 运营驳回待审。必须写回复，最长 200；事务提交后通知作者。 */
+  @Transactional
+  public void opsReject(long postId, String reason, Long handlerId) {
+    Post post = postMapper.selectById(postId);
+    if (post == null || post.getDeletedAt() != null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (!STATUS_PENDING.equals(post.getStatus()) && !STATUS_REJECTED.equals(post.getStatus())) {
+      throw BusinessException.validation("只能驳回待审笔记");
+    }
+    String note = reason == null ? "" : reason.trim();
+    if (!StringUtils.hasText(note)) {
+      throw BusinessException.validation("请填写回复信息");
+    }
+    if (note.length() > 200) {
+      throw BusinessException.validation("未通过原因过长");
+    }
+    LocalDateTime now = LocalDateTime.now();
+    post.setStatus(STATUS_REJECTED);
+    post.setRejectReason(note);
+    post.setUpdatedAt(now);
+    postMapper.updateById(post);
+    if (handlerId != null && post.getAuthorId() != null) {
+      interactionNotifier.emit(
+          post.getAuthorId(),
+          "review_reject",
+          handlerId,
+          "review_reject:" + postId,
+          postId,
+          null,
+          note);
+    }
+  }
+
+  /** 运营笔记列表。taken=live 已通过在线，pending 待审，rejected 未通过，down 已下架。 */
   public FeedDtos.OpsPostPage opsPage(String q, String taken, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery();
     if ("down".equals(taken)) {
       query.isNotNull(Post::getDeletedAt);
+    } else if ("pending".equals(taken)) {
+      query.isNull(Post::getDeletedAt).eq(Post::getStatus, STATUS_PENDING);
+    } else if ("rejected".equals(taken)) {
+      query.isNull(Post::getDeletedAt).eq(Post::getStatus, STATUS_REJECTED);
     } else if ("live".equals(taken)) {
-      query.isNull(Post::getDeletedAt);
+      query.isNull(Post::getDeletedAt).eq(Post::getStatus, STATUS_PUBLISHED);
     }
     if (StringUtils.hasText(q)) {
       String text = q.trim();
@@ -421,7 +513,9 @@ public class PostService {
           post.getPostType() == null ? "" : post.getPostType(),
           post.getCategory() == null ? "" : post.getCategory(),
           post.getDeletedAt() != null,
-          iso(post.getPublishedAt())));
+          iso(post.getPublishedAt()),
+          reviewStatusOf(post),
+          blankToEmpty(post.getRejectReason())));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -471,10 +565,11 @@ public class PostService {
     boolean self = viewerId != null && viewerId == authorId;
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
         .eq(Post::getAuthorId, authorId)
-        .eq(Post::getStatus, "published")
         .isNull(Post::getDeletedAt);
-    if (!self) {
-      query.eq(Post::getVisibility, 0);
+    if (self) {
+      query.in(Post::getStatus, List.of(STATUS_PUBLISHED, STATUS_PENDING, STATUS_REJECTED));
+    } else {
+      query.eq(Post::getStatus, STATUS_PUBLISHED).eq(Post::getVisibility, 0);
     }
     applyCursor(query, cursor);
     query.orderByDesc(Post::getPublishedAt)
@@ -506,7 +601,21 @@ public class PostService {
     if (post.getAuthorId() == null || post.getAuthorId() != userId) {
       throw BusinessException.forbidden("只能修改自己的笔记");
     }
-    post.setVisibility(parseVisibility(visibility));
+    if (!authorEditable(post.getStatus())) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    int vis = parseVisibility(visibility);
+    int old = post.getVisibility() == null ? 0 : post.getVisibility();
+    post.setVisibility(vis);
+    if (vis == 0 && old == 1 && STATUS_PUBLISHED.equals(post.getStatus())) {
+      post.setStatus(STATUS_PENDING);
+    } else if (vis == 0 && STATUS_REJECTED.equals(post.getStatus())) {
+      post.setStatus(STATUS_PENDING);
+      post.setRejectReason(null);
+    } else if (vis == 1 && (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus()))) {
+      post.setStatus(STATUS_PUBLISHED);
+      post.setRejectReason(null);
+    }
     post.setUpdatedAt(LocalDateTime.now());
     postMapper.updateById(post);
     return toBrief(post, postViewMapper.countByPostId(post.getId()));
@@ -550,18 +659,30 @@ public class PostService {
 
   public Post requirePublished(long postId) {
     Post post = postMapper.selectById(postId);
-    if (post == null || post.getDeletedAt() != null || !"published".equals(post.getStatus())) {
+    if (post == null || post.getDeletedAt() != null || !STATUS_PUBLISHED.equals(post.getStatus())) {
       throw BusinessException.notFound("笔记不存在");
     }
     return post;
   }
 
   public Post requireVisible(long postId, Long viewerId) {
-    Post post = requirePublished(postId);
-    if (Integer.valueOf(1).equals(post.getVisibility())) {
-      if (viewerId == null || !viewerId.equals(post.getAuthorId())) {
+    Post post = postMapper.selectById(postId);
+    if (post == null || post.getDeletedAt() != null) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    boolean author = viewerId != null && viewerId.equals(post.getAuthorId());
+    String status = post.getStatus();
+    if (STATUS_PENDING.equals(status) || STATUS_REJECTED.equals(status)) {
+      if (!author) {
         throw BusinessException.notFound("笔记不存在");
       }
+      return post;
+    }
+    if (!STATUS_PUBLISHED.equals(status)) {
+      throw BusinessException.notFound("笔记不存在");
+    }
+    if (Integer.valueOf(1).equals(post.getVisibility()) && !author) {
+      throw BusinessException.notFound("笔记不存在");
     }
     return post;
   }
@@ -594,7 +715,9 @@ public class PostService {
         favs,
         comments,
         viewCount,
-        iso(post.getPublishedAt()));
+        iso(post.getPublishedAt()),
+        reviewStatusOf(post),
+        blankToEmpty(post.getRejectReason()));
   }
 
   private enum InteractionKind {
@@ -872,5 +995,22 @@ public class PostService {
       return "";
     }
     return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+  }
+
+  private static boolean authorEditable(String status) {
+    return STATUS_PUBLISHED.equals(status)
+        || STATUS_PENDING.equals(status)
+        || STATUS_REJECTED.equals(status);
+  }
+
+  private static String reviewStatusOf(Post post) {
+    if (post == null || !StringUtils.hasText(post.getStatus()) || STATUS_DELETED.equals(post.getStatus())) {
+      return STATUS_PUBLISHED;
+    }
+    if (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus())
+        || STATUS_PUBLISHED.equals(post.getStatus())) {
+      return post.getStatus();
+    }
+    return STATUS_PUBLISHED;
   }
 }

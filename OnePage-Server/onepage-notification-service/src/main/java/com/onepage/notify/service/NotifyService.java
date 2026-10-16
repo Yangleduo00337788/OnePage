@@ -35,10 +35,11 @@ import java.util.stream.Collectors;
 public class NotifyService {
   private static final Logger log = LoggerFactory.getLogger(NotifyService.class);
   private static final Set<String> TYPES = Set.of(
-      "comment", "reply", "mention", "like_post", "favorite_post", "like_comment", "follow");
+      "comment", "reply", "mention", "like_post", "favorite_post", "like_comment", "follow", "review_reject");
   private static final List<String> GROUP_COMMENT = List.of("comment", "reply", "mention");
   private static final List<String> GROUP_REACTION = List.of("like_post", "favorite_post", "like_comment");
   private static final List<String> GROUP_FOLLOW = List.of("follow");
+  private static final List<String> GROUP_REVIEW = List.of("review_reject");
 
   private static final int PREVIEW_MAX = 120;
 
@@ -131,6 +132,7 @@ public class NotifyService {
     long comment = 0;
     long reaction = 0;
     long follow = 0;
+    long review = 0;
     List<TypeCount> rows = mapper.countUnreadByType(userId);
     if (rows != null) {
       for (TypeCount row : rows) {
@@ -144,10 +146,12 @@ public class NotifyService {
           reaction += n;
         } else if (GROUP_FOLLOW.contains(row.getType())) {
           follow += n;
+        } else if (GROUP_REVIEW.contains(row.getType())) {
+          review += n;
         }
       }
     }
-    return new NotifyDtos.UnreadCount(comment + reaction + follow, comment, reaction, follow);
+    return new NotifyDtos.UnreadCount(comment + reaction + follow + review, comment, reaction, follow, review);
   }
 
   public void markRead(long userId, NotifyDtos.ReadRequest body) {
@@ -181,6 +185,7 @@ public class NotifyService {
       case "comment" -> GROUP_COMMENT;
       case "reaction" -> GROUP_REACTION;
       case "follow" -> GROUP_FOLLOW;
+      case "review" -> GROUP_REVIEW;
       default -> throw BusinessException.validation("group 不合法");
     };
   }

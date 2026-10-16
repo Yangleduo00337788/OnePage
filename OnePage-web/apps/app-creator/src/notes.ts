@@ -7,6 +7,7 @@ export type Note = {
   id: string
   title: string
   status: NoteStatus
+  rejectReason?: string
   views: string
   cover: string
   original: boolean
@@ -36,13 +37,20 @@ export function isTextNote(item: Pick<Note, 'postType' | 'cover'>) {
   return item.postType === 'text' || (!item.cover && !isVideoNote(item))
 }
 
+function reviewLabel(status?: string): NoteStatus {
+  if (status === 'pending') return '审核中'
+  if (status === 'rejected') return '未通过'
+  return '已发布'
+}
+
 export function noteFromMine(p: PostBrief): Note {
   const title =
     p.title?.trim() || (p.postType === 'video' ? '视频笔记' : p.postType === 'text' ? '笔记' : '笔记')
   return {
     id: p.postId,
     title,
-    status: '已发布',
+    status: reviewLabel(p.reviewStatus),
+    rejectReason: p.rejectReason || '',
     views: formatCount(p.viewCount ?? 0),
     cover: p.coverUrl || '',
     original: Boolean(p.original),

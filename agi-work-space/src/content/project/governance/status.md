@@ -26,6 +26,9 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-16 — Session 超时改走 yml `SESSION_TIMEOUT`（默认 7d）；去掉启动类 `@EnableRedisHttpSession` / `@EnableRedisWebSession`，须重启 auth+网关后重新登录（DEC-045）
+- 2026-10-15 — 审稿驳回必须填回复弹窗，并投递 `review_reject` 到作者收件箱（创作者首页待处理可见）
+- 2026-10-15 — 创作者审稿：公开笔记先 `pending`，运营通过后进 Feed；须执行 `007_post_review.sql`（DEC-044）
 - 2026-10-15 — 运营用户详情：关注/粉丝可拆边，收件箱可删通知（不标已读）；无新 SQL（DEC-043）
 - 2026-10-15 — 运营媒体库可隐藏/恢复（`blocked_at`），并冻结上传人；须执行 `006_ops_media_block.sql`
 - 2026-10-15 — 运营媒体库：`GET /ops/media` 列出 `media_asset`，不删 MinIO

@@ -205,7 +205,9 @@ public class ModerationService {
         raw.visibility() == null ? "" : raw.visibility(),
         media,
         raw.takenDown(),
-        raw.publishedAt() == null ? "" : raw.publishedAt());
+        raw.publishedAt() == null ? "" : raw.publishedAt(),
+        raw.reviewStatus() == null ? "" : raw.reviewStatus(),
+        raw.rejectReason() == null ? "" : raw.rejectReason());
   }
 
   public ModerationDtos.OpsPostPage opsPosts(String q, String taken, String cursor, Integer limit) {
@@ -225,7 +227,9 @@ public class ModerationService {
           row.postType() == null ? "" : row.postType(),
           row.category() == null ? "" : row.category(),
           row.takenDown(),
-          row.publishedAt() == null ? "" : row.publishedAt()));
+          row.publishedAt() == null ? "" : row.publishedAt(),
+          row.reviewStatus() == null ? "" : row.reviewStatus(),
+          row.rejectReason() == null ? "" : row.rejectReason()));
     }
     return new ModerationDtos.OpsPostPage(items, page.nextCursor(), page.hasMore());
   }
@@ -237,6 +241,16 @@ public class ModerationService {
 
   public ModerationDtos.OpsPostView restorePost(long postId) {
     contentClient.restore(internalToken, postId);
+    return opsPost(postId);
+  }
+
+  public ModerationDtos.OpsPostView approvePost(long postId) {
+    contentClient.approve(internalToken, postId);
+    return opsPost(postId);
+  }
+
+  public ModerationDtos.OpsPostView rejectPost(long postId, String reason, long handlerId) {
+    contentClient.reject(internalToken, postId, reason, handlerId);
     return opsPost(postId);
   }
 

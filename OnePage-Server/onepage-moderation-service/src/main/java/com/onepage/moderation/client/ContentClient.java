@@ -24,6 +24,18 @@ public interface ContentClient {
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("postId") long postId);
 
+  @PostMapping("/internal/posts/{postId}/approve")
+  void approve(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("postId") long postId);
+
+  @PostMapping("/internal/posts/{postId}/reject")
+  void reject(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("postId") long postId,
+      @RequestParam(value = "reason", required = false) String reason,
+      @RequestParam(value = "handlerId", required = false) Long handlerId);
+
   @GetMapping("/internal/posts/{postId}/ops")
   OpsPostView opsPost(
       @RequestHeader("X-Internal-Token") String token,
@@ -136,7 +148,9 @@ public interface ContentClient {
       String postType,
       String category,
       boolean takenDown,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 
   record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 
@@ -204,5 +218,7 @@ public interface ContentClient {
       String visibility,
       List<MediaItem> media,
       boolean takenDown,
-      String publishedAt) {}
+      String publishedAt,
+      String reviewStatus,
+      String rejectReason) {}
 }

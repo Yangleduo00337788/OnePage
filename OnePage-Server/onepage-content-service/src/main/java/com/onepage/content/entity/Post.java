@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.time.LocalDateTime;
 
-/** 笔记正文。status=published 才进 Feed；软删写 deleted_at。 */
+/** 笔记正文。status=published 才进 Feed；pending 待审，rejected 未通过；软删写 deleted_at。 */
 @TableName("post")
 public class Post {
   @TableId(type = IdType.INPUT)
@@ -21,6 +21,7 @@ public class Post {
   private String eventId;
   private String eventTitle;
   private String status;
+  private String rejectReason;
   private Integer visibility;
   private LocalDateTime publishedAt;
   private LocalDateTime createdAt;
@@ -49,6 +50,8 @@ public class Post {
   public void setEventTitle(String eventTitle) { this.eventTitle = eventTitle; }
   public String getStatus() { return status; }
   public void setStatus(String status) { this.status = status; }
+  public String getRejectReason() { return rejectReason; }
+  public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
   public Integer getVisibility() { return visibility; }
   public void setVisibility(Integer visibility) { this.visibility = visibility; }
   public LocalDateTime getPublishedAt() { return publishedAt; }

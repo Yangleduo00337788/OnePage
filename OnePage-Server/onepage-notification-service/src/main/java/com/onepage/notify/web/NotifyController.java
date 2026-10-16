@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 本人通知。必须登录。{@code group} 对应社区三 Tab：comment / reaction / follow。
+ * 本人通知。必须登录。{@code group} 对应 comment / reaction / follow / review。
  */
 @RestController
 @RequestMapping("/api/v1/notifications")

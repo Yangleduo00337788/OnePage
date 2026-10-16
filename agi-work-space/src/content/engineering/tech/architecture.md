@@ -37,7 +37,7 @@ packages/ui、api-client、types
 - **Java 21**，**Spring Boot 3.4.5** + **Spring Cloud 2024.0.1** + **Spring Cloud Alibaba 2023.0.3.2（Nacos 发现）**。  
 - **Gateway** 对外（8080）；服务之间马上要结果用 **Feign + lb**；可以晚一点的用 **RocketMQ**（P1 只写 Outbox，暂不消费）。  
 - **MyBatis-Plus** 访问 **MySQL**；DDL 手工脚本，**不用 Flyway**。完整 SQL 在工作空间 [数据库脚本](/engineering/tech/sql)，P0 执行入口在各服务 `db/sql/001_init.sql`。  
-- 登录：**Spring Session + Redis**，Cookie **`ONEPAGE_SESSION`**（见 [接口契约](/engineering/process/contracts)）。  
+- 登录：**Spring Session + Redis**（Boot 自动配置，`store-type=redis`，超时 `${SESSION_TIMEOUT}` 默认 7 天空闲滑动），Cookie **`ONEPAGE_SESSION`**（见 [接口契约](/engineering/process/contracts)）。启动类不要加 `@EnableRedisHttpSession` / `@EnableRedisWebSession`。  
 - 文件 **MinIO** 预签名直传；搜索 **ES**、消息 **仅 RocketMQ**（尚未接到 P0）。
 
 本地开发：中间件在 **WSL Docker**（`~/docker/compose.yml`：Redis / Nacos / MinIO；MySQL 仍本机）。IDEA 启动七个主类（user 8082 → auth 8081 → content 8083 → notification 8084 → message 8085 → **moderation 8086** → gateway 8080）。须执行 `onepage-moderation-service/db/sql/001_init.sql`。`.env` 加 `MODERATION_PORT`、`MYSQL_MODERATION_DB`；`OPS_STAFF_USER_IDS` 必填（空则运营登录与 `/ops` 403，见 DEC-035）。**yml 只写 `${变量}`**，值来自**进程环境变量**（与上线一致）。本地由 IDEA 把 `OnePage-Server/.env` 注入进运行配置，程序不读该文件。键以 `env.example` 为准（每键有中文注释），与各服务 yml 对齐。MinIO 浏览器直传靠 compose 里 `MINIO_API_CORS_ALLOW_ORIGIN`（这版 PutBucketCors 常 NotImplemented）。
@@ -50,7 +50,7 @@ onepage-auth-service、onepage-user-service、onepage-content-service
 onepage-notification-service、onepage-message-service、onepage-moderation-service
 ```
 
-user 含资料、关注、列表；获赞/被收藏由 user 对浏览器、content 查赞藏表。content 含发帖、Feed、赞藏评、分享链接与分享到私信（Feign message 写卡片）。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本、图片、`post_card` 与 `WS /ws/im`（落库后 Redis 推送）；图片 Feign content 核 media；对端资料 Feign 调 user。moderation 含社区 `POST /reports`、运营工单/用户/笔记/评论、媒体库、私信巡查、用户关注粉丝与收件箱、工作台概览、分类活动话题 CRUD；下架/恢复/藏评/媒体隐藏与目录写 Feign content（目录更新内网 POST，不用 PATCH），用户列表与拆关注 Feign user，冻结 Feign auth，隐藏头像/封面时 content Feign user 清 object key，私信隐藏 Feign message，删通知 Feign notification（DEC-036～043）。content 另提供公开 `GET /catalog`。运营壳（5176）接这些接口，点对象不跳社区。社区详情/主页可提交举报。
+user 含资料、关注、列表；获赞/被收藏由 user 对浏览器、content 查赞藏表。content 含发帖、Feed、赞藏评、分享链接与分享到私信（Feign message 写卡片）。notification 含收件箱；赞评关注在事务提交后用 Feign 投递（MQ 仍未消费）。message 含单聊文本、图片、`post_card` 与 `WS /ws/im`（落库后 Redis 推送）；图片 Feign content 核 media；对端资料 Feign 调 user。moderation 含社区 `POST /reports`、运营工单/用户/笔记审稿/评论、媒体库、私信巡查、用户关注粉丝与收件箱、工作台概览、分类活动话题 CRUD；下架/恢复/通过/驳回/藏评/媒体隐藏与目录写 Feign content（目录更新内网 POST，不用 PATCH），用户列表与拆关注 Feign user，冻结 Feign auth，隐藏头像/封面时 content Feign user 清 object key，私信隐藏 Feign message，删通知 Feign notification（DEC-036～044）。公开笔记 `status=pending`，通过后才 `published` 进 Feed。content 另提供公开 `GET /catalog`。运营壳（5176）接这些接口，点对象不跳社区。社区详情/主页可提交举报。
 
 Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`entity` 表、`config` 本服务 Bean。`common` 放统一响应、错误码、`X-User-Id`。类和方法上有中文注释，说明注解用途和「为什么不在业务服务解析 Cookie」等约定；接口字段仍以 [契约](/engineering/process/contracts) 为准。
 

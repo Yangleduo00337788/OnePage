@@ -13,7 +13,7 @@ const props = defineProps<{ user: OpsUser }>()
 const emit = defineEmits<{ close: []; frozen: [OpsUser] }>()
 
 type Tab = 'following' | 'followers' | 'notify'
-type NotifyGroup = '' | 'comment' | 'reaction' | 'follow'
+type NotifyGroup = '' | 'comment' | 'reaction' | 'follow' | 'review'
 
 const tab = ref<Tab>('following')
 const group = ref<NotifyGroup>('')
@@ -37,6 +37,7 @@ const groups: { id: NotifyGroup; label: string }[] = [
   { id: 'comment', label: '评论和@' },
   { id: 'reaction', label: '赞和收藏' },
   { id: 'follow', label: '新增关注' },
+  { id: 'review', label: '审核' },
 ]
 
 const typeLabel: Record<string, string> = {
@@ -47,6 +48,7 @@ const typeLabel: Record<string, string> = {
   favorite_post: '收藏',
   like_comment: '赞评论',
   follow: '关注',
+  review_reject: '未通过',
 }
 
 function flash(text: string) {

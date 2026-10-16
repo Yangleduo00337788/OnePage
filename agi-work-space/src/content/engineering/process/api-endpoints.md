@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖、Feed、详情、软删、浏览、赞/藏、评论、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单/用户/笔记/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+**契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -223,9 +223,9 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 | eventId | string | 否；须为服务端活动目录已有 id |
 | visibility | string | 否；`public`（默认）或 `self`；`friend` 返回校验失败 |
 
-**Response 201**：`{ "postId", "publishedAt" }`
+**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`pending` 待审 / `published` 已通过）。公开笔记先待审，不进 Feed；仅自己可见直接 `published`。
 
-Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。分类须为启用中的 `post_category.name`（`GET /catalog`）。
+Feed 只出 `status=published` 且 `visibility=public`。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。定时发布尚未接入。分类须为启用中的 `post_category.name`（`GET /catalog`）。
 
 ### GET `/api/v1/catalog`
 
@@ -239,11 +239,11 @@ Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存
 
 ### GET `/api/v1/posts/mine`
 
-登录作者自己的已发布笔记（含仅自己可见）。Query：`cursor`, `limit` → `CursorPage<PostBrief>`（含 `viewCount`）。审核中/未通过尚未接入。
+登录作者自己的笔记（已发布 / 审核中 / 未通过，含仅自己可见）。Query：`cursor`, `limit` → `CursorPage<PostBrief>`（含 `viewCount`、`reviewStatus`、`rejectReason`）。
 
 ### PATCH `/api/v1/posts/{postId}`
 
-作者改已发布笔记。Body 与发帖相同（title/body/mediaIds/postType/category/original/contentKind/eventId/visibility）。会整表替换媒体绑定。须登录且为作者。**Response 200**：`PostDetail`。`friend` 与定时仍校验失败。
+作者改已发布、待审或未通过笔记。Body 与发帖相同（title/body/mediaIds/postType/category/original/contentKind/eventId/visibility）。会整表替换媒体绑定。未通过再保存会回到待审。须登录且为作者。**Response 200**：`PostDetail`（含 `reviewStatus`）。`friend` 与定时仍校验失败。
 
 ### PATCH `/api/v1/posts/{postId}/visibility`
 
@@ -251,7 +251,7 @@ Feed 只出 `visibility=public`。仅自己对非作者详情/赞评视为不存
 
 ### GET `/api/v1/posts/{postId}`
 
-**Response 200**：详情含 `body`, `media[]`（url, mime, width/height 可选）, `author`, counts, `likedByMe`, `favoritedByMe`
+**Response 200**：详情含 `body`, `media[]`（url, mime, width/height 可选）, `author`, counts, `likedByMe`, `favoritedByMe`，`reviewStatus`，`rejectReason`。待审/未通过仅作者可看。
 
 ### GET `/api/v1/feeds/following` | `/feeds/explore`
 
@@ -352,10 +352,10 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 
 ### GET `/api/v1/notifications`
 
-必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注）。  
+必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注 / `review` 审核）。  
 **Response**：`CursorPage<NotificationItem>`
 
-**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要，最多 120 字）, `read`, `createdAt`。`mention` 归入 `group=comment`。
+**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要或审稿回复，最多 120 字）, `read`, `createdAt`。`mention` 归入 `group=comment`；`review_reject` 归入 `group=review`。
 
 ### POST `/api/v1/notifications/read`
 
@@ -364,7 +364,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 
 ### GET `/api/v1/notifications/unread-count`
 
-**Response**：`{ "count", "comment", "reaction", "follow" }` 各 Tab 未读；`count` 为合计。
+**Response**：`{ "count", "comment", "reaction", "follow", "review" }` 各 Tab 未读；`count` 为合计。
 
 ---
 
@@ -499,18 +499,24 @@ Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`
 
 ### GET `/api/v1/ops/posts`
 
-**Query**：`q` 标题或笔记 ID，`taken` live/down，`cursor`，`limit`  
-**Response**：`CursorPage<OpsPostRow>`（含 `takenDown`）。含已下架。
+**Query**：`q` 标题或笔记 ID，`taken` 空=全部 / pending 待审 / live 已通过在线 / rejected 未通过 / down 已下架，`cursor`，`limit`  
+**Response**：`CursorPage<OpsPostRow>`（含 `takenDown` `reviewStatus` `rejectReason`）。
 
 ### GET `/api/v1/ops/posts/{postId}`
 
-员工预览。已下架也返回正文和媒体。**Response**：`OpsPostView`（含 `takenDown`、`media[]`）。
+员工预览。已下架/待审也返回正文和媒体。**Response**：`OpsPostView`（含 `takenDown`、`reviewStatus`、`rejectReason`、`media[]`）。
+
+### POST `/api/v1/ops/posts/{postId}/approve`
+
+### POST `/api/v1/ops/posts/{postId}/reject`
+
+`reject` Query：`reason` 必填，最长 200；`handlerId` 内网由运营传入。待审或未可通过；通过后才进 Feed。驳回后投递 `review_reject`。内网 Feign **POST**。
 
 ### POST `/api/v1/ops/posts/{postId}/takedown`
 
 ### POST `/api/v1/ops/posts/{postId}/restore`
 
-**Response**：`OpsPostView`。不经过举报工单，直接处置笔记。
+**Response**：`OpsPostView`。不经过举报工单，直接处置笔记。恢复后为已通过，不再排队。
 
 ### GET `/api/v1/ops/comments`
 

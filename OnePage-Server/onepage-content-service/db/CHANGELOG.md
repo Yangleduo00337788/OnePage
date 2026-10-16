@@ -9,3 +9,4 @@
 | local | 004_post_settings.sql | 原创 / 内容类型 / 活动快照；visibility 仅自己 |
 | local | 005_ops_catalog.sql | 分类 / 活动 / 话题；活动封面只存公开 URL |
 | local | 006_ops_media_block.sql | 已有库给 media_asset 加 blocked_at |
+| local | 007_post_review.sql | 已有库给 post 加 reject_reason，status 含 pending/rejected |

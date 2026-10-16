@@ -210,14 +210,17 @@ async function submit() {
       visibility: visibility.value,
     }
     if (props.editPostId) {
-      await api.patchPost(props.editPostId, payload)
-      posted.value = '已保存'
+      const saved = await api.patchPost(props.editPostId, payload)
+      posted.value =
+        saved.reviewStatus === 'pending' ? '已保存并提交审核' : '已保存'
     } else {
       const created = await api.createPost(payload)
       posted.value =
         visibility.value === 'self'
           ? `发布成功 #${created.postId}（仅自己可见，发现流不展示）`
-          : `发布成功 #${created.postId}`
+          : created.reviewStatus === 'pending'
+            ? `已提交审核 #${created.postId}，通过后出现在发现流`
+            : `发布成功 #${created.postId}`
     }
     window.setTimeout(() => emit('done'), 600)
   } catch (e) {

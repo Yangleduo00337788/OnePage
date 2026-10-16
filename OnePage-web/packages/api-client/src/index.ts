@@ -39,6 +39,8 @@ export type PostBrief = {
   commentCount: number
   viewCount: number
   publishedAt: string
+  reviewStatus?: string
+  rejectReason?: string | null
 }
 
 export type PostDetail = PostBrief & {
@@ -115,6 +117,7 @@ export type NotificationUnread = {
   comment?: number
   reaction?: number
   follow?: number
+  review?: number
 }
 
 export type CommentView = {
@@ -175,6 +178,8 @@ export type OpsPostView = {
   media: { mediaId: string; url: string; mimeType: string; role: string }[]
   takenDown: boolean
   publishedAt: string
+  reviewStatus?: string
+  rejectReason?: string | null
 }
 
 export type OpsUser = {
@@ -193,6 +198,8 @@ export type OpsPostRow = {
   category: string
   takenDown: boolean
   publishedAt: string
+  reviewStatus?: string
+  rejectReason?: string | null
 }
 
 export type OpsCommentRow = {
@@ -466,7 +473,7 @@ export const api = {
     eventId?: string
     visibility?: string
   }) =>
-    request<{ postId: string; publishedAt: string }>('/api/v1/posts', {
+    request<{ postId: string; publishedAt: string; reviewStatus?: string }>('/api/v1/posts', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -625,7 +632,12 @@ export const api = {
     ),
   opsPost: (postId: string) =>
     request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}`),
-  opsPosts: (opts?: { q?: string; taken?: 'live' | 'down'; cursor?: string; limit?: number }) => {
+  opsPosts: (opts?: {
+    q?: string
+    taken?: 'live' | 'down' | 'pending' | 'rejected'
+    cursor?: string
+    limit?: number
+  }) => {
     const q = new URLSearchParams()
     if (opts?.q) q.set('q', opts.q)
     if (opts?.taken) q.set('taken', opts.taken)
@@ -638,6 +650,17 @@ export const api = {
     request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}/takedown`, { method: 'POST' }),
   opsRestorePost: (postId: string) =>
     request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}/restore`, { method: 'POST' }),
+  opsApprovePost: (postId: string) =>
+    request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}/approve`, { method: 'POST' }),
+  opsRejectPost: (postId: string, reason?: string) => {
+    const q = new URLSearchParams()
+    if (reason) q.set('reason', reason)
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<OpsPostView>(
+      `/api/v1/ops/posts/${encodeURIComponent(postId)}/reject${suffix}`,
+      { method: 'POST' },
+    )
+  },
   opsComments: (opts?: { q?: string; hidden?: 'yes' | 'no'; cursor?: string; limit?: number }) => {
     const q = new URLSearchParams()
     if (opts?.q) q.set('q', opts.q)

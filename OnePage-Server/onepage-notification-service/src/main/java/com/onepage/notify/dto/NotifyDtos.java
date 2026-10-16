@@ -20,7 +20,7 @@ public final class NotifyDtos {
 
   public record CursorPage(List<NotificationItem> items, String nextCursor, boolean hasMore) {}
 
-  public record UnreadCount(long count, long comment, long reaction, long follow) {}
+  public record UnreadCount(long count, long comment, long reaction, long follow, long review) {}
 
   public record ReadRequest(List<String> ids, Boolean all) {}
 

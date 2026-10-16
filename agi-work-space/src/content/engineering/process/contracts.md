@@ -16,7 +16,7 @@ order: 3
 | --- | --- |
 | 地址前缀 | `/api/v1` |
 | 格式 | JSON；生产走 HTTPS |
-| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /catalog`、`GET /catalog/topics`、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有 Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/suggest`、`GET /users/me/favorites` `/likes` `/history` `/likes-received` `/favorites-received`、`GET/POST /notifications/**`、`GET/POST /conversations/**`、`WS /ws/im`、`POST /posts/{id}/share/im`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}`、**`/ops/**`（员工，`OPS_STAFF_USER_IDS`，空则 403）** 必须登录。运营登录须 `audience=ops` |
+| 登录 | **Session + Cookie**，名 **`ONEPAGE_SESSION`**；Redis 空闲超时 **`SESSION_TIMEOUT`（默认 7d，滑动）**。写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /catalog`、`GET /catalog/topics`、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有 Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/suggest`、`GET /users/me/favorites` `/likes` `/history` `/likes-received` `/favorites-received`、`GET/POST /notifications/**`、`GET/POST /conversations/**`、`WS /ws/im`、`POST /posts/{id}/share/im`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}`、**`/ops/**`（员工，`OPS_STAFF_USER_IDS`，空则 403）** 必须登录。运营登录须 `audience=ops` |
 | 密码 | 注册 8～32 位，须同时包含字母和数字；BCrypt 存储 |
 | 登出 | `POST /api/v1/auth/logout` 由**网关** invalidate WebSession，返回 200 |
 | 设密 | 已登录 `POST /auth/password`；未登录找回 `POST /auth/password/reset` + `sms scene=reset` |
@@ -49,7 +49,7 @@ order: 3
 | `/live/**` | 直播 |
 | `/reports/**` | 用户提交举报（P5，moderation） |
 | `/catalog/**` | 公开目录（分类/活动/话题） |
-| `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记/评论/媒体库/分类活动话题 CRUD/私信巡查/关注粉丝/收件箱；content+auth+message+user+notification Feign） |
+| `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记审稿/评论/媒体库/分类活动话题 CRUD/私信巡查/关注粉丝/收件箱；content+auth+message+user+notification Feign） |
 
 完整路径列表见 [API 明细](/engineering/process/api-endpoints)。
 
@@ -70,7 +70,7 @@ order: 3
 
 P0 未接 Spring CSRF。本地 Vite 同源代理 `/api`，Cookie `SameSite=Lax`。上线 HTTPS 后再定自定义头或 CSRF token，并写进本页。
 
-网关路由 `sensitiveHeaders` 必须为空（不要拦 `Set-Cookie`），否则登录种不上 Session。auth 的 Cookie **不要 Base64**（`CookieSerializer.useBase64Encoding=false`），否则网关 WebFlux 用原文去 Redis 对不上，登录会闪一下回到未登录。
+网关路由 `sensitiveHeaders` 必须为空（不要拦 `Set-Cookie`），否则登录种不上 Session。auth 的 Cookie **不要 Base64**（`CookieSerializer.useBase64Encoding=false`），否则网关 WebFlux 用原文去 Redis 对不上，登录会闪一下回到未登录。auth / 网关启动类不要写 `@EnableRedisHttpSession` / `@EnableRedisWebSession`，超时只走 yml `spring.session.timeout`，否则 Redis TTL 会被钉成 30 分钟（DEC-045）。
 
 ## 改契约时的顺序
 
