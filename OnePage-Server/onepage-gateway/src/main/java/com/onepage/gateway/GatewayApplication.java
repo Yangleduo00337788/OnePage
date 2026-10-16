@@ -3,19 +3,17 @@ package com.onepage.gateway;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
-import org.springframework.session.data.redis.config.annotation.web.server.EnableRedisWebSession;
-
 /**
  * API 网关进程入口（默认端口 8080）。浏览器只应访问这一端口。
  * <p>
  * {@code @SpringBootApplication}：扫描本包、自动配置、当作启动类。<br>
  * {@code @EnableDiscoveryClient}：向 Nacos 注册自己，并从 Nacos 拿 auth/user/content 实例，
  * YAML 里才能写 {@code lb://onepage-auth-service}（lb = load balancer，按服务名找机器）。<br>
- * {@code @EnableRedisWebSession}：网关是 WebFlux（响应式），Session 走 Redis。
+ * Session 走 Boot 自动配置（yml {@code spring.session.store-type=redis} + {@code timeout}），
+ * 不要加 {@code @EnableRedisWebSession}：注解默认 1800 秒，会盖掉 {@code SESSION_TIMEOUT}。
  * Cookie 名必须和 auth 的 Servlet Session 一致（{@code ONEPAGE_SESSION}），否则登录后下一请求仍 401。
  */
 @EnableDiscoveryClient
-@EnableRedisWebSession
 @SpringBootApplication
 public class GatewayApplication {
   public static void main(String[] args) {

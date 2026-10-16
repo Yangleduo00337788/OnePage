@@ -5,19 +5,17 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
-
 /**
  * 认证服务入口（默认 8081）。只管「你是谁」：短信、账密、OAuth；不管资料文案。
  * <p>
- * {@code @EnableRedisHttpSession}：Servlet 版 Session（和网关 WebFlux 版共用 Redis）。
+ * Session 走 Boot 自动配置（yml {@code spring.session.store-type=redis} + {@code timeout}），
+ * 不要加 {@code @EnableRedisHttpSession}：注解默认 1800 秒，会盖掉 {@code SESSION_TIMEOUT}。
  * {@code @EnableFeignClients}：扫描 {@code client} 包，按 Nacos 服务名调 user-service。
  * {@code @MapperScan}：MyBatis 接口不用手写 XML 就能注入。
  * {@code scanBasePackages = "com.onepage"}：才能扫到 common 里的 {@code GlobalExceptionHandler}。
  */
 @EnableDiscoveryClient
 @EnableFeignClients
-@EnableRedisHttpSession
 @MapperScan("com.onepage.auth.mapper")
 @SpringBootApplication(scanBasePackages = "com.onepage")
 public class AuthApplication {
