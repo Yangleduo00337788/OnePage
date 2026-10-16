@@ -1,0 +1,18 @@
+# 贴进本机 WSL ~/docker/compose.yml。ES 9.5.4 单节点，给 P3 全局搜索。
+# 启动后 Windows 访问 http://127.0.0.1:9200 ；.env 写 ES_URIS=http://127.0.0.1:9200
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.4
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: admin123
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+volumes:
+  esdata:

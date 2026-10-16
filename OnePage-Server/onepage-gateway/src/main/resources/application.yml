@@ -128,6 +128,19 @@ spring:
             - Path=/api/v1/conversations,/api/v1/conversations/**
           metadata:
             sensitiveHeaders: ""
+        - id: search
+          uri: lb://onepage-search-service
+          predicates:
+            - Path=/api/v1/search,/api/v1/search/**
+          metadata:
+            sensitiveHeaders: ""
+        - id: ai
+          uri: lb://onepage-ai-service
+          predicates:
+            - Path=/api/v1/ai,/api/v1/ai/**
+          metadata:
+            sensitiveHeaders: ""
+            response-timeout: 60000
         - id: reports
           uri: lb://onepage-moderation-service
           predicates:

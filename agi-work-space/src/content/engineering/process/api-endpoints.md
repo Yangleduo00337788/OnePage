@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-**契约有、代码还没有：** AI 润色/问答。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P3 已实现：搜索笔记/用户；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat`（`onepage-ai-service`，HTTP Chat Completions）。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -280,15 +280,23 @@ Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `
 
 ## AI（P1 美化 / P3 问答）
 
+润色/问答须登录。服务 `onepage-ai-service`（8088）。不引入 LangChain4j / Spring AI。密钥默认环境变量，运营可改 Redis。
+
+### GET `/api/v1/ai/bootstrap`
+
+公开。**Response 200**：`{ "yehPreset", "yehQuestions": [] }`。给耶耶首页默认文案和联想。
+
 ### POST `/api/v1/ai/posts/polish`
 
-**Body**：`{ "title?", "body" }`  
-**Response 200**：`{ "title?", "body" }`
+**Body**：`{ "title?", "body", "mode?" }`。`mode=optimize`（缺省）优化标题和正文；`mode=continue` 续写正文、标题不变。  
+**Response 200**：`{ "title?", "body" }`  
+没配密钥或上游失败 **503** `CONFIG_MISSING`（「暂时不能润色」）；原标题正文可继续发布。
 
 ### POST `/api/v1/ai/chat`
 
-**Body**：`{ "question", "sessionId?" }`  
-**Response 200**：`{ "answer", "citations": [{ "postId", "snippet" }] }`
+**Body**：`{ "question", "sessionId?" }`（`sessionId` 仅前端会话，服务端不落库）  
+**Response 200**：`{ "answer", "citations": [{ "postId", "snippet" }] }`  
+先 `GET /search?type=post` 再生成。无命中：`answer` 为「暂时不能根据站内笔记回答」。无密钥：仍 200，「暂时不能回答」，不查 ES。
 
 ---
 
@@ -432,8 +440,9 @@ Query：`beforeId?`, `limit`
 
 ### GET `/api/v1/search`
 
-Query：`q`, `type`（`post` | `user` | `all`）, `cursor`, `limit`  
-**Response**：`{ "posts": [], "users": [] }`
+公开。Query：`q`（空则空结果）、`type`（`post` | `user` | `all`）、`cursor`（偏移字符串）、`limit`、`postType?`（`image` / `video` / `text`）  
+**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio" }], "nextCursor", "hasMore" }`  
+只查已发布、公开、已到点的笔记，以及用户昵称/一页号/签名。话题与直播未索引。MQ 未消费时由 content/user Feign 写入，search 启动回填。
 
 ---
 
@@ -621,6 +630,14 @@ Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
 ### POST `/api/v1/ops/messages/{messageId}/restore`
 
 **Response 204**。隐藏写 `message.deleted_at`，社区会话/未读不再出现该条。内网 Feign **POST**，不要 PATCH。已有库须执行 `002_ops_hide.sql`。
+
+### GET `/api/v1/ops/ai`
+
+员工。**Response**：`llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled`。密钥不回全文。
+
+### POST `/api/v1/ops/ai`
+
+员工。**Body** 同上字段；`llmApiKey` 留空则不改已保存密钥。Feign ai-service 写 Redis `onepage:ai:settings`。
 
 ---
 

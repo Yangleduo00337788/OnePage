@@ -15,6 +15,7 @@ import OpsCampaigns from './OpsCampaigns.vue'
 import OpsTopics from './OpsTopics.vue'
 import OpsMessages from './OpsMessages.vue'
 import OpsMedia from './OpsMedia.vue'
+import OpsAi from './OpsAi.vue'
 
 export type PageId =
   | 'home'
@@ -27,6 +28,7 @@ export type PageId =
   | 'categories'
   | 'campaigns'
   | 'topics'
+  | 'ai'
 
 type NavItem = { id: PageId; label: string; icon: string }
 type NavGroup = { id: string; label: string; icon: string; children: NavItem[] }
@@ -54,6 +56,12 @@ const groups: NavGroup[] = [
       { id: 'campaigns', label: '活动', icon: 'calendar' },
       { id: 'topics', label: '话题', icon: 'hash' },
     ],
+  },
+  {
+    id: 'ai',
+    label: 'AI',
+    icon: 'spark',
+    children: [{ id: 'ai', label: '配置', icon: 'spark' }],
   },
 ]
 
@@ -218,6 +226,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsCategories v-else-if="page === 'categories'" />
       <OpsCampaigns v-else-if="page === 'campaigns'" />
       <OpsTopics v-else-if="page === 'topics'" />
+      <OpsAi v-else-if="page === 'ai'" />
     </div>
   </div>
 </template>

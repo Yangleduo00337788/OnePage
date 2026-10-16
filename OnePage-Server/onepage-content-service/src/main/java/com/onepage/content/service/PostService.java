@@ -76,6 +76,7 @@ public class PostService {
   private final CatalogService catalogService;
   private final UserClient userClient;
   private final InteractionNotifier interactionNotifier;
+  private final SearchIndexer searchIndexer;
   private final ObjectMapper objectMapper;
   private final ImClient imClient;
   private final String mediaPublicBase;
@@ -95,6 +96,7 @@ public class PostService {
       CatalogService catalogService,
       UserClient userClient,
       InteractionNotifier interactionNotifier,
+      SearchIndexer searchIndexer,
       ObjectMapper objectMapper,
       ImClient imClient,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
@@ -112,6 +114,7 @@ public class PostService {
     this.catalogService = catalogService;
     this.userClient = userClient;
     this.interactionNotifier = interactionNotifier;
+    this.searchIndexer = searchIndexer;
     this.objectMapper = objectMapper;
     this.imClient = imClient;
     this.mediaPublicBase = trimSlash(mediaPublicBase);
@@ -451,6 +454,7 @@ public class PostService {
           null,
           note);
     }
+    searchIndexer.sync(postId);
   }
 
   /** 运营笔记列表。taken=live 已通过在线，pending 待审，rejected 未通过，down 已下架。 */
@@ -612,6 +616,7 @@ public class PostService {
     }
     post.setUpdatedAt(LocalDateTime.now());
     postMapper.updateById(post);
+    searchIndexer.sync(postId);
     return toBrief(post, postViewMapper.countByPostId(post.getId()));
   }
 
@@ -686,6 +691,44 @@ public class PostService {
       throw BusinessException.notFound("笔记不存在");
     }
     return post;
+  }
+
+  /** 给 search-service 回填：仅公开、已发布、已到点的笔记。cursor 为上一页最后 postId。 */
+  public FeedDtos.CursorPage listSearchable(String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    Long afterId = null;
+    if (StringUtils.hasText(cursor)) {
+      try {
+        afterId = Long.parseLong(cursor.trim());
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+    }
+    LocalDateTime now = LocalDateTime.now();
+    LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
+        .isNull(Post::getDeletedAt)
+        .eq(Post::getStatus, STATUS_PUBLISHED)
+        .eq(Post::getVisibility, 0)
+        .le(Post::getPublishedAt, now)
+        .orderByAsc(Post::getId);
+    if (afterId != null) {
+      query.gt(Post::getId, afterId);
+    }
+    query.last("LIMIT " + (size + 1));
+    List<Post> rows = postMapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<FeedDtos.PostBrief> items = new ArrayList<>();
+    for (Post post : rows) {
+      items.add(toBrief(post, postViewMapper.countByPostId(post.getId())));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty()) {
+      next = String.valueOf(rows.getLast().getId());
+    }
+    return new FeedDtos.CursorPage(items, next, hasMore);
   }
 
   public FeedDtos.PostBrief toBrief(Post post) {
@@ -988,6 +1031,13 @@ public class PostService {
     event.setStatus(0);
     event.setCreatedAt(LocalDateTime.now());
     outboxEventMapper.insert(event);
+    if ("post".equals(aggregateType) && StringUtils.hasText(aggregateId)) {
+      try {
+        searchIndexer.sync(Long.parseLong(aggregateId));
+      } catch (NumberFormatException ignore) {
+        // 非数字聚合 id 不进搜索
+      }
+    }
   }
 
   private String publicUrl(String objectKey) {

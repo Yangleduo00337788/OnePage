@@ -6,6 +6,33 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-051 运营可配 AI；耶耶默认文案不编辑即发送
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** 模型密钥只在 `.env`；首页三条联想不应一进来就占高度。DEC-038 曾不把 AI 放进运营菜单。
+- **决策：** 运营「AI / 配置」读写 `GET/POST /ops/ai`（moderation Feign ai-service）。配置落 Redis `onepage:ai:settings`，环境变量当默认。密钥 GET 只回掩码。公开 `GET /ai/bootstrap` 只出耶耶预设与联想。首页默认灰字与折叠联想；未点输入框点「问耶耶」发出默认文案；点输入框后清空默认文案并展开联想。
+- **替代：** 单独 MySQL 库（否决：配置量小）；密钥继续只认 `.env`（否决：运营无法改）。
+- **影响：** 须重启 ai、moderation、gateway。见 [API 明细](/engineering/process/api-endpoints)。
+
+## DEC-050 P3 耶耶与发帖润色走 HTTP LLM，服务名 `onepage-ai-service`
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** 搜索已接 ES；耶耶仍 mock，发帖无润色。用户确认先不引入 LangChain4j / Spring AI，服务名须品牌前缀。
+- **决策：** 新建 `onepage-ai-service`（8088）。`POST /ai/posts/polish`、`POST /ai/chat` 须登录。用 RestClient 调兼容 OpenAI 的 `/chat/completions`。问答先 Feign `GET /search?type=post` 再生成；无命中不编造。密钥空则润色 503、问答回「暂时不能回答」（不再先查 ES）。会话仍 localStorage。创作者编辑页「AI 优化」「续写」只改文案，不自动发布。耶耶先落用户气泡，回复未到时显示「耶耶正在想…」。
+- **替代：** Spring AI / LangChain4j（否决：本期只要 HTTP）；把 AI 塞进 search-service（否决：检索与生成边界分开）。
+- **影响：** `.env` 加 `AI_PORT`、`LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`。须重启 gateway + 新起 AiApplication。见 [API 明细](/engineering/process/api-endpoints)。
+
+## DEC-049 P3 全局搜索上 Elasticsearch
+
+- **日期：** 2026-10-16
+- **状态：** 已采纳
+- **背景：** P2/P5 可演示后下一步是搜索；耶耶 RAG 也要同一套检索。
+- **决策：** 新建 `onepage-search-service`（8087）。索引公开已发布笔记与用户到 ES 9.5.4。`GET /api/v1/search` 公开。MQ 未消费，发帖/改资料用 Feign 投递，启动与每 10 分钟回填。Java API Client 8.17.4 走 REST。话题/直播/耶耶本期不做。
+- **替代：** MySQL `LIKE`（否决：撑不住后续 RAG）；等 RocketMQ 再索引（否决：本机还没消费）。
+- **影响：** `.env` 加 `SEARCH_PORT`、`ES_URIS`、`ES_USERNAME`、`ES_PASSWORD`（开了 xpack.security 才填账密）。须重启 gateway + content + user + search。见 [API 明细](/engineering/process/api-endpoints)。
+
 ## DEC-048 社区互动补齐：评论树、草稿、好友可见、定时、历史删除
 
 - **日期：** 2026-10-16

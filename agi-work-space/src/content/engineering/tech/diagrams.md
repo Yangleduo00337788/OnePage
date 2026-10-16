@@ -247,20 +247,20 @@ sequenceDiagram
 sequenceDiagram
   participant B as Browser
   participant G as Gateway
-  participant AI as ai_service
-  participant Sch as search_service
+  participant AI as onepage_ai_service
+  participant Sch as onepage_search_service
   participant ES as Elasticsearch
-  participant LLM as LLM_Provider
+  participant LLM as LLM_HTTP
 
-  B->>G: POST /api/v1/ai/chat
-  G->>AI: question
-  AI->>Sch: retrieve context
-  Sch->>ES: kNN + keyword
-  ES->>Sch: snippets
+  B->>G: POST /api/v1/ai/chat Cookie
+  G->>AI: X-User-Id + question
+  AI->>Sch: GET /search type=post
+  Sch->>ES: keyword
+  ES->>Sch: posts
   Sch->>AI: passages
-  AI->>LLM: prompt + context
+  AI->>LLM: POST /chat/completions
   LLM->>AI: answer
-  AI->>B: 200 带引用片段
+  AI->>B: 200 answer + citations
 ```
 
 ## 9. 时序：私信 HTTP（开会话 / 拉历史 / 发文本）

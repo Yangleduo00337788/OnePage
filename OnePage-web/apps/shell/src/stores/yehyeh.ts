@@ -1,12 +1,13 @@
 /**
- * 耶耶会话：只落 localStorage，不接模型。页面发送时说明尚未接入。
+ * 耶耶会话：对话落 localStorage；回复走 POST /ai/chat。
  * 历史、当前会话、新建 / 删除都走这一份状态。
  */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import type { AiCitation } from '@onepage/api-client'
 
 export type YehRole = 'user' | 'ai'
-export type YehMsg = { role: YehRole; text: string }
+export type YehMsg = { role: YehRole; text: string; citations?: AiCitation[] }
 export type YehSession = {
   id: string
   title: string
@@ -60,7 +61,13 @@ export const useYehYeh = defineStore('yehyeh', () => {
     persist()
   }
 
-  function append(userText: string, aiText: string) {
+  function touch(session: YehSession) {
+    session.updatedAt = Date.now()
+    sessions.value = [session, ...sessions.value.filter((s) => s.id !== session.id)]
+    persist()
+  }
+
+  function ensureSession(userText: string): YehSession {
     const title = userText.replace(/\s+/g, ' ').trim().slice(0, 24)
     let session = current.value
     if (!session) {
@@ -68,12 +75,32 @@ export const useYehYeh = defineStore('yehyeh', () => {
       sessions.value = [session, ...sessions.value]
       currentId.value = session.id
     }
-    session.messages.push({ role: 'user', text: userText }, { role: 'ai', text: aiText })
-    if (session.messages.filter((m) => m.role === 'user').length === 1) session.title = title
-    session.updatedAt = Date.now()
-    sessions.value = [session, ...sessions.value.filter((s) => s.id !== session!.id)]
-    persist()
+    return session
   }
 
-  return { sessions, currentId, current, open, startFresh, remove, append }
+  function appendUser(userText: string) {
+    const session = ensureSession(userText)
+    const title = userText.replace(/\s+/g, ' ').trim().slice(0, 24)
+    session.messages.push({ role: 'user', text: userText })
+    if (session.messages.filter((m) => m.role === 'user').length === 1) session.title = title
+    touch(session)
+  }
+
+  function appendAi(aiText: string, citations?: AiCitation[]) {
+    const session = current.value
+    if (!session) return
+    session.messages.push({
+      role: 'ai',
+      text: aiText,
+      citations: citations?.length ? citations : undefined,
+    })
+    touch(session)
+  }
+
+  function append(userText: string, aiText: string, citations?: AiCitation[]) {
+    appendUser(userText)
+    appendAi(aiText, citations)
+  }
+
+  return { sessions, currentId, current, open, startFresh, remove, append, appendUser, appendAi }
 })

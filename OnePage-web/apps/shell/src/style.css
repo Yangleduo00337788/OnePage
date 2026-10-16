@@ -1598,7 +1598,8 @@ html[data-theme='dark'] .theme-tab.is-on {
     opacity 0.2s ease;
 }
 
-.yeh-composer.is-open .yeh-expand {
+.yeh-composer.is-open .yeh-expand,
+.yeh-composer-slot .yeh-composer:focus-within .yeh-expand {
   grid-template-rows: 1fr;
   opacity: 1;
 }
@@ -1626,8 +1627,12 @@ html[data-theme='dark'] .theme-tab.is-on {
   color: #1f1f1f;
 }
 
-.yeh-textarea.is-preset {
+.yeh-textarea::placeholder {
   color: #9a9a9a;
+}
+
+.yeh-textarea:focus::placeholder {
+  color: transparent;
 }
 
 .yeh-textarea-chat {
@@ -1690,6 +1695,25 @@ html[data-theme='dark'] .theme-tab.is-on {
 
 .yeh-plus-menu button:hover {
   background: #eee;
+}
+
+.yeh-ask-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yeh-edit {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+.yeh-edit:hover {
+  background: #eee;
+  color: #1f1f1f;
 }
 
 .yeh-ask {
@@ -1815,6 +1839,29 @@ html[data-theme='dark'] .theme-tab.is-on {
   font-size: 15px;
   line-height: 1.8;
   color: #333;
+}
+
+.yeh-cites {
+  margin: 8px 0 0;
+  max-width: 720px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #999;
+}
+
+.yeh-thinking {
+  color: #999;
+  animation: yeh-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes yeh-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .yeh-chat-foot {

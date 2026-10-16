@@ -61,6 +61,12 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'circle', cx: 9, cy: 9, r: 2 },
     { tag: 'path', d: 'm21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' },
   ],
+  spark: [
+    {
+      tag: 'path',
+      d: 'm12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z',
+    },
+  ],
   'layout-grid': [
     { tag: 'rect', x: 3, y: 3, width: 7, height: 7, rx: 1 },
     { tag: 'rect', x: 14, y: 3, width: 7, height: 7, rx: 1 },

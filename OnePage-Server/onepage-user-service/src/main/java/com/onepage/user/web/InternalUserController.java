@@ -71,6 +71,15 @@ public class InternalUserController {
     return userService.suggest(q, null);
   }
 
+  @GetMapping("/search/users")
+  public UserService.SearchUserPage searchable(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    tokenFilter.assertInternal(request);
+    return userService.listSearchable(cursor, limit);
+  }
+
   @GetMapping("/users/count")
   public Count count(HttpServletRequest request) {
     tokenFilter.assertInternal(request);

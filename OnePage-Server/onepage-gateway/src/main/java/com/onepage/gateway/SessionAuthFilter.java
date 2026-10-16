@@ -114,7 +114,10 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
     }
     if (path.startsWith("/api/v1/feeds/")
         || path.equals("/api/v1/catalog")
-        || path.startsWith("/api/v1/catalog/")) {
+        || path.startsWith("/api/v1/catalog/")
+        || path.equals("/api/v1/search")
+        || path.startsWith("/api/v1/search/")
+        || path.equals("/api/v1/ai/bootstrap")) {
       return true;
     }
     if ("/api/v1/posts/mine".equals(path) || "/api/v1/users/me".equals(path) || path.startsWith("/api/v1/users/me/")) {

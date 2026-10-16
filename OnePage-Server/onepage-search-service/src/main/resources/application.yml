@@ -1,0 +1,32 @@
+# =============================================================================
+# 搜索服务 onepage-search-service
+# 值全部来自进程环境变量。本服务不连 MySQL，索引在 Elasticsearch。
+# =============================================================================
+
+server:
+  port: ${SEARCH_PORT}
+
+spring:
+  application:
+    name: onepage-search-service
+  cloud:
+    nacos:
+      server-addr: "${NACOS_SERVER_ADDR}"
+      username: ${NACOS_USERNAME}
+      password: "${NACOS_PASSWORD}"
+      discovery:
+        server-addr: "${NACOS_SERVER_ADDR}"
+        namespace: ${NACOS_NAMESPACE}
+        group: ${NACOS_GROUP}
+        context-path: nacos
+        username: ${NACOS_USERNAME}
+        password: "${NACOS_PASSWORD}"
+    loadbalancer:
+      nacos:
+        enabled: true
+
+onepage:
+  internal-token: ${INTERNAL_TOKEN}
+  es-uris: ${ES_URIS}
+  es-username: ${ES_USERNAME:}
+  es-password: ${ES_PASSWORD:}

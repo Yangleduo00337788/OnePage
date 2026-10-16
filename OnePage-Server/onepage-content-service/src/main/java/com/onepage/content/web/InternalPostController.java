@@ -104,6 +104,15 @@ public class InternalPostController {
     return postService.listFavoritesReceived(userId, cursor, limit);
   }
 
+  @GetMapping("/search/posts")
+  public FeedDtos.CursorPage searchable(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return postService.listSearchable(cursor, limit);
+  }
+
   @GetMapping("/posts/briefs")
   public java.util.List<FeedDtos.OpsPostBrief> postBriefs(
       HttpServletRequest request,

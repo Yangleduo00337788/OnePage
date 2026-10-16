@@ -57,6 +57,52 @@ export type CursorPage<T> = {
   hasMore: boolean
 }
 
+export type SearchUserHit = {
+  userId: string
+  pageId: string
+  nickname: string
+  avatarUrl: string
+  bio?: string
+}
+
+export type SearchResult = {
+  posts: PostBrief[]
+  users: SearchUserHit[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+export type PolishResult = {
+  title: string
+  body: string
+}
+
+export type AiCitation = {
+  postId: string
+  snippet: string
+}
+
+export type AiChatResult = {
+  answer: string
+  citations: AiCitation[]
+}
+
+export type AiBootstrap = {
+  yehPreset: string
+  yehQuestions: string[]
+}
+
+export type OpsAiConfig = {
+  llmBaseUrl: string
+  llmModel: string
+  llmKeySet: boolean
+  llmKeyMasked: string
+  yehPreset: string
+  yehQuestions: string[]
+  chatEnabled: boolean
+  polishEnabled: boolean
+}
+
 export type NotificationItem = {
   id: string
   type: string
@@ -539,6 +585,36 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  search: (q: string, type?: 'post' | 'user' | 'all', cursor?: string, limit?: number) => {
+    const p = new URLSearchParams()
+    if (q) p.set('q', q)
+    if (type) p.set('type', type)
+    if (cursor) p.set('cursor', cursor)
+    if (limit) p.set('limit', String(limit))
+    const suffix = p.toString() ? `?${p}` : ''
+    return request<SearchResult>(`/api/v1/search${suffix}`)
+  },
+  polishPost: (body: { title?: string; body?: string; mode?: 'optimize' | 'continue' }) =>
+    request<PolishResult>('/api/v1/ai/posts/polish', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  aiChat: (body: { question: string; sessionId?: string }) =>
+    request<AiChatResult>('/api/v1/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  aiBootstrap: () => request<AiBootstrap>('/api/v1/ai/bootstrap'),
+  opsAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai'),
+  opsSaveAiConfig: (body: {
+    llmBaseUrl?: string
+    llmApiKey?: string
+    llmModel?: string
+    yehPreset?: string
+    yehQuestions?: string[]
+    chatEnabled?: boolean
+    polishEnabled?: boolean
+  }) => request<OpsAiConfig>('/api/v1/ops/ai', { method: 'POST', body: JSON.stringify(body) }),
   exploreFeed: (cursor?: string, limit?: number, category?: string) => {
     const q = new URLSearchParams()
     if (cursor) q.set('cursor', cursor)

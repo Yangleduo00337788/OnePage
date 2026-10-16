@@ -17,7 +17,7 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 | 私信 | onepage-message-service | 会话、消息；运营隐藏用 `deleted_at` |
 | 通知 | onepage-notification-service | 通知收件箱 |
 | 检索 | onepage-search-service | 索引文档、查询 |
-| 智能 | onepage-ai-service | 生成任务、审计 |
+| 智能 | onepage-ai-service | 润色、问答（HTTP LLM；会话在前端） |
 | 治理 | onepage-moderation-service | 举报单、处理记录、员工校验（P5；前端 `app-ops`。不另建 admin 服务） |
 | 直播 | onepage-live-service | 房间、场次 |
 | 工作空间（本仓） | agi-work-space | 文档 Doc、角色 Role、工作目录 |

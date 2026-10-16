@@ -50,4 +50,9 @@ public class BusinessException extends RuntimeException {
   public static BusinessException rateLimited(String message) {
     return new BusinessException(ErrorCodes.RATE_LIMITED, message, HttpStatus.TOO_MANY_REQUESTS);
   }
+
+  /** 密钥/上游未配等（对应 HTTP 503）。 */
+  public static BusinessException configMissing(String message) {
+    return new BusinessException(ErrorCodes.CONFIG_MISSING, message, HttpStatus.SERVICE_UNAVAILABLE);
+  }
 }

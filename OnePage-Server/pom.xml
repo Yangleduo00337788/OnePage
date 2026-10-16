@@ -19,6 +19,8 @@
     <module>onepage-notification-service</module>
     <module>onepage-message-service</module>
     <module>onepage-moderation-service</module>
+    <module>onepage-search-service</module>
+    <module>onepage-ai-service</module>
   </modules>
 
   <properties>
@@ -34,6 +36,8 @@
     <nacos-client.version>3.2.4</nacos-client.version>
     <mybatis-plus.version>3.5.9</mybatis-plus.version>
     <minio.version>8.6.0</minio.version>
+    <!-- ES 服务端 9.5.4；Java API 走 REST 8.17，不要用 TransportClient -->
+    <elasticsearch-java.version>8.17.4</elasticsearch-java.version>
   </properties>
 
   <dependencyManagement>
@@ -78,6 +82,16 @@
         <groupId>io.minio</groupId>
         <artifactId>minio</artifactId>
         <version>${minio.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>co.elastic.clients</groupId>
+        <artifactId>elasticsearch-java</artifactId>
+        <version>${elasticsearch-java.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-client</artifactId>
+        <version>${elasticsearch-java.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -1,11 +1,14 @@
 <!--
-  搜索结果。筛选 UI 保留；笔记/用户/话题/直播尚无搜索服务，空态不再灌假数据。
+  搜索结果。笔记/用户接 GET /api/v1/search；话题/直播仍空态。筛选 UI 保留，本期不进查询。
 -->
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { api, ApiError, type SearchUserHit } from '@onepage/api-client'
+import { noteFromPost, type NoteCard } from '../data/home'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
+import NoteFeedCard from '../components/NoteFeedCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +49,77 @@ const tab = computed({
 
 const TABS = ['笔记', '用户', '话题', '直播'] as const
 
+const notes = ref<NoteCard[]>([])
+const users = ref<SearchUserHit[]>([])
+const cursor = ref<string | null>(null)
+const hasMore = ref(false)
+const loading = ref(false)
+const loadingMore = ref(false)
+const failed = ref('')
+const sentinel = ref<HTMLElement | null>(null)
+let io: IntersectionObserver | null = null
+let seq = 0
+
+function searchType() {
+  if (tab.value === '用户') return 'user' as const
+  if (tab.value === '笔记') return 'post' as const
+  return null
+}
+
+async function refresh() {
+  const kind = searchType()
+  const token = ++seq
+  notes.value = []
+  users.value = []
+  cursor.value = null
+  hasMore.value = false
+  failed.value = ''
+  if (!kind || !q.value) {
+    loading.value = false
+    return
+  }
+  loading.value = true
+  try {
+    const page = await api.search(q.value, kind, undefined, 20)
+    if (token !== seq) return
+    notes.value = (page.posts || []).map(noteFromPost)
+    users.value = page.users || []
+    cursor.value = page.nextCursor
+    hasMore.value = page.hasMore
+  } catch (e) {
+    if (token !== seq) return
+    failed.value = e instanceof ApiError ? e.message : '搜索失败'
+  } finally {
+    if (token === seq) loading.value = false
+  }
+}
+
+async function loadMore() {
+  const kind = searchType()
+  if (!kind || loading.value || loadingMore.value || !hasMore.value || !q.value) return
+  const token = seq
+  loadingMore.value = true
+  try {
+    const page = await api.search(q.value, kind, cursor.value || undefined, 20)
+    if (token !== seq) return
+    notes.value = notes.value.concat((page.posts || []).map(noteFromPost))
+    users.value = users.value.concat(page.users || [])
+    cursor.value = page.nextCursor
+    hasMore.value = page.hasMore
+  } catch {
+    if (token === seq) hasMore.value = false
+  } finally {
+    if (token === seq) loadingMore.value = false
+  }
+}
+
+watch(
+  () => [q.value, tab.value] as const,
+  () => {
+    void refresh()
+  },
+)
+
 const emptyHint = computed(() => {
   if (tab.value === '用户') return '还没有匹配的用户'
   if (tab.value === '话题') return '还没有热门话题'
@@ -80,6 +154,27 @@ function closeFilter() {
   window.clearTimeout(filterLeaveTimer)
   filterOpen.value = false
 }
+
+function openUser(pageId: string) {
+  void router.push(`/u/${encodeURIComponent(pageId)}`)
+}
+
+onMounted(() => {
+  void refresh()
+  io = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) void loadMore()
+    },
+    { root: null, rootMargin: '480px 0px' },
+  )
+  nextTick(() => {
+    if (sentinel.value) io?.observe(sentinel.value)
+  })
+})
+
+onUnmounted(() => {
+  io?.disconnect()
+})
 </script>
 
 <template>
@@ -177,7 +272,38 @@ function closeFilter() {
 
     <div class="flex items-start gap-8">
       <div class="min-w-0 flex-1">
-        <EmptyState :src="emptyArt" :title="emptyHint" />
+        <p v-if="loading" class="py-16 text-center text-[14px] text-[#8a8a8a]">搜索中…</p>
+        <p v-else-if="failed" class="py-16 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
+        <div v-else-if="tab === '用户' && users.length" class="divide-y divide-[#f2f2f2]">
+          <button
+            v-for="user in users"
+            :key="user.userId"
+            type="button"
+            class="flex w-full items-center gap-3 py-3 text-left"
+            @click="openUser(user.pageId)"
+          >
+            <img
+              v-if="user.avatarUrl"
+              :src="user.avatarUrl"
+              alt=""
+              class="h-12 w-12 shrink-0 rounded-full object-cover"
+            />
+            <span v-else class="h-12 w-12 shrink-0 rounded-full bg-[#ececec]" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[15px] font-medium text-[#1f1f1f]">{{ user.nickname }}</span>
+              <span class="mt-0.5 block truncate text-[13px] text-[#8a8a8a]">
+                {{ user.bio?.trim() || `一页号 ${user.pageId}` }}
+              </span>
+            </span>
+          </button>
+        </div>
+        <div v-else-if="tab === '笔记' && notes.length" class="feed-grid flex flex-wrap justify-center gap-4">
+          <NoteFeedCard v-for="note in notes" :key="note.id" :note="note" />
+        </div>
+        <EmptyState v-else :src="emptyArt" :title="emptyHint" />
+        <div ref="sentinel" class="feed-more" aria-hidden="true">
+          <span v-show="loadingMore" class="feed-spinner is-more" />
+        </div>
       </div>
 
       <aside class="sticky top-[84px] hidden h-[calc(100vh-108px)] w-[400px] shrink-0 flex-col lg:flex">

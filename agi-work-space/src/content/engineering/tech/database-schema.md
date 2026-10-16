@@ -377,6 +377,12 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | created_at | DATETIME(3) | |
 | sent_at | DATETIME(3) 可空 | |
 
+## Redis 键（非 MySQL）
+
+| 键 | 说明 |
+| --- | --- |
+| `onepage:ai:settings` | AI 运营配置 JSON（模型地址/密钥/耶耶文案）；未写入时用环境变量 |
+
 ## Elasticsearch 索引（非 MySQL）
 
 | 索引 | 主要字段 | 说明 |

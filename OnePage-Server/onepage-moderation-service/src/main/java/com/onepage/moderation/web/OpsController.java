@@ -2,6 +2,7 @@ package com.onepage.moderation.web;
 
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.web.CurrentUser;
+import com.onepage.moderation.client.AiClient;
 import com.onepage.moderation.client.UserClient;
 import com.onepage.moderation.dto.ModerationDtos;
 import com.onepage.moderation.service.ModerationService;
@@ -26,16 +27,19 @@ public class OpsController {
   private final ModerationService moderationService;
   private final StaffGuard staffGuard;
   private final UserClient userClient;
+  private final AiClient aiClient;
   private final String internalToken;
 
   public OpsController(
       ModerationService moderationService,
       StaffGuard staffGuard,
       UserClient userClient,
+      AiClient aiClient,
       @Value("${onepage.internal-token}") String internalToken) {
     this.moderationService = moderationService;
     this.staffGuard = staffGuard;
     this.userClient = userClient;
+    this.aiClient = aiClient;
     this.internalToken = internalToken;
   }
 
@@ -442,5 +446,20 @@ public class OpsController {
     staffGuard.requireStaff(userId);
     moderationService.restoreImMessage(messageId);
     return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/ai")
+  public AiClient.OpsAiView aiConfig(HttpServletRequest request) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return aiClient.get(internalToken);
+  }
+
+  @PostMapping("/ai")
+  public AiClient.OpsAiView saveAiConfig(
+      HttpServletRequest request, @RequestBody AiClient.OpsAiPatch body) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return aiClient.save(internalToken, body);
   }
 }

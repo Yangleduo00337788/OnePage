@@ -1,16 +1,18 @@
 <!--
   耶耶首页 + 对话。无顶搜、左上圆形展开、白底输入卡。
-  AI 未接入，发送会明确告知尚未可用；历史仍在本机 localStorage。
+  发送走 POST /ai/chat（先检索再生成）；历史仍在本机 localStorage。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { api, ApiError } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { useAuthModal } from '../stores/authModal'
 import { useYehYeh, type YehSession } from '../stores/yehyeh'
 
-const PRESET = '帮我发现今天值得一看的生活方式笔记'
-const QUESTIONS = [
+const FALLBACK_PRESET = '帮我发现今天值得一看的生活方式笔记'
+const FALLBACK_QUESTIONS = [
   '周末去哪玩比较合适？',
   '帮我搭配一套通勤穿搭',
   '最近有哪些值得看的生活方式笔记？',
@@ -19,11 +21,15 @@ const QUESTIONS = [
 const route = useRoute()
 const router = useRouter()
 const yeh = useYehYeh()
+const auth = useAuthModal()
 
+const preset = ref(FALLBACK_PRESET)
+const questions = ref([...FALLBACK_QUESTIONS])
+const editing = ref(false)
 const sidebarOpen = ref(false)
 const plusOpen = ref(false)
 const composerOpen = ref(false)
-const draft = ref(PRESET)
+const draft = ref('')
 const chatDraft = ref('')
 const sending = ref(false)
 const plusRoot = ref<HTMLElement | null>(null)
@@ -35,9 +41,8 @@ const pendingImages = ref<string[]>([])
 const consumedQuery = ref('')
 
 const inChat = computed(() => Boolean(yeh.current && yeh.current.messages.length))
-const usingPreset = computed(() => draft.value.trim() === PRESET || !draft.value.trim())
-const homeReady = computed(() => Boolean(draft.value.trim()) && draft.value.trim() !== PRESET)
-const showSuggests = computed(() => composerOpen.value && usingPreset.value)
+const homeReady = computed(() => editing.value && Boolean(draft.value.trim()))
+const showSuggests = computed(() => !inChat.value && editing.value && questions.value.length > 0)
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -62,12 +67,8 @@ const groupedHistory = computed(() => {
   return buckets.filter((b) => b.items.length)
 })
 
-function unavailableReply() {
-  return '耶耶还没接上，暂时不能回答。'
-}
-
 function payload(raw: string) {
-  const text = raw.trim() || PRESET
+  const text = raw.trim() || preset.value
   if (!pendingImages.value.length) return text
   const pics = pendingImages.value.join('、')
   pendingImages.value = []
@@ -75,21 +76,46 @@ function payload(raw: string) {
 }
 
 async function send(raw: string) {
+  if (sending.value) return
   const text = payload(raw)
-  sending.value = true
   composerOpen.value = false
   plusOpen.value = false
-  draft.value = PRESET
+  editing.value = false
+  draft.value = ''
   chatDraft.value = ''
-  yeh.append(text, unavailableReply())
   if (route.query.q) router.replace({ path: '/yehyeh' })
+  yeh.appendUser(text)
+  sending.value = true
   await nextTick()
   chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight, behavior: 'smooth' })
+  try {
+    const res = await api.aiChat({ question: text, sessionId: yeh.currentId || undefined })
+    yeh.appendAi(res.answer || '暂时不能回答', res.citations)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      yeh.appendAi('请先登录后再问耶耶')
+      auth.show('login', '/yehyeh')
+    } else {
+      yeh.appendAi(e instanceof ApiError ? e.message : '暂时不能回答')
+    }
+  }
   sending.value = false
+  await nextTick()
+  chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight, behavior: 'smooth' })
 }
 
 function askHome() {
-  send(draft.value.trim() || PRESET)
+  if (!editing.value) {
+    send(preset.value)
+    return
+  }
+  const text = draft.value.trim()
+  if (!text) return
+  send(text)
+}
+
+function startEdit() {
+  editing.value = true
 }
 
 function askChat() {
@@ -104,8 +130,9 @@ function pickQuestion(q: string) {
 
 function newSession() {
   yeh.startFresh()
-  draft.value = PRESET
+  draft.value = ''
   chatDraft.value = ''
+  editing.value = false
   composerOpen.value = false
   plusOpen.value = false
   pendingImages.value = []
@@ -139,7 +166,20 @@ function onDocPointer(e: PointerEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('pointerdown', onDocPointer))
+onMounted(() => {
+  document.addEventListener('pointerdown', onDocPointer)
+  void api
+    .aiBootstrap()
+    .then((data) => {
+      const next = (data.yehPreset || '').trim() || FALLBACK_PRESET
+      const qs = (data.yehQuestions || []).map((item) => item.trim()).filter(Boolean)
+      preset.value = next
+      questions.value = qs.length ? qs : [...FALLBACK_QUESTIONS]
+    })
+    .catch(() => {
+      /* 用内置默认文案 */
+    })
+})
 onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocPointer))
 
 watch(
@@ -214,9 +254,10 @@ watch(
                 <textarea
                   v-model="draft"
                   class="yeh-textarea"
-                  :class="usingPreset ? 'is-preset' : ''"
                   rows="3"
-                  @focus="composerOpen = true"
+                  :placeholder="editing ? '' : preset"
+                  @click="startEdit"
+                  @focus="startEdit"
                 />
                 <div class="yeh-composer-bar">
                   <div ref="plusRoot" class="relative">
@@ -238,7 +279,14 @@ watch(
                       </button>
                     </div>
                   </div>
-                  <button type="button" class="yeh-ask" :class="homeReady ? 'is-ready' : ''" :disabled="sending" @click="askHome">
+                  <button
+                    type="button"
+                    class="yeh-ask"
+                    :class="homeReady ? 'is-ready' : ''"
+                    :disabled="sending"
+                    @mousedown.prevent
+                    @click="askHome"
+                  >
                     <Icon :name="homeReady ? 'arrow-right' : 'message-circle-heart'" :size="14" :stroke="2" />
                     问耶耶
                   </button>
@@ -248,7 +296,7 @@ watch(
                   <div class="yeh-expand-inner">
                     <div class="yeh-composer-line" />
                     <div class="yeh-suggests">
-                      <button v-for="q in QUESTIONS" :key="q" type="button" @mousedown.prevent="pickQuestion(q)">
+                      <button v-for="q in questions" :key="q" type="button" @mousedown.prevent="pickQuestion(q)">
                         <Icon name="spark" :size="14" />
                         <span>{{ q }}</span>
                         <Icon name="arrow-right" :size="14" class="yeh-suggest-arrow" />
@@ -269,7 +317,15 @@ watch(
         <div ref="chatLog" class="yeh-chat-log">
           <div v-for="(msg, i) in yeh.current?.messages" :key="i" class="yeh-msg" :class="msg.role === 'user' ? 'is-user' : 'is-ai'">
             <div v-if="msg.role === 'user'" class="yeh-bubble">{{ msg.text }}</div>
-            <p v-else class="yeh-ai-text">{{ msg.text }}</p>
+            <div v-else>
+              <p class="yeh-ai-text">{{ msg.text }}</p>
+              <p v-if="msg.citations?.length" class="yeh-cites">
+                来自站内笔记：{{ msg.citations.map((c) => c.snippet).filter(Boolean).join(' · ') }}
+              </p>
+            </div>
+          </div>
+          <div v-if="sending" class="yeh-msg is-ai">
+            <p class="yeh-ai-text yeh-thinking">耶耶正在想…</p>
           </div>
         </div>
         <div class="yeh-chat-foot">

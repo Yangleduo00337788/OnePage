@@ -7,6 +7,7 @@ import com.onepage.common.id.IdGenerator;
 import com.onepage.common.tx.AfterCommit;
 import com.onepage.user.client.ContentClient;
 import com.onepage.user.client.NotificationClient;
+import com.onepage.user.client.SearchClient;
 import com.onepage.user.dto.FollowHit;
 import com.onepage.user.dto.PostCursorPage;
 import com.onepage.user.dto.ReceivedCursorPage;
@@ -53,6 +54,7 @@ public class UserService {
   private final UserFollowMapper followMapper;
   private final ContentClient contentClient;
   private final NotificationClient notificationClient;
+  private final UserSearchIndexer userSearchIndexer;
   private final String internalToken;
   private final String mediaPublicBase;
 
@@ -62,6 +64,7 @@ public class UserService {
       UserFollowMapper followMapper,
       ContentClient contentClient,
       NotificationClient notificationClient,
+      UserSearchIndexer userSearchIndexer,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.profileMapper = profileMapper;
@@ -69,6 +72,7 @@ public class UserService {
     this.followMapper = followMapper;
     this.contentClient = contentClient;
     this.notificationClient = notificationClient;
+    this.userSearchIndexer = userSearchIndexer;
     this.internalToken = internalToken;
     this.mediaPublicBase = mediaPublicBase.endsWith("/")
         ? mediaPublicBase.substring(0, mediaPublicBase.length() - 1)
@@ -99,7 +103,9 @@ public class UserService {
     stat.setFavoriteReceivedCount(0);
     stat.setUpdatedAt(now);
     statMapper.insert(stat);
-    return toSummary(profile);
+    UserSummary summary = toSummary(profile);
+    userSearchIndexer.sync(profile, summary.avatarUrl());
+    return summary;
   }
 
   public List<UserSummary> briefs(List<Long> ids) {
@@ -290,6 +296,7 @@ public class UserService {
     }
     profile.setUpdatedAt(LocalDateTime.now());
     profileMapper.updateById(profile);
+    userSearchIndexer.sync(profile, publicUrl(profile.getAvatarObjectKey()));
     return toView(profile, userId);
   }
 
@@ -392,6 +399,46 @@ public class UserService {
   }
 
   public record UserSummaryPage(List<UserSummary> items, String nextCursor, boolean hasMore) {}
+
+  /** 给 search-service 回填。cursor 为上一页最后 userId。 */
+  public SearchUserPage listSearchable(String cursor, Integer limit) {
+    int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
+    Long afterId = null;
+    if (StringUtils.hasText(cursor)) {
+      try {
+        afterId = Long.parseLong(cursor.trim());
+      } catch (NumberFormatException ex) {
+        throw BusinessException.validation("cursor 不合法");
+      }
+    }
+    var query = Wrappers.<UserProfile>lambdaQuery().orderByAsc(UserProfile::getUserId);
+    if (afterId != null) {
+      query.gt(UserProfile::getUserId, afterId);
+    }
+    query.last("LIMIT " + (size + 1));
+    List<UserProfile> rows = profileMapper.selectList(query);
+    boolean hasMore = rows.size() > size;
+    if (hasMore) {
+      rows = rows.subList(0, size);
+    }
+    List<SearchClient.UserIndexDoc> items = new ArrayList<>();
+    for (UserProfile row : rows) {
+      UserSummary summary = toSummary(row);
+      items.add(new SearchClient.UserIndexDoc(
+          summary.userId(),
+          summary.pageId(),
+          summary.nickname(),
+          summary.avatarUrl(),
+          row.getBio() == null ? "" : row.getBio()));
+    }
+    String next = null;
+    if (hasMore && !rows.isEmpty() && rows.getLast().getUserId() != null) {
+      next = String.valueOf(rows.getLast().getUserId());
+    }
+    return new SearchUserPage(items, next, hasMore);
+  }
+
+  public record SearchUserPage(List<SearchClient.UserIndexDoc> items, String nextCursor, boolean hasMore) {}
 
   public UserCursorPage opsRelations(long userId, boolean following, String cursor, Integer limit) {
     if (profileMapper.selectById(userId) == null) {

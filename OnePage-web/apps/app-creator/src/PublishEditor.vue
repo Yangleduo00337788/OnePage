@@ -33,6 +33,7 @@ const linkedEventId = ref('')
 const scheduleOn = ref(false)
 const scheduleAt = ref('')
 const busy = ref(false)
+const polishing = ref(false)
 const posted = ref('')
 const topicFocus = ref(false)
 
@@ -162,6 +163,29 @@ async function uploadOne(item: LocalFile): Promise<string> {
   await api.putObject(ticket.uploadUrl, file, mimeType)
   await api.completeUpload(ticket.mediaId)
   return ticket.mediaId
+}
+
+async function polish(mode: 'optimize' | 'continue') {
+  if (polishing.value || busy.value) return
+  if (!title.value.trim() && !body.value.trim()) {
+    posted.value = mode === 'continue' ? '请先写点内容再续写' : '请先写点内容再优化'
+    return
+  }
+  polishing.value = true
+  posted.value = ''
+  try {
+    const res = await api.polishPost({ title: title.value.trim(), body: body.value.trim(), mode })
+    if (mode === 'optimize' && res.title) title.value = res.title.slice(0, 20)
+    if (typeof res.body === 'string') {
+      const max = props.kind === 'article' ? 8000 : 1000
+      body.value = res.body.slice(0, max)
+    }
+    posted.value = mode === 'continue' ? '已续写，请确认后再发布' : '已优化，请确认后再发布'
+  } catch (e) {
+    posted.value = e instanceof ApiError ? e.message : mode === 'continue' ? '暂时不能续写' : '暂时不能优化'
+  } finally {
+    polishing.value = false
+  }
 }
 
 async function submit() {
@@ -332,6 +356,12 @@ async function savePost(asDraft: boolean) {
         <div class="tools">
           <button type="button" class="tool" :class="{ 'is-on': topicFocus }" @click="topicFocus = !topicFocus">
             # 话题
+          </button>
+          <button type="button" class="tool" :disabled="polishing || busy" @click="polish('optimize')">
+            {{ polishing ? '处理中…' : 'AI 优化' }}
+          </button>
+          <button type="button" class="tool" :disabled="polishing || busy" @click="polish('continue')">
+            续写
           </button>
           <span class="count">{{ body.length }}/{{ props.kind === 'article' ? 8000 : 1000 }}</span>
         </div>
@@ -722,6 +752,10 @@ async function savePost(asDraft: boolean) {
 .tool.is-on {
   color: #1f1f1f;
   font-weight: 600;
+}
+
+.tool:disabled {
+  opacity: 0.5;
 }
 
 .topic-in {
