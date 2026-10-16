@@ -17,6 +17,7 @@ const props = defineProps<{
   publishKind: PublishKind
   me: UserProfile | null
   editPostId?: string
+  notesFocus?: string
 }>()
 const emit = defineEmits<{
   'update:publishKind': [PublishKind]
@@ -53,7 +54,11 @@ const statsKind = computed(() => {
       @open-events="emit('open-events')"
     />
 
-    <CreatorNotes v-else-if="props.page === 'notes'" @edit="emit('edit', $event)" />
+    <CreatorNotes
+      v-else-if="props.page === 'notes'"
+      :focus-tab="props.notesFocus"
+      @edit="emit('edit', $event)"
+    />
 
     <CreatorStats v-else-if="statsKind" :kind="statsKind" @publish="emit('publish', $event)" />
 

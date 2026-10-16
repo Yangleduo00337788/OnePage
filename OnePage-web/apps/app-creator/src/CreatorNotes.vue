@@ -1,6 +1,6 @@
 <!-- 笔记管理：卡片/列表、筛选、批量。列表走 GET /posts/mine。 -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, type PostDetail } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import CreatorNotePreview from './CreatorNotePreview.vue'
@@ -9,6 +9,9 @@ import { coverVideoSrc, isTextNote, isVideoNote, noteFromMine, type Note, type N
 
 type TabId = 'all' | NoteStatus
 type View = 'card' | 'list'
+
+const props = defineProps<{ focusTab?: string }>()
+const emit = defineEmits<{ edit: [string] }>()
 
 const tab = ref<TabId>('all')
 const query = ref('')
@@ -23,7 +26,15 @@ const previewOpen = ref(false)
 const previewDetail = ref<PostDetail | null>(null)
 const previewLoading = ref(false)
 const previewError = ref('')
-const emit = defineEmits<{ edit: [string] }>()
+
+watch(
+  () => props.focusTab,
+  (value) => {
+    if (value === '未通过' || value === '审核中' || value === '已发布') tab.value = value
+    else tab.value = 'all'
+  },
+  { immediate: true },
+)
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'all', label: '全部' },

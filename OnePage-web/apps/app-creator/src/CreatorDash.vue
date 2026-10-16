@@ -1,7 +1,7 @@
 <!-- 创作者首页：20px 白卡片工作台，P0 数据占位。 -->
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { api, type NotificationItem, type UserProfile } from '@onepage/api-client'
+import { api, type UserProfile } from '@onepage/api-client'
 import TextNoteCover from './TextNoteCover.vue'
 import { coverVideoSrc, isTextNote, isVideoNote, noteFromMine, type Note } from './notes'
 import type { PublishKind } from './PublishComposer.vue'
@@ -74,13 +74,11 @@ const notices = [
 
 const recent = ref<Note[]>([])
 const pendingCount = ref(0)
-const reviews = ref<NotificationItem[]>([])
 
 async function loadRecent() {
   if (!props.me) {
     recent.value = []
     pendingCount.value = 0
-    reviews.value = []
     return
   }
   try {
@@ -91,17 +89,6 @@ async function loadRecent() {
   } catch {
     recent.value = []
     pendingCount.value = 0
-  }
-  try {
-    const page = await api.notifications('review', undefined, 8)
-    reviews.value = page.items
-    const ids = page.items.filter((item) => !item.read).map((item) => item.id)
-    if (ids.length) {
-      await api.markNotificationsRead({ ids })
-      reviews.value = reviews.value.map((item) => (ids.includes(item.id) ? { ...item, read: true } : item))
-    }
-  } catch {
-    reviews.value = []
   }
 }
 
@@ -207,14 +194,6 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
             <b>{{ pendingCount }}</b>
           </button>
         </div>
-        <ul v-if="reviews.length" class="review-list">
-          <li v-for="item in reviews" :key="item.id">
-            <button type="button" @click="emit('open-notes')">
-              <strong>笔记未通过</strong>
-              <p>{{ item.preview || '请修改后重新提交' }}</p>
-            </button>
-          </li>
-        </ul>
       </article>
       <article class="card">
         <div class="card-head">
@@ -586,36 +565,6 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
   color: #1f1f1f;
   font-size: 20px;
   font-weight: 600;
-}
-
-.review-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.review-list button {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgb(248, 248, 248);
-  text-align: left;
-}
-
-.review-list strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.review-list p {
-  margin: 4px 0 0;
-  color: #8a8a8a;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .act {

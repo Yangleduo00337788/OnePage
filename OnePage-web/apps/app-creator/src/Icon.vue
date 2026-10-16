@@ -41,6 +41,7 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'path', d: 'M9 3v18' },
   ],
   'chevron-down': [{ tag: 'path', d: 'M6 9l6 6 6-6' }],
+  'chevron-left': [{ tag: 'path', d: 'M15 18l-6-6 6-6' }],
   'chevron-right': [{ tag: 'path', d: 'M9 18l6-6-6-6' }],
   'heart-plus': [
     { tag: 'path', d: 'M13.5 19.5 12 21l-7-6c-1.5-1.4-3-3.9-3-6.5A5.5 5.5 0 0 1 12 3a5.5 5.5 0 0 1 10 4c0 .3 0 .6-.1.9' },
@@ -104,6 +105,13 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'rect', x: 14, y: 3, width: 7, height: 7, rx: 1 },
     { tag: 'rect', x: 14, y: 14, width: 7, height: 7, rx: 1 },
     { tag: 'rect', x: 3, y: 14, width: 7, height: 7, rx: 1 },
+  ],
+  bell: [
+    { tag: 'path', d: 'M10.268 21a2 2 0 0 0 3.464 0' },
+    {
+      tag: 'path',
+      d: 'M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326',
+    },
   ],
   radio: [
     { tag: 'path', d: 'M4.9 19.1C1 15.2 1 8.8 4.9 4.9' },

@@ -1,10 +1,11 @@
-<!-- 创作者后台：带图标的左栏、数据报表子菜单、可收起；右上角头像+昵称+退出。 -->
+<!-- 创作者后台：带图标的左栏、数据报表子菜单、可收起；右上角铃铛创作消息 + 头像退出。 -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { api, type UserProfile } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import BrandLogo from './BrandLogo.vue'
 import CreatorHome, { type PageId, type PublishKind } from './CreatorHome.vue'
+import CreatorInbox from './CreatorInbox.vue'
 import CreatorLogin from './CreatorLogin.vue'
 
 const STAT_PAGES: PageId[] = ['account', 'content', 'fans']
@@ -12,6 +13,7 @@ const STAT_PAGES: PageId[] = ['account', 'content', 'fans']
 const page = ref<PageId>('home')
 const publishKind = ref<PublishKind>('image')
 const editPostId = ref('')
+const notesFocus = ref('')
 const statsOpen = ref(false)
 const collapsed = ref(localStorage.getItem('onepage.creator.navCollapsed') === '1')
 const me = ref<UserProfile | null>(null)
@@ -50,6 +52,7 @@ function onDocClick(e: MouseEvent) {
 
 function openPage(id: PageId) {
   editPostId.value = ''
+  if (id === 'notes') notesFocus.value = ''
   page.value = id
   if (STAT_PAGES.includes(id)) statsOpen.value = true
 }
@@ -210,17 +213,20 @@ function goEdit(postId: string) {
 
     <div class="main">
       <header class="bar">
-        <div ref="userWrap" class="user-wrap">
-          <button type="button" class="user" @click="menuOpen = !menuOpen">
-            <span class="avatar">
-              <img v-if="me?.avatarUrl" :src="me.avatarUrl" alt="" />
-              <span v-else>{{ initial }}</span>
-            </span>
-            <span class="name">{{ nickname }}</span>
-            <Icon name="chevron-down" :size="14" class="chev" :class="{ 'is-open': menuOpen }" />
-          </button>
-          <div v-if="menuOpen" class="menu">
-            <button type="button" class="menu-item" @click="logout">退出登录</button>
+        <div class="bar-tools">
+          <CreatorInbox @edit="goEdit" />
+          <div ref="userWrap" class="user-wrap">
+            <button type="button" class="user" @click="menuOpen = !menuOpen">
+              <span class="avatar">
+                <img v-if="me?.avatarUrl" :src="me.avatarUrl" alt="" />
+                <span v-else>{{ initial }}</span>
+              </span>
+              <span class="name">{{ nickname }}</span>
+              <Icon name="chevron-down" :size="14" class="chev" :class="{ 'is-open': menuOpen }" />
+            </button>
+            <div v-if="menuOpen" class="menu">
+              <button type="button" class="menu-item" @click="logout">退出登录</button>
+            </div>
           </div>
         </div>
       </header>
@@ -229,6 +235,7 @@ function goEdit(postId: string) {
         :me="me"
         :publish-kind="publishKind"
         :edit-post-id="editPostId"
+        :notes-focus="notesFocus"
         @update:publish-kind="publishKind = $event"
         @publish="goPublish"
         @edit="goEdit"
@@ -462,12 +469,21 @@ button {
 }
 
 .bar {
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   height: 52px;
   padding: 0 20px 0 0;
   background: rgb(248, 248, 248);
+}
+
+.bar-tools {
+  position: relative;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .user-wrap {
