@@ -3,6 +3,7 @@ package com.onepage.live.service;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.live.client.ContentClient;
 import com.onepage.live.client.UserClient;
 import com.onepage.live.dto.LiveDtos;
 import com.onepage.live.dto.LiveHit;
@@ -32,26 +33,32 @@ public class LiveService {
   private final LiveRoomMapper roomMapper;
   private final LiveSessionMapper sessionMapper;
   private final UserClient userClient;
+  private final ContentClient contentClient;
   private final StringRedisTemplate redis;
   private final String internalToken;
   private final String pushBase;
   private final String hlsBase;
+  private final String mediaPublicBase;
 
   public LiveService(
       LiveRoomMapper roomMapper,
       LiveSessionMapper sessionMapper,
       UserClient userClient,
+      ContentClient contentClient,
       StringRedisTemplate redis,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.live-push-base}") String pushBase,
-      @Value("${onepage.live-hls-base}") String hlsBase) {
+      @Value("${onepage.live-hls-base}") String hlsBase,
+      @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.roomMapper = roomMapper;
     this.sessionMapper = sessionMapper;
     this.userClient = userClient;
+    this.contentClient = contentClient;
     this.redis = redis;
     this.internalToken = internalToken;
     this.pushBase = pushBase;
     this.hlsBase = hlsBase;
+    this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
   }
 
   public LiveDtos.RoomCreated createRoom(long ownerId, LiveDtos.RoomSpec spec) {
@@ -64,7 +71,8 @@ public class LiveService {
     room.setOwnerId(ownerId);
     room.setTitle(title);
     room.setCategory(spec.category() == null ? "" : spec.category().trim());
-    room.setCoverObjectKey("");
+    String coverId = spec.coverMediaId() == null ? "" : spec.coverMediaId().trim();
+    room.setCoverObjectKey(coverId.isEmpty() ? "" : objectKeyOwnedBy(ownerId, coverId));
     room.setCreatedAt(LocalDateTime.now());
     roomMapper.insert(room);
     return new LiveDtos.RoomCreated(String.valueOf(room.getId()));
@@ -153,6 +161,7 @@ public class LiveService {
         String.valueOf(hit.getSessionId()),
         String.valueOf(hit.getRoomId()),
         nullToEmpty(hit.getTitle()),
+        publicCoverUrl(hit.getCoverObjectKey()),
         trimSlash(pushBase) + "/" + key,
         hlsPlayUrl(key),
         key);
@@ -179,7 +188,7 @@ public class LiveService {
           nullToEmpty(row.getTitle()),
           nullToEmpty(row.getCategory()),
           nullToEmpty(row.getStatus()),
-          nullToEmpty(row.getCoverObjectKey()),
+          publicCoverUrl(row.getCoverObjectKey()),
           hlsPlayUrl(row.getStreamKey()),
           viewers(row.getSessionId(), afterIncr),
           owner,
@@ -227,6 +236,43 @@ public class LiveService {
 
   private static String viewerKey(long sessionId) {
     return "live:viewers:" + sessionId;
+  }
+
+  private String objectKeyOwnedBy(long ownerId, String mediaId) {
+    long id;
+    try {
+      id = Long.parseLong(mediaId);
+    } catch (NumberFormatException ex) {
+      throw BusinessException.validation("封面不可用");
+    }
+    ContentClient.MediaInfo info;
+    try {
+      info = contentClient.getMedia(internalToken, id);
+    } catch (RuntimeException ex) {
+      log.warn("load live cover media failed", ex);
+      throw BusinessException.validation("封面不可用");
+    }
+    if (info == null
+        || !ownerIdEquals(info.ownerId(), ownerId)
+        || info.status() == null
+        || info.status() != 1
+        || !StringUtils.hasText(info.objectKey())) {
+      throw BusinessException.validation("封面不可用");
+    }
+    return info.objectKey();
+  }
+
+  private String publicCoverUrl(String objectKey) {
+    if (!StringUtils.hasText(objectKey)) {
+      return "";
+    }
+    if (objectKey.startsWith("http://") || objectKey.startsWith("https://")) {
+      return objectKey;
+    }
+    if (mediaPublicBase.isEmpty()) {
+      return "";
+    }
+    return mediaPublicBase + "/" + objectKey;
   }
 
   private String hlsPlayUrl(String key) {

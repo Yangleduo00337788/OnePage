@@ -16,6 +16,7 @@ public final class LiveDtos {
       String sessionId,
       String roomId,
       String title,
+      String coverUrl,
       String pushUrl,
       String playUrlHls,
       String streamKey) {}
