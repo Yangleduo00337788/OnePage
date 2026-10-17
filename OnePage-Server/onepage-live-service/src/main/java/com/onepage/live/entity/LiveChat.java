@@ -13,6 +13,7 @@ public class LiveChat {
   private Long sessionId;
   private Long userId;
   private String body;
+  private String msgType;
   private LocalDateTime createdAt;
 
   public Long getId() { return id; }
@@ -23,6 +24,8 @@ public class LiveChat {
   public void setUserId(Long userId) { this.userId = userId; }
   public String getBody() { return body; }
   public void setBody(String body) { this.body = body; }
+  public String getMsgType() { return msgType; }
+  public void setMsgType(String msgType) { this.msgType = msgType; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

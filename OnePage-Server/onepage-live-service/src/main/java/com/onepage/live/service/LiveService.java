@@ -18,6 +18,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -30,8 +31,11 @@ import java.util.UUID;
 @Service
 public class LiveService {
   private static final Logger log = LoggerFactory.getLogger(LiveService.class);
+  private static final long PRESENCE_TTL_MS = 25_000L;
+  private static final Duration PRESENCE_EXPIRE = Duration.ofMinutes(2);
   private final LiveRoomMapper roomMapper;
   private final LiveSessionMapper sessionMapper;
+  private final LiveChatService chatService;
   private final UserClient userClient;
   private final ContentClient contentClient;
   private final StringRedisTemplate redis;
@@ -43,6 +47,7 @@ public class LiveService {
   public LiveService(
       LiveRoomMapper roomMapper,
       LiveSessionMapper sessionMapper,
+      LiveChatService chatService,
       UserClient userClient,
       ContentClient contentClient,
       StringRedisTemplate redis,
@@ -52,6 +57,7 @@ public class LiveService {
       @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.roomMapper = roomMapper;
     this.sessionMapper = sessionMapper;
+    this.chatService = chatService;
     this.userClient = userClient;
     this.contentClient = contentClient;
     this.redis = redis;
@@ -100,7 +106,6 @@ public class LiveService {
     session.setStatus("live");
     session.setStartedAt(LocalDateTime.now());
     sessionMapper.insert(session);
-    redis.opsForValue().set(viewerKey(session.getId()), "0");
     LiveHit hit = sessionMapper.findHit(session.getId());
     return toStart(hit);
   }
@@ -132,13 +137,14 @@ public class LiveService {
     session.setStatus("ended");
     session.setEndedAt(LocalDateTime.now());
     sessionMapper.updateById(session);
+    redis.delete(presenceKey(live.getSessionId()));
   }
 
   public LiveDtos.LivePage list(String q, String category) {
     String cat = category == null || "全部".equals(category.trim()) ? "" : category.trim();
     String keyword = q == null ? "" : q.trim();
     List<LiveHit> rows = sessionMapper.listLive(keyword, cat);
-    return new LiveDtos.LivePage(toItems(rows, false));
+    return new LiveDtos.LivePage(toItems(rows));
   }
 
   public LiveDtos.LiveItem get(long sessionId, boolean peek) {
@@ -146,13 +152,33 @@ public class LiveService {
     if (hit == null) {
       throw BusinessException.notFound("场次不存在");
     }
-    boolean live = "live".equals(hit.getStatus());
-    boolean countViewer = live && !peek;
-    if (countViewer) {
-      redis.opsForValue().increment(viewerKey(sessionId));
-    }
-    List<LiveDtos.LiveItem> items = toItems(List.of(hit), countViewer);
+    List<LiveDtos.LiveItem> items = toItems(List.of(hit));
     return items.getFirst();
+  }
+
+  public LiveDtos.PresenceTick heartbeat(Long userId, long sessionId, LiveDtos.HeartbeatSpec spec) {
+    LiveHit hit = sessionMapper.findHit(sessionId);
+    if (hit == null) {
+      throw BusinessException.notFound("场次不存在");
+    }
+    if (!"live".equals(hit.getStatus())) {
+      throw BusinessException.conflict("直播已结束");
+    }
+    String member = presenceMember(userId, spec == null ? null : spec.presenceId());
+    String key = presenceKey(sessionId);
+    long now = System.currentTimeMillis();
+    redis.opsForZSet().removeRangeByScore(key, 0, now - PRESENCE_TTL_MS);
+    Double existed = redis.opsForZSet().score(key, member);
+    redis.opsForZSet().add(key, member, now);
+    redis.expire(key, PRESENCE_EXPIRE);
+    long count = viewers(sessionId);
+    LiveDtos.ChatLine join = null;
+    boolean first = existed == null;
+    boolean guestOrOther = userId != null && !ownerIdEquals(hit.getOwnerId(), userId);
+    if (first && guestOrOther) {
+      join = chatService.announceJoin(userId, sessionId);
+    }
+    return new LiveDtos.PresenceTick(hit.getStatus(), count, join);
   }
 
   private LiveDtos.LiveStart toStart(LiveHit hit) {
@@ -167,7 +193,7 @@ public class LiveService {
         key);
   }
 
-  private List<LiveDtos.LiveItem> toItems(List<LiveHit> rows, boolean afterIncr) {
+  private List<LiveDtos.LiveItem> toItems(List<LiveHit> rows) {
     List<Long> ownerIds = new ArrayList<>();
     for (LiveHit row : rows) {
       if (row.getOwnerId() != null) {
@@ -190,7 +216,7 @@ public class LiveService {
           nullToEmpty(row.getStatus()),
           publicCoverUrl(row.getCoverObjectKey()),
           hlsPlayUrl(row.getStreamKey()),
-          viewers(row.getSessionId(), afterIncr),
+          viewers(row.getSessionId()),
           owner,
           started));
     }
@@ -218,24 +244,40 @@ public class LiveService {
     return map;
   }
 
-  private long viewers(long sessionId, boolean afterIncr) {
-    String raw = redis.opsForValue().get(viewerKey(sessionId));
-    if (!StringUtils.hasText(raw)) {
-      return afterIncr ? 1L : 0L;
+  private long viewers(long sessionId) {
+    String key = presenceKey(sessionId);
+    long now = System.currentTimeMillis();
+    redis.opsForZSet().removeRangeByScore(key, 0, now - PRESENCE_TTL_MS);
+    Long n = redis.opsForZSet().size(key);
+    return n == null ? 0L : n;
+  }
+
+  private String presenceMember(Long userId, String presenceId) {
+    if (userId != null) {
+      return "u:" + userId;
     }
-    try {
-      return Long.parseLong(raw.trim());
-    } catch (NumberFormatException ex) {
-      return 0L;
+    if (!StringUtils.hasText(presenceId)) {
+      throw BusinessException.validation("缺少在场标识");
     }
+    String id = presenceId.trim();
+    if (id.length() < 8 || id.length() > 64) {
+      throw BusinessException.validation("在场标识无效");
+    }
+    for (int i = 0; i < id.length(); i++) {
+      char c = id.charAt(i);
+      if (c != '-' && !Character.isLetterOrDigit(c)) {
+        throw BusinessException.validation("在场标识无效");
+      }
+    }
+    return "g:" + id;
   }
 
   private static boolean ownerIdEquals(Long ownerId, long userId) {
     return ownerId != null && ownerId == userId;
   }
 
-  private static String viewerKey(long sessionId) {
-    return "live:viewers:" + sessionId;
+  private static String presenceKey(long sessionId) {
+    return "live:presence:" + sessionId;
   }
 
   private String objectKeyOwnedBy(long ownerId, String mediaId) {

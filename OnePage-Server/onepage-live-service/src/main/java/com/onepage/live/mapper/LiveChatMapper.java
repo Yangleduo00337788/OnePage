@@ -11,7 +11,7 @@ import java.util.List;
 @Mapper
 public interface LiveChatMapper extends BaseMapper<LiveChat> {
   @Select("""
-      SELECT id, session_id, user_id, body, created_at
+      SELECT id, session_id, user_id, body, msg_type, created_at
       FROM live_chat
       WHERE session_id = #{sessionId}
       ORDER BY id DESC
@@ -20,7 +20,7 @@ public interface LiveChatMapper extends BaseMapper<LiveChat> {
   List<LiveChat> latest(@Param("sessionId") long sessionId, @Param("limit") int limit);
 
   @Select("""
-      SELECT id, session_id, user_id, body, created_at
+      SELECT id, session_id, user_id, body, msg_type, created_at
       FROM live_chat
       WHERE session_id = #{sessionId} AND id > #{afterId}
       ORDER BY id ASC

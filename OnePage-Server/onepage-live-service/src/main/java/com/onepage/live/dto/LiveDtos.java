@@ -37,7 +37,12 @@ public final class LiveDtos {
 
   public record ChatSpec(String body) {}
 
-  public record ChatLine(String messageId, String body, String createdAt, UserSummary author) {}
+  public record ChatLine(
+      String messageId, String kind, String body, String createdAt, UserSummary author) {}
 
   public record ChatPage(List<ChatLine> items) {}
+
+  public record HeartbeatSpec(String presenceId) {}
+
+  public record PresenceTick(String status, long viewerCount, ChatLine join) {}
 }

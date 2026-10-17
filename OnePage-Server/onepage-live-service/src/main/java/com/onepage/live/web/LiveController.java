@@ -75,6 +75,14 @@ public class LiveController {
     return chatService.list(sessionId, after);
   }
 
+  @PostMapping("/sessions/{sessionId}/heartbeat")
+  public LiveDtos.PresenceTick heartbeat(
+      HttpServletRequest request,
+      @PathVariable("sessionId") long sessionId,
+      @RequestBody(required = false) LiveDtos.HeartbeatSpec spec) {
+    return liveService.heartbeat(CurrentUser.tryUserId(request), sessionId, spec);
+  }
+
   @PostMapping("/sessions/{sessionId}/messages")
   @ResponseStatus(HttpStatus.CREATED)
   public LiveDtos.ChatLine say(

@@ -29,6 +29,9 @@ public class LiveChatService {
   private static final Logger log = LoggerFactory.getLogger(LiveChatService.class);
   private static final int BODY_MAX = 200;
   private static final int PAGE_MAX = 50;
+  private static final String KIND_TEXT = "text";
+  private static final String KIND_JOIN = "join";
+  private static final String JOIN_BODY = "来了";
   private final LiveChatMapper chatMapper;
   private final LiveSessionMapper sessionMapper;
   private final UserClient userClient;
@@ -78,10 +81,23 @@ public class LiveChatService {
     row.setSessionId(sessionId);
     row.setUserId(userId);
     row.setBody(body);
+    row.setMsgType(KIND_TEXT);
     row.setCreatedAt(LocalDateTime.now());
     chatMapper.insert(row);
     List<LiveDtos.ChatLine> lines = toLines(List.of(row));
     return lines.getFirst();
+  }
+
+  public LiveDtos.ChatLine announceJoin(long userId, long sessionId) {
+    LiveChat row = new LiveChat();
+    row.setId(IdGenerator.nextId());
+    row.setSessionId(sessionId);
+    row.setUserId(userId);
+    row.setBody(JOIN_BODY);
+    row.setMsgType(KIND_JOIN);
+    row.setCreatedAt(LocalDateTime.now());
+    chatMapper.insert(row);
+    return toLines(List.of(row)).getFirst();
   }
 
   private LiveHit requireSession(long sessionId) {
@@ -108,8 +124,10 @@ public class LiveChatService {
       String at = row.getCreatedAt() == null
           ? ""
           : row.getCreatedAt().toInstant(ZoneOffset.UTC).toString();
+      String kind = StringUtils.hasText(row.getMsgType()) ? row.getMsgType() : KIND_TEXT;
       out.add(new LiveDtos.ChatLine(
           String.valueOf(row.getId()),
+          kind,
           row.getBody() == null ? "" : row.getBody(),
           at,
           author));
