@@ -59,7 +59,9 @@ public class LiveController {
   }
 
   @GetMapping("/sessions/{sessionId}")
-  public LiveDtos.LiveItem session(@PathVariable("sessionId") long sessionId) {
-    return liveService.get(sessionId);
+  public LiveDtos.LiveItem session(
+      @PathVariable("sessionId") long sessionId,
+      @RequestParam(value = "peek", required = false) Boolean peek) {
+    return liveService.get(sessionId, Boolean.TRUE.equals(peek));
   }
 }

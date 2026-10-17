@@ -133,16 +133,17 @@ public class LiveService {
     return new LiveDtos.LivePage(toItems(rows, false));
   }
 
-  public LiveDtos.LiveItem get(long sessionId) {
+  public LiveDtos.LiveItem get(long sessionId, boolean peek) {
     LiveHit hit = sessionMapper.findHit(sessionId);
     if (hit == null) {
       throw BusinessException.notFound("场次不存在");
     }
     boolean live = "live".equals(hit.getStatus());
-    if (live) {
+    boolean countViewer = live && !peek;
+    if (countViewer) {
       redis.opsForValue().increment(viewerKey(sessionId));
     }
-    List<LiveDtos.LiveItem> items = toItems(List.of(hit), live);
+    List<LiveDtos.LiveItem> items = toItems(List.of(hit), countViewer);
     return items.getFirst();
   }
 
