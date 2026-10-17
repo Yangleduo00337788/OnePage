@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-055 直播在场用 Redis ZSET 心跳，进房通知落 `live_chat.join`
+
+- **日期：** 2026-10-17
+- **状态：** 已采纳
+- **背景：** `GET session` 每次 +1 只增不减；打开详情把人数刷高。要真实在房人数和「xxx 来了」。
+- **决策：** `POST /live/sessions/{id}/heartbeat` 公开（登录则 `X-User-Id`）。ZSET `live:presence:{sessionId}`，25s 无心跳剔除。登录观众首次进房写 `msg_type=join`，右栏灰字「昵称 来了」；房主和游客不计这条。人数 = ZCARD。不新开 WS。
+- **替代：** 继续计数器 +1（否决：离开不减）；进房走站内通知 inbox（否决：不是直播间场景）。
+- **影响：** 已有库执行 `003_presence.sql`；重启 live-service 与 gateway。
+
 ## DEC-054 直播间聊天走 live-service HTTP，不进 IM、不做画面弹幕
 
 - **日期：** 2026-10-17

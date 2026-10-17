@@ -475,17 +475,21 @@ Query：`beforeId?`, `limit`
 
 公开。Query：`q?`, `category?`  
 **Response**：`{ "items": [{ "sessionId", "roomId", "title", "category", "status", "coverUrl", "playUrlHls", "viewerCount", "owner", "startedAt" }] }`  
-只出 `status=live`。`coverUrl` 有封面才非空。在线人数 Redis `live:viewers:{sessionId}` 近似值。
+只出 `status=live`。`coverUrl` 有封面才非空。在线人数 Redis ZSET `live:presence:{sessionId}`（心跳 25s 内成员数）。
 
 ### GET `/api/v1/live/sessions/{sessionId}`
 
-公开。点开观看时若仍是 `live` 则 +1 近似人数。Query `peek=true` 时只读状态/人数，**不加**在线人数（直播间轮询关播用）。**Response** 同列表单项（含已结束场次的 `status=ended`）。
+公开。**Response** 同列表单项（含已结束场次的 `status=ended`）。`peek=true` 仍只读，不再 +1 人数。人数来自在场 ZSET。
 
 ### GET `/api/v1/live/sessions/{sessionId}/messages`
 
 公开。Query：`after?`（上一批最大 `messageId`）。无 `after` 返回该场最近 50 条按时间正序；有则返回更大 id 最多 50 条。  
-**Response**：`{ "items": [{ "messageId", "body", "createdAt", "author" }] }`  
-表 `live_chat`，不与私信混。
+**Response**：`{ "items": [{ "messageId", "kind", "body", "createdAt", "author" }] }`  
+`kind` 为 `text` 或 `join`。表 `live_chat`，不与私信混。
+
+### POST `/api/v1/live/sessions/{sessionId}/heartbeat`
+
+公开（有 Cookie 仍注入 `X-User-Id`）。**Body**：`{ "presenceId" }`（游客必填，8～64 字母数字或 `-`；已登录用 `u:{userId}`）。刷新 ZSET 分数，清掉超过 25s 未心跳的成员。**Response 200**：`{ "status", "viewerCount", "join" }`。`join` 仅登录观众**首次**进房（25s 内再心跳不再发）；房主进房不计「来了」。关播 409。
 
 ### POST `/api/v1/live/sessions/{sessionId}/messages`
 

@@ -342,6 +342,8 @@ sequenceDiagram
   Host->>MTX: OBS RTMP push
   View->>G: GET /live/sessions
   View->>MTX: HLS play
+  View->>G: POST /sessions/{id}/heartbeat
+  L->>L: ZSET live:presence 计人数；首次登录观众写 join
   View->>G: GET /sessions/{id}/messages
   View->>G: POST /sessions/{id}/messages
   Host->>G: POST /rooms/{id}/end 确认后

@@ -370,7 +370,8 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | id | BIGINT PK | |
 | session_id | BIGINT | 场次 |
 | user_id | BIGINT | 发言人 |
-| body | VARCHAR(200) | 正文 |
+| body | VARCHAR(200) | 正文；`join` 为「来了」 |
+| msg_type | VARCHAR(16) | `text` 发言 / `join` 进房 |
 | created_at | DATETIME(3) | |
 
 ## Outbox 表（各服务相同）
@@ -393,6 +394,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | 键 | 说明 |
 | --- | --- |
 | `onepage:ai:settings` | AI 运营配置 JSON（模型、密钥、温度/maxTokens/流式、三段 prompt、RAG 条数/正文截断、耶耶文案、开关）；未写入或 reset 后用环境变量与内置 prompt |
+| `live:presence:{sessionId}` | 直播在场 ZSET，member=`u:{userId}` 或 `g:{presenceId}`，score=心跳毫秒；25s 无心跳剔除 |
 
 ## Elasticsearch 索引（非 MySQL）
 
@@ -406,6 +408,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-17 | `live_chat.msg_type`；在场 Redis `live:presence` |
 | 2026-10-17 | `live_chat` 直播间文字聊天 |
 | 2026-10-07 | 全库 SQL 写入 [数据库脚本](/engineering/tech/sql)；P0 已落地 auth/user 资料/media_asset |
 | 2026-10-07 | MVP 初稿，与 PRD / 契约对齐 |

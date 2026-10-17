@@ -27,5 +27,6 @@ order: 5
 | [onepage-moderation-service / 001_init](/engineering/tech/sql/onepage-moderation-service/001_init) | `onepage-moderation-service/db/sql/001_init.sql` |
 | [onepage-live-service / 001_init](/engineering/tech/sql/onepage-live-service/001_init) | `onepage-live-service/db/sql/001_init.sql` |
 | [002_chat](/engineering/tech/sql/onepage-live-service/002_chat) | `onepage-live-service/db/sql/002_chat.sql` |
+| [003_presence](/engineering/tech/sql/onepage-live-service/003_presence) | `onepage-live-service/db/sql/003_presence.sql` |
 | [00-databases](/engineering/tech/sql/docker/00-databases) | `docker/mysql/init/00-databases.sql` |
 | [01-tables](/engineering/tech/sql/docker/01-tables) | `docker/mysql/init/01-tables.sql` |
