@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-P3 已实现：搜索笔记/用户（筛选进查询）；话题走目录、直播走 live 列表；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P3 已实现：搜索笔记/用户（筛选进查询）；话题走目录、直播走 live 列表；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -480,6 +480,17 @@ Query：`beforeId?`, `limit`
 ### GET `/api/v1/live/sessions/{sessionId}`
 
 公开。点开观看时若仍是 `live` 则 +1 近似人数。Query `peek=true` 时只读状态/人数，**不加**在线人数（直播间轮询关播用）。**Response** 同列表单项（含已结束场次的 `status=ended`）。
+
+### GET `/api/v1/live/sessions/{sessionId}/messages`
+
+公开。Query：`after?`（上一批最大 `messageId`）。无 `after` 返回该场最近 50 条按时间正序；有则返回更大 id 最多 50 条。  
+**Response**：`{ "items": [{ "messageId", "body", "createdAt", "author" }] }`  
+表 `live_chat`，不与私信混。
+
+### POST `/api/v1/live/sessions/{sessionId}/messages`
+
+须登录。**Body**：`{ "body" }`（1～200 字，trim）  
+**Response 201**：一条 ChatLine。场次已 `ended` 则 409。画面弹幕 overlay 不做。
 
 ---
 

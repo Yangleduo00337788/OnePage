@@ -29,7 +29,7 @@ order: 4
 | onepage_message | 私信 |
 | onepage_notification | 通知收件箱 |
 | onepage_moderation | 举报 |
-| onepage_live | 直播房间与场次 |
+| onepage_live | 直播房间、场次、间内聊天 |
 
 搜索正文在 **Elasticsearch**，见文末「ES 索引」。
 
@@ -363,6 +363,16 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | started_at | DATETIME(3) 可空 | |
 | ended_at | DATETIME(3) 可空 | |
 
+### live_chat
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| session_id | BIGINT | 场次 |
+| user_id | BIGINT | 发言人 |
+| body | VARCHAR(200) | 正文 |
+| created_at | DATETIME(3) | |
+
 ## Outbox 表（各服务相同）
 
 需要发 MQ 的服务（如 content、social、user）各建一张 `outbox_event`：
@@ -396,5 +406,6 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-17 | `live_chat` 直播间文字聊天 |
 | 2026-10-07 | 全库 SQL 写入 [数据库脚本](/engineering/tech/sql)；P0 已落地 auth/user 资料/media_asset |
 | 2026-10-07 | MVP 初稿，与 PRD / 契约对齐 |
