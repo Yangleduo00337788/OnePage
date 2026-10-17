@@ -97,6 +97,14 @@ public class LiveService {
     return toStart(hit);
   }
 
+  public LiveDtos.LiveStart mine(long ownerId) {
+    LiveHit existing = sessionMapper.findLiveByOwner(ownerId);
+    if (existing == null) {
+      return null;
+    }
+    return toStart(existing);
+  }
+
   public void end(long ownerId, long roomId) {
     LiveRoom room = roomMapper.selectById(roomId);
     if (room == null) {
@@ -130,8 +138,11 @@ public class LiveService {
     if (hit == null) {
       throw BusinessException.notFound("场次不存在");
     }
-    redis.opsForValue().increment(viewerKey(sessionId));
-    List<LiveDtos.LiveItem> items = toItems(List.of(hit), true);
+    boolean live = "live".equals(hit.getStatus());
+    if (live) {
+      redis.opsForValue().increment(viewerKey(sessionId));
+    }
+    List<LiveDtos.LiveItem> items = toItems(List.of(hit), live);
     return items.getFirst();
   }
 
@@ -140,6 +151,7 @@ public class LiveService {
     return new LiveDtos.LiveStart(
         String.valueOf(hit.getSessionId()),
         String.valueOf(hit.getRoomId()),
+        nullToEmpty(hit.getTitle()),
         trimSlash(pushBase) + "/" + key,
         hlsPlayUrl(key),
         key);
@@ -165,6 +177,7 @@ public class LiveService {
           String.valueOf(row.getRoomId()),
           nullToEmpty(row.getTitle()),
           nullToEmpty(row.getCategory()),
+          nullToEmpty(row.getStatus()),
           nullToEmpty(row.getCoverObjectKey()),
           hlsPlayUrl(row.getStreamKey()),
           viewers(row.getSessionId(), afterIncr),

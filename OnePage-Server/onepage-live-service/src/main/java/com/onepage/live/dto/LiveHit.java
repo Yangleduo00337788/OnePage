@@ -11,6 +11,7 @@ public class LiveHit {
   private String category;
   private String coverObjectKey;
   private String streamKey;
+  private String status;
   private LocalDateTime startedAt;
 
   public Long getSessionId() { return sessionId; }
@@ -27,6 +28,8 @@ public class LiveHit {
   public void setCoverObjectKey(String coverObjectKey) { this.coverObjectKey = coverObjectKey; }
   public String getStreamKey() { return streamKey; }
   public void setStreamKey(String streamKey) { this.streamKey = streamKey; }
+  public String getStatus() { return status; }
+  public void setStatus(String status) { this.status = status; }
   public LocalDateTime getStartedAt() { return startedAt; }
   public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
 }

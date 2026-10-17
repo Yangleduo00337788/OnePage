@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 @Service
 public class ModerationService {
   private static final Logger log = LoggerFactory.getLogger(ModerationService.class);
-  private static final Set<String> TARGETS = Set.of("post", "user", "comment");
+  private static final Set<String> TARGETS = Set.of("post", "user", "comment", "live");
   private static final Set<String> ACTIONS = Set.of("dismiss", "takedown", "restore", "ban", "unban");
   private static final Set<String> REASONS = Set.of("spam", "porn", "abuse", "illegal", "other");
   private static final int STATUS_PENDING = 0;
@@ -78,7 +78,7 @@ public class ModerationService {
     }
     String type = body.targetType().trim();
     if (!TARGETS.contains(type)) {
-      throw BusinessException.validation("targetType 须为 post、user 或 comment");
+      throw BusinessException.validation("targetType 须为 post、user、comment 或 live");
     }
     long targetId = parseId(body.targetId(), "targetId");
     if ("user".equals(type) && targetId == reporterId) {
@@ -724,6 +724,8 @@ public class ModerationService {
         title = target.nickname() == null ? "" : target.nickname();
         pageId = target.pageId() == null ? "" : target.pageId();
       }
+    } else if ("live".equals(row.getTargetType())) {
+      title = "直播场次";
     } else if ("comment".equals(row.getTargetType())) {
       ContentClient.OpsCommentRow brief = comments.get(row.getTargetId());
       if (brief != null) {

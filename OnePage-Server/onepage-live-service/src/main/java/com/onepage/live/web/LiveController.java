@@ -5,6 +5,7 @@ import com.onepage.live.dto.LiveDtos;
 import com.onepage.live.service.LiveService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,15 @@ public class LiveController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void end(HttpServletRequest request, @PathVariable("roomId") long roomId) {
     liveService.end(CurrentUser.requireUserId(request), roomId);
+  }
+
+  @GetMapping("/mine")
+  public ResponseEntity<LiveDtos.LiveStart> mine(HttpServletRequest request) {
+    LiveDtos.LiveStart start = liveService.mine(CurrentUser.requireUserId(request));
+    if (start == null) {
+      return ResponseEntity.noContent().build();
+    }
+    return ResponseEntity.ok(start);
   }
 
   @GetMapping("/sessions")

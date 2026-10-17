@@ -13,13 +13,19 @@ public final class LiveDtos {
   public record RoomCreated(String roomId) {}
 
   public record LiveStart(
-      String sessionId, String roomId, String pushUrl, String playUrlHls, String streamKey) {}
+      String sessionId,
+      String roomId,
+      String title,
+      String pushUrl,
+      String playUrlHls,
+      String streamKey) {}
 
   public record LiveItem(
       String sessionId,
       String roomId,
       String title,
       String category,
+      String status,
       String coverUrl,
       String playUrlHls,
       long viewerCount,
