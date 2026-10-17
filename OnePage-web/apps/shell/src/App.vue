@@ -87,7 +87,10 @@ const meNav = { to: '/me', label: '我的', icon: 'smile', match: ['/me'] }
 const about = { to: '/about', label: '关于我们', icon: 'info' }
 const moreBtn = ref<HTMLButtonElement | null>(null)
 
-function active(item: { match: string[] }) {
+function active(item: { to?: string; match: string[] }) {
+  if (item.to === '/live') {
+    return route.path === '/live' || /^\/live\/[^/]+$/.test(route.path)
+  }
   return item.match.includes(route.path)
 }
 
@@ -100,9 +103,11 @@ function onNav(item: { creator?: boolean }) {
 }
 
 const yehShell = computed(() => route.path === '/yehyeh')
+const liveRoom = computed(() => /^\/live\/[^/]+$/.test(route.path))
 const hideTopBar = computed(
   () =>
     yehShell.value ||
+    liveRoom.value ||
     route.path === '/messages' ||
     route.path === '/me' ||
     route.path.startsWith('/u/'),
@@ -110,6 +115,7 @@ const hideTopBar = computed(
 const flushMain = computed(
   () =>
     yehShell.value ||
+    liveRoom.value ||
     route.path === '/messages' ||
     route.path === '/me' ||
     route.path.startsWith('/u/'),
@@ -118,8 +124,11 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
 </script>
 
 <template>
-  <div class="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-    <aside class="fixed inset-y-0 left-0 z-20 flex w-[var(--sidebar)] flex-col items-center bg-[var(--sidebar-bg)] px-2.5 py-5">
+  <div class="min-h-screen text-[var(--ink)]" :class="liveRoom ? 'bg-black' : 'bg-[var(--bg)]'">
+    <aside
+      v-if="!liveRoom"
+      class="fixed inset-y-0 left-0 z-20 flex w-[var(--sidebar)] flex-col items-center bg-[var(--sidebar-bg)] px-2.5 py-5"
+    >
       <RouterLink to="/" class="mb-5 inline-flex" aria-label="ONEPAGE"><BrandLogo /></RouterLink>
 
       <nav class="flex w-full flex-col items-center space-y-1 text-[16px] font-medium text-[#1f1f1f]">
@@ -197,7 +206,7 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
       </nav>
     </aside>
 
-    <div class="ml-[var(--sidebar)] min-h-screen bg-[var(--bg)]">
+    <div class="min-h-screen" :class="liveRoom ? 'ml-0 bg-black' : 'ml-[var(--sidebar)] bg-[var(--bg)]'">
       <header
         v-if="!hideTopBar"
         class="sticky top-0 z-10 flex h-[72px] items-center overflow-visible bg-[var(--bg)] px-8"

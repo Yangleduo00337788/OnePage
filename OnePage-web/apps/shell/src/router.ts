@@ -12,6 +12,7 @@ import UserPage from './pages/UserPage.vue'
 import YehYehPage from './pages/YehYehPage.vue'
 import VideoPage from './pages/VideoPage.vue'
 import LivePage from './pages/LivePage.vue'
+import LiveRoomPage from './pages/LiveRoomPage.vue'
 import NotifyPage from './pages/NotifyPage.vue'
 import MessagesPage from './pages/MessagesPage.vue'
 import AboutPage from './pages/AboutPage.vue'
@@ -32,6 +33,7 @@ export const router = createRouter({
     { path: '/yehyeh', component: YehYehPage },
     { path: '/video', component: VideoPage },
     { path: '/live', component: LivePage },
+    { path: '/live/:sessionId', component: LiveRoomPage },
     { path: '/create', component: HomePage },
     { path: '/notify', component: NotifyPage },
     { path: '/messages', component: MessagesPage },

@@ -6,7 +6,7 @@ import { useAuthModal } from '../stores/authModal'
 
 const props = defineProps<{
   open: boolean
-  targetType: 'post' | 'user' | 'comment'
+  targetType: 'post' | 'user' | 'comment' | 'live'
   targetId: string
 }>()
 
@@ -63,7 +63,9 @@ async function submit() {
     >
       <form class="card" @submit.prevent="submit">
         <h2>举报</h2>
-        <p class="sub">{{ targetType === 'post' ? '举报这条笔记' : '举报这个用户' }}</p>
+        <p class="sub">{{
+          targetType === 'post' ? '举报这条笔记' : targetType === 'live' ? '举报这场直播' : targetType === 'comment' ? '举报这条评论' : '举报这个用户'
+        }}</p>
         <div class="chips">
           <button
             v-for="item in REPORT_REASONS"

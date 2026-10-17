@@ -9,6 +9,7 @@ import { noteFromPost, type NoteCard } from '../data/home'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import NoteFeedCard from '../components/NoteFeedCard.vue'
+import LiveFeedCard from '../components/LiveFeedCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -168,7 +169,7 @@ function openTopic(name: string) {
 }
 
 function openLive(sessionId: string) {
-  void router.push({ path: '/live', query: { s: sessionId } })
+  void router.push(`/live/${encodeURIComponent(sessionId)}`)
 }
 
 const emptyHint = computed(() => {
@@ -363,20 +364,12 @@ onUnmounted(() => {
           </button>
         </div>
         <div v-else-if="tab === '直播' && lives.length" class="feed-grid flex flex-wrap justify-center gap-4">
-          <button
+          <LiveFeedCard
             v-for="item in lives"
             :key="item.sessionId"
-            type="button"
-            class="w-[280px] overflow-hidden rounded-[16px] bg-white text-left"
+            :item="item"
             @click="openLive(item.sessionId)"
-          >
-            <div class="relative h-[360px] bg-[#111]">
-              <img v-if="item.coverUrl" :src="item.coverUrl" alt="" class="h-full w-full object-cover" />
-              <span class="absolute right-2 top-2 rounded bg-[#ff4d4f] px-1.5 py-0.5 text-[11px] text-white">直播中</span>
-            </div>
-            <p class="mt-2 truncate text-[15px] font-medium">{{ item.title }}</p>
-            <p class="mt-0.5 truncate text-[13px] text-[#8a8a8a]">{{ item.owner?.nickname }} · {{ item.viewerCount }} 人</p>
-          </button>
+          />
         </div>
         <EmptyState v-else :src="emptyArt" :title="emptyHint" />
         <div ref="sentinel" class="feed-more" aria-hidden="true">

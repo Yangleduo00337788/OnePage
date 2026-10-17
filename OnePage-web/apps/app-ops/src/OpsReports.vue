@@ -64,6 +64,7 @@ function targetLabel(item: OpsReport) {
   if (item.targetTitle) return item.targetType === 'comment' ? `评论：${item.targetTitle}` : item.targetTitle
   if (item.targetType === 'post') return `笔记 ${item.targetId}`
   if (item.targetType === 'comment') return `评论 ${item.targetId}`
+  if (item.targetType === 'live') return `直播 ${item.targetId}`
   return `用户 ${item.targetId}`
 }
 
@@ -82,6 +83,8 @@ async function openTarget(item: OpsReport) {
       const page = await api.opsComments({ q: item.targetId, limit: 1 })
       previewComment.value = page.items.find((row) => row.commentId === item.targetId) || page.items[0] || null
       if (!previewComment.value) previewError.value = '评论不存在或已删除'
+    } else if (item.targetType === 'live') {
+      previewError.value = '直播工单暂不预览'
     } else {
       previewUser.value = await api.opsUser(item.targetId)
     }

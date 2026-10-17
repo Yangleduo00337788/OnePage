@@ -220,6 +220,13 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'path', d: 'm8 6 4-4 4 4' },
     { tag: 'path', d: 'M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6' },
   ],
+  'share-2': [
+    { tag: 'circle', cx: 18, cy: 5, r: 3 },
+    { tag: 'circle', cx: 6, cy: 12, r: 3 },
+    { tag: 'circle', cx: 18, cy: 19, r: 3 },
+    { tag: 'path', d: 'M8.59 13.51 15.42 17.49' },
+    { tag: 'path', d: 'M15.41 6.51 8.59 10.49' },
+  ],
   'message-circle': [
     { tag: 'path', d: 'M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719' },
   ],
@@ -237,11 +244,49 @@ const icons: Record<string, IconNode[]> = {
     { tag: 'path', d: 'M3 16v3a2 2 0 0 0 2 2h3' },
     { tag: 'path', d: 'M16 21h3a2 2 0 0 0 2-2v-3' },
   ],
+  'volume-2': [
+    { tag: 'path', d: 'M11 5 6 9H2v6h4l5 4z' },
+    { tag: 'path', d: 'M15.54 8.46a5 5 0 0 1 0 7.07' },
+    { tag: 'path', d: 'M19.07 4.93a10 10 0 0 1 0 14.14' },
+  ],
+  'volume-x': [
+    { tag: 'path', d: 'M11 5 6 9H2v6h4l5 4z' },
+    { tag: 'line', x1: 22, y1: 9, x2: 16, y2: 15 },
+    { tag: 'line', x1: 16, y1: 9, x2: 22, y2: 15 },
+  ],
   minimize: [
     { tag: 'path', d: 'M8 3v3a2 2 0 0 1-2 2H3' },
     { tag: 'path', d: 'M21 8h-3a2 2 0 0 1-2-2V3' },
     { tag: 'path', d: 'M3 16h3a2 2 0 0 1 2 2v3' },
     { tag: 'path', d: 'M16 21v-3a2 2 0 0 1 2-2h3' },
+  ],
+  'triangle-alert': [
+    { tag: 'path', d: 'm21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3' },
+    { tag: 'path', d: 'M12 9v4' },
+    { tag: 'path', d: 'M12 17h.01' },
+  ],
+  megaphone: [
+    { tag: 'path', d: 'm3 11 18-5v12L3 13' },
+    { tag: 'path', d: 'M11.6 16.8a3 3 0 1 1-5.8-1.6' },
+  ],
+  square: [
+    { tag: 'rect', x: 3, y: 3, width: 18, height: 18, rx: 2 },
+  ],
+  'rotate-cw': [
+    { tag: 'path', d: 'M21 12a9 9 0 1 1-6.22-8.56' },
+    { tag: 'path', d: 'M21 3v6h-6' },
+  ],
+  expand: [
+    { tag: 'path', d: 'M15 3h6v6' },
+    { tag: 'path', d: 'M9 21H3v-6' },
+    { tag: 'path', d: 'M21 3 14 10' },
+    { tag: 'path', d: 'M3 21 10 14' },
+  ],
+  shrink: [
+    { tag: 'path', d: 'M4 14h6v6' },
+    { tag: 'path', d: 'M20 10h-6V4' },
+    { tag: 'path', d: 'M14 10 21 3' },
+    { tag: 'path', d: 'M3 21 10 14' },
   ],
 }
 

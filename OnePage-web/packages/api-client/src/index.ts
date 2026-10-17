@@ -77,6 +77,7 @@ export type LiveSession = {
   roomId: string
   title: string
   category: string
+  status?: string
   coverUrl: string
   playUrlHls: string
   viewerCount: number
@@ -87,6 +88,7 @@ export type LiveSession = {
 export type LiveStart = {
   sessionId: string
   roomId: string
+  title?: string
   pushUrl: string
   playUrlHls: string
   streamKey: string
@@ -230,7 +232,7 @@ export type ReportReasonCode = (typeof REPORT_REASONS)[number]['code']
 
 export type OpsReport = {
   reportId: string
-  targetType: 'post' | 'user' | 'comment'
+  targetType: 'post' | 'user' | 'comment' | 'live'
   targetId: string
   targetTitle?: string
   targetPageId?: string
@@ -737,6 +739,7 @@ export const api = {
     const suffix = p.toString() ? `?${p}` : ''
     return request<{ items: LiveSession[] }>(`/api/v1/live/sessions${suffix}`)
   },
+  myLive: () => request<LiveStart | undefined>('/api/v1/live/mine'),
   liveSession: (sessionId: string) =>
     request<LiveSession>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}`),
   createLiveRoom: (body: { title: string; category?: string; coverMediaId?: string }) =>
@@ -874,7 +877,7 @@ export const api = {
     }),
   conversationUnread: () => request<{ count: number }>('/api/v1/conversations/unread-count'),
   createReport: (body: {
-    targetType: 'post' | 'user' | 'comment'
+    targetType: 'post' | 'user' | 'comment' | 'live'
     targetId: string
     reasonCode: ReportReasonCode
     detail?: string
