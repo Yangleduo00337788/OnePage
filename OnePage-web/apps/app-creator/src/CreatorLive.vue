@@ -1,7 +1,8 @@
 <!-- 创作者开播台：主区铺满。左 OBS 教程，右标题/密钥。关播二次确认。 -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { api, ApiError, type LiveStart } from '@onepage/api-client'
+import ImageCropDialog from '@onepage/image-crop'
 import Icon from './Icon.vue'
 
 const CATEGORIES = ['游戏', '才艺直播', '生活分享', '兴趣爱好', '科技新闻', '运动户外']
@@ -10,7 +11,7 @@ const community = import.meta.env.VITE_COMMUNITY_ORIGIN || 'http://localhost:517
 const GUIDE = [
   {
     title: '填写本场信息',
-    body: '右侧填写标题和分类，点「开始直播」。一场账号同时只能开一场。',
+    body: '右侧填写标题、分类，可选 3:4 封面，点「开始直播」。一场账号同时只能开一场。',
     img: '/live-guide-1.jpg',
   },
   {
@@ -43,6 +44,12 @@ const askEnd = ref(false)
 const failed = ref('')
 const host = ref<LiveStart | null>(null)
 const copied = ref('')
+const coverMediaId = ref('')
+const coverPreview = ref('')
+const cropSrc = ref('')
+const cropName = ref('')
+const uploading = ref(false)
+const pick = ref<HTMLInputElement | null>(null)
 
 const pushServer = computed(() => {
   const url = host.value?.pushUrl || ''
@@ -66,15 +73,67 @@ async function loadMine() {
   }
 }
 
+function stopCrop() {
+  if (cropSrc.value) URL.revokeObjectURL(cropSrc.value)
+  cropSrc.value = ''
+  cropName.value = ''
+}
+
+function setCoverPreview(next: string) {
+  if (coverPreview.value.startsWith('blob:')) URL.revokeObjectURL(coverPreview.value)
+  coverPreview.value = next
+}
+
+function pickCover(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  stopCrop()
+  cropName.value = file.name
+  cropSrc.value = URL.createObjectURL(file)
+}
+
+async function onCropped(file: File) {
+  stopCrop()
+  setCoverPreview(URL.createObjectURL(file))
+  uploading.value = true
+  failed.value = ''
+  try {
+    const mimeType = file.type || 'image/jpeg'
+    const ticket = await api.presign(mimeType, file.size, 'cover')
+    await api.putObject(ticket.uploadUrl, file, mimeType)
+    await api.completeUpload(ticket.mediaId)
+    coverMediaId.value = ticket.mediaId
+  } catch (e) {
+    setCoverPreview('')
+    coverMediaId.value = ''
+    failed.value = e instanceof ApiError ? e.message : '封面上传失败'
+  } finally {
+    uploading.value = false
+  }
+}
+
+function clearCover() {
+  coverMediaId.value = ''
+  setCoverPreview('')
+}
+
 async function goLive() {
   const name = title.value.trim()
-  if (!name || starting.value) return
+  if (!name || starting.value || uploading.value) return
   starting.value = true
   failed.value = ''
   try {
-    const room = await api.createLiveRoom({ title: name, category: category.value })
+    const room = await api.createLiveRoom({
+      title: name,
+      category: category.value,
+      coverMediaId: coverMediaId.value || undefined,
+    })
     host.value = await api.startLive(room.roomId)
     title.value = ''
+    coverMediaId.value = ''
+    setCoverPreview('')
   } catch (e) {
     if (e instanceof ApiError && e.status === 409) {
       await loadMine()
@@ -120,6 +179,11 @@ async function copyText(label: string, text: string) {
 onMounted(() => {
   void loadMine()
 })
+
+onUnmounted(() => {
+  stopCrop()
+  setCoverPreview('')
+})
 </script>
 
 <template>
@@ -147,7 +211,21 @@ onMounted(() => {
         </div>
 
         <template v-if="!host">
-          <p class="hint">填好后开始直播，左侧教程第 2 步起用 OBS。</p>
+          <p class="hint">填好后开始直播，左侧教程第 2 步起用 OBS。封面可选，比例 3:4。</p>
+          <div class="cover-wrap">
+            <input
+              ref="pick"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+              @change="pickCover"
+            />
+            <button type="button" class="cover" :disabled="uploading" @click="pick?.click()">
+              <img v-if="coverPreview" :src="coverPreview" alt="" />
+              <span v-else>{{ uploading ? '上传中…' : '添加封面' }}</span>
+            </button>
+            <button v-if="coverPreview" type="button" class="cover-clear" @click="clearCover">去掉封面</button>
+          </div>
           <label class="field">
             <span>标题</span>
             <input
@@ -164,13 +242,19 @@ onMounted(() => {
             </select>
           </label>
           <p v-if="failed" class="err">{{ failed }}</p>
-          <button type="button" class="go" :disabled="starting || !title.trim()" @click="goLive">
+          <button
+            type="button"
+            class="go"
+            :disabled="starting || uploading || !title.trim()"
+            @click="goLive"
+          >
             {{ starting ? '开播中…' : '开始直播' }}
           </button>
         </template>
 
         <template v-else>
           <p class="title">{{ host.title || '直播中' }}</p>
+          <img v-if="host.coverUrl" class="cover-live" :src="host.coverUrl" alt="" />
           <p class="hint">复制下面两项到 OBS。先开始推流，再进直播间。关播请先点「结束直播」，再停 OBS。</p>
           <div class="row">
             <span>服务器</span>
@@ -216,6 +300,16 @@ onMounted(() => {
         </button>
       </div>
     </div>
+    <ImageCropDialog
+      v-if="cropSrc"
+      :src="cropSrc"
+      title="裁剪直播封面"
+      :aspect="0.75"
+      :file-name="cropName"
+      :output-width="1080"
+      @confirm="onCropped"
+      @cancel="stopCrop"
+    />
   </div>
 </template>
 
@@ -348,6 +442,49 @@ onMounted(() => {
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
+}
+
+.cover-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cover {
+  overflow: hidden;
+  width: 120px;
+  height: 160px;
+  border-radius: 16px;
+  background: rgb(248, 248, 248);
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+.cover img,
+.cover-live {
+  display: block;
+  width: 120px;
+  height: 160px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.cover-clear {
+  color: #8a8a8a;
+  font-size: 12px;
+}
+
+.cover-clear:hover {
+  color: #1f1f1f;
 }
 
 .title {

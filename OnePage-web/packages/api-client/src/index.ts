@@ -89,6 +89,7 @@ export type LiveStart = {
   sessionId: string
   roomId: string
   title?: string
+  coverUrl?: string
   pushUrl: string
   playUrlHls: string
   streamKey: string

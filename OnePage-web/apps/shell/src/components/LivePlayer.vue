@@ -227,7 +227,13 @@ onUnmounted(() => {
 
 <template>
   <div class="live-stage group" @click="togglePlay">
-    <video ref="player" class="live-video" playsinline :muted="muted" />
+    <video
+      ref="player"
+      class="live-video"
+      playsinline
+      :muted="muted"
+      :poster="session.coverUrl || undefined"
+    />
     <div v-if="failHint" class="live-fail">{{ failHint }}</div>
     <p v-if="danmakuHint || copied" class="live-toast">{{ danmakuHint || copied }}</p>
     <div class="vbar" @click.stop>
