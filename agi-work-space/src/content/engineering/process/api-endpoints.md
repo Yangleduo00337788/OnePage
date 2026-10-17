@@ -454,14 +454,14 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms`
 
-须登录。**Body**：`title`, `category?`, `coverMediaId?`  
+须登录。**Body**：`title`, `category?`, `coverMediaId?`（可选；须是本人已 `complete` 的图片，`purpose=cover`）  
 **Response 201**：`{ "roomId" }`  
-`onepage-live-service`（8089）。同一主播同时只能一场 `live`。
+`onepage-live-service`（8089）Feign content 核媒体后把 `objectKey` 写入 `live_room.cover_object_key`。同一主播同时只能一场 `live`。
 
 ### POST `/api/v1/live/rooms/{roomId}/start`
 
-须登录且是房主。**Response 200**：`{ "sessionId", "roomId", "title", "pushUrl", "playUrlHls", "streamKey" }`  
-推流/HLS 前缀来自 `LIVE_PUSH_BASE` / `LIVE_HLS_BASE`，本服务不内嵌媒体服务器。`playUrlHls` 为 `{LIVE_HLS_BASE}/{streamKey}/index.m3u8`（MediaMTX）。
+须登录且是房主。**Response 200**：`{ "sessionId", "roomId", "title", "coverUrl", "pushUrl", "playUrlHls", "streamKey" }`  
+`coverUrl` 为 `{MEDIA_PUBLIC_BASE}/{objectKey}`，无封面为空串。推流/HLS 前缀来自 `LIVE_PUSH_BASE` / `LIVE_HLS_BASE`，本服务不内嵌媒体服务器。`playUrlHls` 为 `{LIVE_HLS_BASE}/{streamKey}/index.m3u8`（MediaMTX）。
 
 ### POST `/api/v1/live/rooms/{roomId}/end`
 
@@ -469,13 +469,13 @@ Query：`beforeId?`, `limit`
 
 ### GET `/api/v1/live/mine`
 
-须登录。本人若有 `status=live` 场次，**Response 200** 同 start（含 `title`、`pushUrl`、`streamKey`）；没有则 **204**。创作者开播台刷新后恢复 OBS 说明。
+须登录。本人若有 `status=live` 场次，**Response 200** 同 start（含 `title`、`coverUrl`、`pushUrl`、`streamKey`）；没有则 **204**。创作者开播台刷新后恢复 OBS 说明。
 
 ### GET `/api/v1/live/sessions`
 
 公开。Query：`q?`, `category?`  
 **Response**：`{ "items": [{ "sessionId", "roomId", "title", "category", "status", "coverUrl", "playUrlHls", "viewerCount", "owner", "startedAt" }] }`  
-只出 `status=live`。在线人数 Redis `live:viewers:{sessionId}` 近似值。
+只出 `status=live`。`coverUrl` 有封面才非空。在线人数 Redis `live:viewers:{sessionId}` 近似值。
 
 ### GET `/api/v1/live/sessions/{sessionId}`
 
