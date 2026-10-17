@@ -1,8 +1,8 @@
 <!-- 独立直播间：学小红书左右分栏（黑底）。不做礼物/连麦。GET /live/sessions/{id}。 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, ApiError, type LiveSession, type UserProfile } from '@onepage/api-client'
+import { api, ApiError, type LiveChatLine, type LiveSession, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
 import LivePlayer from '../components/LivePlayer.vue'
 import ReportDialog from '../components/ReportDialog.vue'
@@ -20,6 +20,11 @@ const failed = ref('')
 const following = ref(false)
 const followBusy = ref(false)
 const draft = ref('')
+const chats = ref<LiveChatLine[]>([])
+const chatBox = ref<HTMLElement | null>(null)
+const sayBusy = ref(false)
+const sayHint = ref('')
+let hintTimer = 0
 const hostOpen = ref(false)
 const reportOpen = ref(false)
 const webFs = ref(false)
@@ -27,6 +32,7 @@ const askEnd = ref(false)
 const ending = ref(false)
 let hostTimer = 0
 let pollTimer = 0
+let chatTimer = 0
 
 const isSelf = computed(() => {
   const me = session.me?.userId
@@ -50,6 +56,10 @@ function stopPoll() {
     window.clearInterval(pollTimer)
     pollTimer = 0
   }
+  if (chatTimer) {
+    window.clearInterval(chatTimer)
+    chatTimer = 0
+  }
 }
 
 function startPoll(id: string) {
@@ -57,6 +67,58 @@ function startPoll(id: string) {
   pollTimer = window.setInterval(() => {
     void peekWatch(id)
   }, 8000)
+  chatTimer = window.setInterval(() => {
+    void loadChat(id, false)
+  }, 3000)
+}
+
+function flashHint(text: string) {
+  sayHint.value = text
+  window.clearTimeout(hintTimer)
+  hintTimer = window.setTimeout(() => {
+    if (sayHint.value === text) sayHint.value = ''
+  }, 2600)
+}
+
+function lastChatId() {
+  const last = chats.value[chats.value.length - 1]
+  return last?.messageId || ''
+}
+
+function mergeChat(items: LiveChatLine[]) {
+  if (!items.length) return
+  const seen = new Set(chats.value.map((row) => row.messageId))
+  const extra: LiveChatLine[] = []
+  for (const row of items) {
+    if (!seen.has(row.messageId)) {
+      seen.add(row.messageId)
+      extra.push(row)
+    }
+  }
+  if (!extra.length) return
+  chats.value = chats.value.concat(extra)
+  void nextTick(() => {
+    const el = chatBox.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
+
+async function loadChat(id: string, reset: boolean) {
+  try {
+    const after = reset ? '' : lastChatId()
+    const page = await api.liveMessages(id, after || undefined)
+    if (reset) {
+      chats.value = page.items || []
+      void nextTick(() => {
+        const el = chatBox.value
+        if (el) el.scrollTop = el.scrollHeight
+      })
+    } else {
+      mergeChat(page.items || [])
+    }
+  } catch {
+    /* 轮询失败不打断观看 */
+  }
 }
 
 async function peekWatch(id: string) {
@@ -64,7 +126,10 @@ async function peekWatch(id: string) {
     const next = await api.liveSession(id, { peek: true })
     if (!watching.value || watching.value.sessionId !== next.sessionId) return
     watching.value = next
-    if (next.status === 'ended') stopPoll()
+    if (next.status === 'ended') {
+      stopPoll()
+      void loadChat(id, false)
+    }
   } catch {
     if (watching.value) {
       watching.value = { ...watching.value, status: 'ended' }
@@ -78,6 +143,8 @@ async function loadWatch(id: string) {
   following.value = false
   host.value = null
   askEnd.value = false
+  chats.value = []
+  draft.value = ''
   stopPoll()
   try {
     watching.value = await api.liveSession(id)
@@ -91,6 +158,7 @@ async function loadWatch(id: string) {
         following.value = false
       }
     }
+    void loadChat(id, true)
     if (watching.value.status === 'live') startPoll(id)
   } catch {
     watching.value = null
@@ -177,8 +245,33 @@ async function stopLive() {
   }
 }
 
-function onSay() {
-  /* 聊天未接，先占布局 */
+function goChatAuthor(pageId: string) {
+  if (!pageId) return
+  void router.push(`/u/${encodeURIComponent(pageId)}`)
+}
+
+async function onSay() {
+  const id = watching.value?.sessionId
+  const text = draft.value.trim()
+  if (!id || !text || sayBusy.value || watching.value?.status !== 'live') return
+  if (!session.me) {
+    auth.show('login', route.fullPath)
+    return
+  }
+  sayBusy.value = true
+  try {
+    const line = await api.sendLiveMessage(id, text)
+    draft.value = ''
+    mergeChat([line])
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      auth.show('login', route.fullPath)
+    } else {
+      flashHint(e instanceof ApiError ? e.message : '发送失败')
+    }
+  } finally {
+    sayBusy.value = false
+  }
 }
 
 watch(
@@ -196,6 +289,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.clearTimeout(hostTimer)
+  window.clearTimeout(hintTimer)
   stopPoll()
 })
 </script>
@@ -296,16 +390,45 @@ onUnmounted(() => {
           <p class="live-intro-k">直播介绍</p>
           <h1>{{ watching.title }}</h1>
           <p class="live-intro-b">
-            <span class="live-notice" aria-hidden="true"><Icon name="megaphone" :size="12" /></span>
+            <span class="live-notice">公告</span>
             欢迎来到直播间。请理性发言，遵守社区规范。
           </p>
         </div>
-        <div class="live-chat">
-          <p class="live-chat-empty">还没有人发言</p>
+        <div ref="chatBox" class="live-chat">
+          <p v-if="!chats.length" class="live-chat-empty">还没有人发言</p>
+          <p v-for="row in chats" :key="row.messageId" class="live-chat-row">
+            <span
+              v-if="row.author?.userId === watching.owner?.userId"
+              class="live-host-tag"
+            >主播</span>
+            <button
+              type="button"
+              class="live-chat-name"
+              :class="{ 'is-host': row.author?.userId === watching.owner?.userId }"
+              @click="goChatAuthor(row.author?.pageId || '')"
+            >
+              {{ row.author?.nickname || '用户' }}
+            </button>
+            <span class="live-chat-body">{{ row.body }}</span>
+          </p>
         </div>
         <form class="live-say" @submit.prevent="onSay">
-          <input v-model="draft" type="text" maxlength="200" placeholder="说点什么…" disabled />
+          <input
+            v-model="draft"
+            type="text"
+            maxlength="200"
+            :placeholder="watching.status === 'ended' ? '直播已结束' : '说点什么…'"
+            :disabled="watching.status !== 'live' || sayBusy"
+          />
+          <button
+            type="submit"
+            class="live-say-send"
+            :disabled="watching.status !== 'live' || sayBusy || !draft.trim()"
+          >
+            发送
+          </button>
         </form>
+        <p v-if="sayHint" class="live-say-hint">{{ sayHint }}</p>
       </aside>
     </template>
     <div v-if="askEnd" class="live-end-mask" @click.self="cancelEnd">
@@ -618,6 +741,7 @@ onUnmounted(() => {
 .live-right {
   display: flex;
   width: 340px;
+  min-height: 0;
   flex-shrink: 0;
   flex-direction: column;
   background: #161616;
@@ -645,26 +769,25 @@ onUnmounted(() => {
 }
 
 .live-intro-b {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   margin: 8px 0 0;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 22px;
   color: #c8c8c8;
 }
 
 .live-notice {
-  display: flex;
-  width: 22px;
+  display: inline-flex;
   height: 22px;
-  flex-shrink: 0;
+  margin-right: 8px;
+  padding: 0 6px;
   align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  border-radius: 6px;
-  background: #c47a1a;
-  color: #fff;
+  vertical-align: top;
+  border-radius: 16px;
+  background: #3a3a3a;
+  color: #c8c8c8;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 22px;
 }
 
 .live-chat {
@@ -674,6 +797,11 @@ onUnmounted(() => {
   padding-top: 12px;
   border-top: 1px solid #2a2a2a;
   overflow: auto;
+  scrollbar-width: none;
+}
+
+.live-chat::-webkit-scrollbar {
+  display: none;
 }
 
 .live-chat-empty {
@@ -682,12 +810,56 @@ onUnmounted(() => {
   color: #6a6a6a;
 }
 
+.live-chat-row {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.live-chat-name {
+  color: #8a8a8a;
+  font-weight: 600;
+}
+
+.live-chat-name::after {
+  content: '：';
+  font-weight: 500;
+}
+
+.live-chat-name.is-host {
+  color: #ff2442;
+}
+
+.live-host-tag {
+  display: inline-flex;
+  height: 16px;
+  margin-right: 6px;
+  padding: 0 6px;
+  align-items: center;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff8dc 0%, #ffe9b0 100%);
+  color: #8a6a1a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  vertical-align: 1px;
+}
+
+.live-chat-body {
+  color: #f2f2f2;
+}
+
 .live-say {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 12px;
 }
 
 .live-say input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 40px;
   border-radius: 20px;
   background: #2a2a2a;
@@ -699,6 +871,30 @@ onUnmounted(() => {
 
 .live-say input:disabled {
   color: #8a8a8a;
+}
+
+.live-say-send {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: #ff2442;
+  color: #fff;
+  font-size: 13px;
+  line-height: 40px;
+  white-space: nowrap;
+}
+
+.live-say-send:disabled {
+  background: #5c1822;
+  color: #8a8a8a;
+  cursor: default;
+}
+
+.live-say-hint {
+  margin-top: 8px;
+  color: #ff8a9a;
+  font-size: 12px;
 }
 
 .live-miss {

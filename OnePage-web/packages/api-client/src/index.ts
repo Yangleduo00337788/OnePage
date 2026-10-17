@@ -85,6 +85,13 @@ export type LiveSession = {
   startedAt?: string
 }
 
+export type LiveChatLine = {
+  messageId: string
+  body: string
+  createdAt: string
+  author: UserBrief
+}
+
 export type LiveStart = {
   sessionId: string
   roomId: string
@@ -751,6 +758,17 @@ export const api = {
     request<LiveStart>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/start`, { method: 'POST' }),
   endLive: (roomId: string) =>
     request<void>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/end`, { method: 'POST' }),
+  liveMessages: (sessionId: string, after?: string) => {
+    const suffix = after ? `?after=${encodeURIComponent(after)}` : ''
+    return request<{ items: LiveChatLine[] }>(
+      `/api/v1/live/sessions/${encodeURIComponent(sessionId)}/messages${suffix}`,
+    )
+  },
+  sendLiveMessage: (sessionId: string, body: string) =>
+    request<LiveChatLine>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
   polishPost: (body: { title?: string; body?: string; mode?: 'optimize' | 'continue' }) =>
     request<PolishResult>('/api/v1/ai/posts/polish', {
       method: 'POST',
