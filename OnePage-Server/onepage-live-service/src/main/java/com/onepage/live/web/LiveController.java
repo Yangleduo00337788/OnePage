@@ -2,6 +2,7 @@ package com.onepage.live.web;
 
 import com.onepage.common.web.CurrentUser;
 import com.onepage.live.dto.LiveDtos;
+import com.onepage.live.service.LiveChatService;
 import com.onepage.live.service.LiveService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -20,9 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/live")
 public class LiveController {
   private final LiveService liveService;
+  private final LiveChatService chatService;
 
-  public LiveController(LiveService liveService) {
+  public LiveController(LiveService liveService, LiveChatService chatService) {
     this.liveService = liveService;
+    this.chatService = chatService;
   }
 
   @PostMapping("/rooms")
@@ -63,5 +66,21 @@ public class LiveController {
       @PathVariable("sessionId") long sessionId,
       @RequestParam(value = "peek", required = false) Boolean peek) {
     return liveService.get(sessionId, Boolean.TRUE.equals(peek));
+  }
+
+  @GetMapping("/sessions/{sessionId}/messages")
+  public LiveDtos.ChatPage messages(
+      @PathVariable("sessionId") long sessionId,
+      @RequestParam(value = "after", required = false) String after) {
+    return chatService.list(sessionId, after);
+  }
+
+  @PostMapping("/sessions/{sessionId}/messages")
+  @ResponseStatus(HttpStatus.CREATED)
+  public LiveDtos.ChatLine say(
+      HttpServletRequest request,
+      @PathVariable("sessionId") long sessionId,
+      @RequestBody LiveDtos.ChatSpec spec) {
+    return chatService.send(CurrentUser.requireUserId(request), sessionId, spec);
   }
 }

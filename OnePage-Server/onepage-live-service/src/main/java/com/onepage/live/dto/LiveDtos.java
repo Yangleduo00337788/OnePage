@@ -34,4 +34,10 @@ public final class LiveDtos {
       String startedAt) {}
 
   public record LivePage(List<LiveItem> items) {}
+
+  public record ChatSpec(String body) {}
+
+  public record ChatLine(String messageId, String body, String createdAt, UserSummary author) {}
+
+  public record ChatPage(List<ChatLine> items) {}
 }

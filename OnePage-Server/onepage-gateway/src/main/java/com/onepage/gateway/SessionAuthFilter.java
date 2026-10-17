@@ -22,7 +22,7 @@ import java.util.Map;
  * 登录态过滤器。{@code GlobalFilter}：对所有路由生效，不必在 YAML 里逐条挂。
  * {@code @Component}：让 Spring 扫描并注册这个 Filter。
  * <ul>
-   *   <li>公开接口（登录/注册/OAuth/短信、以及 GET Feed/笔记/评论/他人主页与其笔记列表）直接放行。</li>
+   *   <li>公开接口（登录/注册/OAuth/短信、以及 GET Feed/笔记/评论/他人主页与其笔记列表、直播列表/详情/聊天）直接放行。</li>
  *   <li>其余请求必须能从 Redis Session 读到 {@code userId}，否则 401。</li>
  *   <li>通过后写入 {@code X-User-Id}，下游只信这个头。公开 GET 若已登录也会写入，便于 likedByMe。</li>
  * </ul>
@@ -117,7 +117,10 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
         || path.startsWith("/api/v1/catalog/")
         || path.equals("/api/v1/search")
         || path.startsWith("/api/v1/search/")
-        || path.equals("/api/v1/ai/bootstrap")) {
+        || path.equals("/api/v1/ai/bootstrap")
+        || path.equals("/api/v1/live/sessions")
+        || path.matches("/api/v1/live/sessions/[^/]+")
+        || path.matches("/api/v1/live/sessions/[^/]+/messages")) {
       return true;
     }
     if ("/api/v1/posts/mine".equals(path) || "/api/v1/users/me".equals(path) || path.startsWith("/api/v1/users/me/")) {
