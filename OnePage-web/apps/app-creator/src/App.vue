@@ -151,6 +151,16 @@ function goEdit(postId: string) {
           <Icon name="sticky-note" :size="20" />
           <span v-if="!collapsed">笔记管理</span>
         </button>
+        <button
+          type="button"
+          class="nav-item"
+          :class="{ 'is-on': page === 'live' }"
+          :title="collapsed ? '直播' : undefined"
+          @click="openPage('live')"
+        >
+          <Icon name="radio" :size="20" />
+          <span v-if="!collapsed">直播</span>
+        </button>
 
         <div class="nav-group">
           <button
@@ -242,6 +252,7 @@ function goEdit(postId: string) {
         @open-stats="openPage('account')"
         @open-notes="(tab?: string) => openPage('notes', tab || '')"
         @open-events="openPage('events')"
+        @open-live="openPage('live')"
       />
     </div>
   </div>

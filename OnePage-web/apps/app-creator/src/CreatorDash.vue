@@ -14,9 +14,9 @@ const emit = defineEmits<{
   'open-stats': []
   'open-notes': [tab?: string]
   'open-events': []
+  'open-live': []
 }>()
 
-const community = import.meta.env.VITE_COMMUNITY_ORIGIN || 'http://localhost:5174'
 const dataTab = ref<'notes' | 'live'>('notes')
 const range = ref<'1' | '30'>('1')
 
@@ -107,10 +107,6 @@ watch(
   },
 )
 
-function goLive() {
-  window.open(`${community}/live`, '_blank', 'noopener,noreferrer')
-}
-
 const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
 </script>
 
@@ -143,7 +139,7 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
               <small>{{ item.hint }}</small>
             </span>
           </button>
-          <button type="button" class="start pink" @click="goLive">
+          <button type="button" class="start pink" @click="emit('open-live')">
             <span class="start-ico"><Icon name="radio" :size="22" /></span>
             <strong>去开播</strong>
           </button>

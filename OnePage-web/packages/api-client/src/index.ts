@@ -740,8 +740,10 @@ export const api = {
     return request<{ items: LiveSession[] }>(`/api/v1/live/sessions${suffix}`)
   },
   myLive: () => request<LiveStart | undefined>('/api/v1/live/mine'),
-  liveSession: (sessionId: string) =>
-    request<LiveSession>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}`),
+  liveSession: (sessionId: string, opts?: { peek?: boolean }) => {
+    const suffix = opts?.peek ? '?peek=true' : ''
+    return request<LiveSession>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}${suffix}`)
+  },
   createLiveRoom: (body: { title: string; category?: string; coverMediaId?: string }) =>
     request<{ roomId: string }>('/api/v1/live/rooms', { method: 'POST', body: JSON.stringify(body) }),
   startLive: (roomId: string) =>

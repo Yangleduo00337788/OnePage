@@ -7,9 +7,10 @@ import CreatorDict from './CreatorDict.vue'
 import CreatorEvents from './CreatorEvents.vue'
 import CreatorNotes from './CreatorNotes.vue'
 import CreatorStats from './CreatorStats.vue'
+import CreatorLive from './CreatorLive.vue'
 import PublishComposer, { type PublishKind } from './PublishComposer.vue'
 
-export type PageId = 'home' | 'notes' | 'account' | 'content' | 'fans' | 'events' | 'dict' | 'publish'
+export type PageId = 'home' | 'notes' | 'live' | 'account' | 'content' | 'fans' | 'events' | 'dict' | 'publish'
 export type { PublishKind }
 
 const props = defineProps<{
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   'open-stats': []
   'open-notes': [tab?: string]
   'open-events': []
+  'open-live': []
   edit: [string]
 }>()
 
@@ -53,7 +55,10 @@ const statsKind = computed(() => {
       @open-stats="emit('open-stats')"
       @open-notes="(tab?: string) => emit('open-notes', tab)"
       @open-events="emit('open-events')"
+      @open-live="emit('open-live')"
     />
+
+    <CreatorLive v-else-if="props.page === 'live'" />
 
     <CreatorNotes
       v-else-if="props.page === 'notes'"

@@ -1,6 +1,6 @@
 <!-- 独立直播间：学小红书左右分栏（黑底）。不做礼物/连麦。GET /live/sessions/{id}。 -->
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type LiveSession, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
@@ -23,7 +23,10 @@ const draft = ref('')
 const hostOpen = ref(false)
 const reportOpen = ref(false)
 const webFs = ref(false)
+const askEnd = ref(false)
+const ending = ref(false)
 let hostTimer = 0
+let pollTimer = 0
 
 const isSelf = computed(() => {
   const me = session.me?.userId
@@ -42,10 +45,40 @@ const hostStats = computed(() => {
 })
 const likeLine = computed(() => `${hostStats.value.likes}赞`)
 
+function stopPoll() {
+  if (pollTimer) {
+    window.clearInterval(pollTimer)
+    pollTimer = 0
+  }
+}
+
+function startPoll(id: string) {
+  stopPoll()
+  pollTimer = window.setInterval(() => {
+    void peekWatch(id)
+  }, 8000)
+}
+
+async function peekWatch(id: string) {
+  try {
+    const next = await api.liveSession(id, { peek: true })
+    if (!watching.value || watching.value.sessionId !== next.sessionId) return
+    watching.value = next
+    if (next.status === 'ended') stopPoll()
+  } catch {
+    if (watching.value) {
+      watching.value = { ...watching.value, status: 'ended' }
+    }
+    stopPoll()
+  }
+}
+
 async function loadWatch(id: string) {
   failed.value = ''
   following.value = false
   host.value = null
+  askEnd.value = false
+  stopPoll()
   try {
     watching.value = await api.liveSession(id)
     const pageId = watching.value.owner?.pageId
@@ -58,6 +91,7 @@ async function loadWatch(id: string) {
         following.value = false
       }
     }
+    if (watching.value.status === 'live') startPoll(id)
   } catch {
     watching.value = null
     failed.value = '这场直播已经结束或不存在'
@@ -117,6 +151,32 @@ function openReport() {
   reportOpen.value = true
 }
 
+function requestEnd() {
+  askEnd.value = true
+}
+
+function cancelEnd() {
+  askEnd.value = false
+}
+
+async function stopLive() {
+  const roomId = watching.value?.roomId
+  if (!roomId || ending.value) return
+  ending.value = true
+  try {
+    await api.endLive(roomId)
+    if (watching.value) {
+      watching.value = { ...watching.value, status: 'ended' }
+    }
+    askEnd.value = false
+    stopPoll()
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) auth.show('login', route.fullPath)
+  } finally {
+    ending.value = false
+  }
+}
+
 function onSay() {
   /* 聊天未接，先占布局 */
 }
@@ -132,6 +192,11 @@ watch(
 onMounted(() => {
   const id = route.params.sessionId
   if (typeof id === 'string' && id) void loadWatch(id)
+})
+
+onUnmounted(() => {
+  window.clearTimeout(hostTimer)
+  stopPoll()
 })
 </script>
 
@@ -215,6 +280,14 @@ onMounted(() => {
           >
             {{ following ? '已关注' : '关注' }}
           </button>
+          <button
+            v-else-if="watching.status === 'live'"
+            type="button"
+            class="live-end-chip"
+            @click="requestEnd"
+          >
+            结束直播
+          </button>
         </div>
       </div>
       <aside v-show="!webFs" class="live-right">
@@ -235,6 +308,21 @@ onMounted(() => {
         </form>
       </aside>
     </template>
+    <div v-if="askEnd" class="live-end-mask" @click.self="cancelEnd">
+      <div class="live-end-card">
+        <div class="live-end-head">
+          <strong>结束直播</strong>
+          <button type="button" class="live-end-x" aria-label="关闭" @click="cancelEnd">
+            <Icon name="x" :size="16" />
+          </button>
+        </div>
+        <p>确定结束这场直播吗？结束后观众将无法继续观看。请先在这里结束，再在 OBS 停止推流。</p>
+        <button type="button" class="live-end-no" :disabled="ending" @click="cancelEnd">再想想</button>
+        <button type="button" class="live-end-yes" :disabled="ending" @click="stopLive">
+          {{ ending ? '结束中…' : '确定结束' }}
+        </button>
+      </div>
+    </div>
     <ReportDialog
       :open="reportOpen"
       target-type="live"
@@ -351,6 +439,88 @@ onMounted(() => {
 
 .live-follow.is-on {
   background: rgba(255, 255, 255, 0.18);
+}
+
+.live-end-chip {
+  height: 28px;
+  margin-right: 6px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+}
+
+.live-end-chip:hover {
+  background: #ff2442;
+}
+
+.live-end-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.live-end-card {
+  width: min(400px, 90vw);
+  border-radius: 20px;
+  background: #fff;
+  padding: 16px 18px 20px;
+  color: #1f1f1f;
+}
+
+.live-end-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+.live-end-x {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.live-end-x:hover {
+  background: #f2f2f2;
+}
+
+.live-end-card p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #8a8a8a;
+}
+
+.live-end-no,
+.live-end-yes {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.live-end-no {
+  background: #f3f3f3;
+  color: #1f1f1f;
+}
+
+.live-end-yes {
+  margin-top: 8px;
+  background: #ff2442;
+  color: #fff;
 }
 
 .host-hit {
