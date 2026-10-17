@@ -194,7 +194,7 @@ PC **侧栏文案**以 [视觉规范](/design/system/specs) 为准（首页、�
 - [x] REQ-F2：助手问答
 
 ### 直播
-- [x] REQ-G1：开播、列表、HLS 观看（本机 MediaMTX `mpegts`；社区弹层 hls.js；无弹幕）
+- [x] REQ-G1：开播、列表、HLS 观看（本机 MediaMTX `mpegts`；社区直播间 hls.js + OBS 说明卡；无弹幕）
 
 ### 治理
 - [x] REQ-H1、H2：举报提交与入口；运营工单/用户（含关注粉丝与收件箱处置）/笔记审稿与下架/评论/媒体库/目录/私信巡查（隐藏走 `deleted_at`）

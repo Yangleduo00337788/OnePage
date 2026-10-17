@@ -48,7 +48,8 @@ packages/api-client/  fetch + Cookie
 | `/yehyeh` | 耶耶：无顶搜；249px 历史栏、825×150 白底输入卡、对话页；搜索 `q` 开聊。默认文案灰字、联想折叠；直接问耶耶发默认文案；点输入框清空并展开联想。对话：生成中三步过程条，结束后可折叠展开；复制 / 重新生成；短段落 + 角标 + 文字来源胶囊；底栏输入卡 825×150、浅青「问耶耶」胶囊。加号可上传图片、从收藏/点赞选笔记 |
 | `/login`, `/register` | 不再渲染独立页；守卫打开 `AuthModal` 后回到 `/` |
 | `/video` | 视频瀑布流：与首页同卡片 280×440，无分类；只展示视频帖（右上播放图标，无时长） |
-| `/live` | 直播：分类 Tab；列表 `GET /live/sessions`；点开用 hls.js 播 `playUrlHls`（`…/index.m3u8`）；可填标题开播 |
+| `/live` | 直播列表：分类 Tab；`GET /live/sessions` 用 `LiveFeedCard`；右下开播弹层；刷新 `GET /live/mine` |
+| `/live/:sessionId` | 独立直播间（无左栏、无顶栏）：左 `LivePlayer` 悬停底栏 + 主播条悬停资料卡，右深色栏人数/介绍/发言占位 |
 | `/notify` | 通知：居中三 Tab 接 `GET /notifications?group=`；评论摘要；侧栏与 Tab 未读数 |
 | `/messages` | 私信：无顶栏、无搜索；左 320px 会话栏 + 右侧对话；`?c=` 打开会话；登录后 `WS /ws/im`；断线约 3 秒轮询；可发图片；`post_card` 出封面卡片，点开详情 |
 | `/about` | 关于我们：可拖装饰卡；协议/隐私/帮助/创作者弹窗 |
@@ -63,7 +64,6 @@ packages/api-client/  fetch + Cookie
 | `/explore`, `/following`, `/post/:id` | app-feed（P1） |
 | `/u/:pageId`, `/u/:pageId/*` | 现由 shell `UserPage` 承接；关系列表仍待 app-user |
 | `/messages/:id` | app-im |
-| `/live/:roomId` | app-live |
 
 ## 状态（产品）
 

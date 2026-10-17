@@ -460,22 +460,26 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms/{roomId}/start`
 
-须登录且是房主。**Response 200**：`{ "sessionId", "roomId", "pushUrl", "playUrlHls", "streamKey" }`  
+须登录且是房主。**Response 200**：`{ "sessionId", "roomId", "title", "pushUrl", "playUrlHls", "streamKey" }`  
 推流/HLS 前缀来自 `LIVE_PUSH_BASE` / `LIVE_HLS_BASE`，本服务不内嵌媒体服务器。`playUrlHls` 为 `{LIVE_HLS_BASE}/{streamKey}/index.m3u8`（MediaMTX）。
 
 ### POST `/api/v1/live/rooms/{roomId}/end`
 
 须登录且是房主。**Response 204**
 
+### GET `/api/v1/live/mine`
+
+须登录。本人若有 `status=live` 场次，**Response 200** 同 start（含 `title`、`pushUrl`、`streamKey`）；没有则 **204**。刷新后恢复 OBS 说明卡。
+
 ### GET `/api/v1/live/sessions`
 
 公开。Query：`q?`, `category?`  
-**Response**：`{ "items": [{ "sessionId", "roomId", "title", "category", "coverUrl", "playUrlHls", "viewerCount", "owner", "startedAt" }] }`  
+**Response**：`{ "items": [{ "sessionId", "roomId", "title", "category", "status", "coverUrl", "playUrlHls", "viewerCount", "owner", "startedAt" }] }`  
 只出 `status=live`。在线人数 Redis `live:viewers:{sessionId}` 近似值。
 
 ### GET `/api/v1/live/sessions/{sessionId}`
 
-公开。点开观看时 +1 近似人数。**Response** 同列表单项。
+公开。点开观看时若仍是 `live` 则 +1 近似人数。**Response** 同列表单项（含已结束场次的 `status=ended`）。
 
 ---
 
@@ -483,10 +487,10 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/reports`
 
-**Body**：`targetType`（`post` / `user` / `comment`）, `targetId`, `reasonCode`（`spam` / `porn` / `abuse` / `illegal` / `other`）, `detail?`
+**Body**：`targetType`（`post` / `user` / `comment` / `live`）, `targetId`, `reasonCode`（`spam` / `porn` / `abuse` / `illegal` / `other`）, `detail?`
 **Response 201**：`{ "reportId" }`
 
-社区用户提交。详情「更多 → 举报」、评论「举报」、他人主页「举报」已接。处理走下面 Ops。评论工单在治理台显示「删除评论 / 封禁用户」。
+社区用户提交。详情「更多 → 举报」、评论「举报」、他人主页「举报」、直播间资料卡三角「举报这场直播」（`live` + sessionId）已接。处理走下面 Ops。评论工单在治理台显示「删除评论 / 封禁用户」。
 
 ---
 
