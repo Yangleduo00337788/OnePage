@@ -334,15 +334,18 @@ sequenceDiagram
   participant View as Viewer_Browser
   participant G as Gateway
   participant L as live_service
-  participant SRS as SRS
+  participant MTX as MediaMTX
 
-  Host->>G: POST /api/v1/live/rooms/start
-  G->>L: create session
-  L->>SRS: 分配 streamKey
-  L->>Host: pushUrl playUrl_HLS
-  Host->>SRS: RTMP push
-  View->>G: GET live list
-  View->>SRS: HLS play
+  Host->>G: 创作者中心 POST /live/rooms then /start
+  G->>L: create session status=live
+  L->>Host: pushUrl streamKey
+  Host->>MTX: OBS RTMP push
+  View->>G: GET /live/sessions
+  View->>MTX: HLS play
+  Host->>G: POST /rooms/{id}/end 确认后
+  L->>L: status=ended
+  View->>G: GET session peek=true
+  G-->>View: status ended
 ```
 
 ## 11. 数据存储归属（简图）

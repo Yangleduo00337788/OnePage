@@ -465,11 +465,11 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms/{roomId}/end`
 
-须登录且是房主。**Response 204**
+须登录且是房主。**Response 204**。关播后场次 `status=ended`，立刻从列表消失。OBS 停推**不会**自动关播（对齐小红书：先结束直播再停推流；断流可再推同一密钥）。
 
 ### GET `/api/v1/live/mine`
 
-须登录。本人若有 `status=live` 场次，**Response 200** 同 start（含 `title`、`pushUrl`、`streamKey`）；没有则 **204**。刷新后恢复 OBS 说明卡。
+须登录。本人若有 `status=live` 场次，**Response 200** 同 start（含 `title`、`pushUrl`、`streamKey`）；没有则 **204**。创作者开播台刷新后恢复 OBS 说明。
 
 ### GET `/api/v1/live/sessions`
 
@@ -479,7 +479,7 @@ Query：`beforeId?`, `limit`
 
 ### GET `/api/v1/live/sessions/{sessionId}`
 
-公开。点开观看时若仍是 `live` 则 +1 近似人数。**Response** 同列表单项（含已结束场次的 `status=ended`）。
+公开。点开观看时若仍是 `live` 则 +1 近似人数。Query `peek=true` 时只读状态/人数，**不加**在线人数（直播间轮询关播用）。**Response** 同列表单项（含已结束场次的 `status=ended`）。
 
 ---
 
