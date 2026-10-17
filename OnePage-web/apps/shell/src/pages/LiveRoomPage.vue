@@ -26,7 +26,19 @@ const sayBusy = ref(false)
 const sayHint = ref('')
 let hintTimer = 0
 const hostOpen = ref(false)
+const peekOpen = ref(false)
+const peekPageId = ref('')
+const peekNick = ref('')
+const peekAva = ref('')
+const peekProfile = ref<UserProfile | null>(null)
+const peekFollowed = ref(false)
+const peekBox = ref({ top: '0px', left: '0px' })
+const peekUserId = ref('')
+const peekCache = new Map<string, UserProfile>()
+let peekTimer = 0
 const reportOpen = ref(false)
+const reportKind = ref<'live' | 'user'>('live')
+const reportTargetId = ref('')
 const webFs = ref(false)
 const askEnd = ref(false)
 const ending = ref(false)
@@ -50,6 +62,20 @@ const hostStats = computed(() => {
   }
 })
 const likeLine = computed(() => `${hostStats.value.likes}赞`)
+const peekSelf = computed(() => {
+  const me = session.me?.userId
+  const uid = peekProfile.value?.userId
+  return Boolean(me && uid && me === uid)
+})
+const peekBio = computed(() => peekProfile.value?.bio?.trim() || '这个人还没有简介')
+const peekStats = computed(() => {
+  const s = peekProfile.value?.stats
+  return {
+    following: formatCount(s?.followingCount ?? 0),
+    fans: formatCount(s?.followerCount ?? 0),
+    likes: formatCount((s?.likeReceivedCount ?? 0) + (s?.favoriteReceivedCount ?? 0)),
+  }
+})
 
 function stopPoll() {
   if (pollTimer) {
@@ -64,12 +90,40 @@ function stopPoll() {
 
 function startPoll(id: string) {
   stopPoll()
+  void beatWatch(id)
   pollTimer = window.setInterval(() => {
     void peekWatch(id)
+    void beatWatch(id)
   }, 8000)
   chatTimer = window.setInterval(() => {
     void loadChat(id, false)
   }, 3000)
+}
+
+function presenceIdOf(sessionId: string) {
+  const key = `onepage-live-presence-${sessionId}`
+  let id = sessionStorage.getItem(key)
+  if (!id) {
+    id = crypto.randomUUID()
+    sessionStorage.setItem(key, id)
+  }
+  return id
+}
+
+async function beatWatch(id: string) {
+  if (watching.value?.status !== 'live') return
+  try {
+    const tick = await api.liveHeartbeat(id, presenceIdOf(id))
+    if (!watching.value || watching.value.sessionId !== id) return
+    watching.value = { ...watching.value, viewerCount: tick.viewerCount, status: tick.status }
+    if (tick.join) mergeChat([tick.join])
+    if (tick.status === 'ended') stopPoll()
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) {
+      if (watching.value) watching.value = { ...watching.value, status: 'ended' }
+      stopPoll()
+    }
+  }
 }
 
 function flashHint(text: string) {
@@ -145,6 +199,7 @@ async function loadWatch(id: string) {
   askEnd.value = false
   chats.value = []
   draft.value = ''
+  peekOpen.value = false
   stopPoll()
   try {
     watching.value = await api.liveSession(id)
@@ -216,6 +271,21 @@ function openReport() {
     auth.show('login', route.fullPath)
     return
   }
+  reportKind.value = 'live'
+  reportTargetId.value = watching.value?.sessionId || ''
+  reportOpen.value = true
+}
+
+function openPeekReport() {
+  const userId = peekProfile.value?.userId || peekUserId.value
+  if (!userId || peekSelf.value) return
+  if (!session.me) {
+    auth.show('login', route.fullPath)
+    return
+  }
+  peekOpen.value = false
+  reportKind.value = 'user'
+  reportTargetId.value = userId
   reportOpen.value = true
 }
 
@@ -247,7 +317,88 @@ async function stopLive() {
 
 function goChatAuthor(pageId: string) {
   if (!pageId) return
+  peekOpen.value = false
   void router.push(`/u/${encodeURIComponent(pageId)}`)
+}
+
+function keepPeek() {
+  window.clearTimeout(peekTimer)
+}
+
+function closePeek() {
+  window.clearTimeout(peekTimer)
+  peekTimer = window.setTimeout(() => {
+    peekOpen.value = false
+  }, 120)
+}
+
+function placePeek(el: HTMLElement) {
+  const r = el.getBoundingClientRect()
+  const width = 360
+  let left = r.left - width - 10
+  if (left < 8) left = 8
+  let top = r.top
+  const maxTop = window.innerHeight - 180
+  if (top > maxTop) top = Math.max(8, maxTop)
+  peekBox.value = { top: `${top}px`, left: `${left}px` }
+}
+
+async function openPeek(pageId: string, nick: string, ava: string, userId: string, ev: MouseEvent) {
+  if (!pageId) return
+  keepPeek()
+  peekPageId.value = pageId
+  peekNick.value = nick || '用户'
+  peekAva.value = ava || ''
+  peekUserId.value = userId || ''
+  peekOpen.value = true
+  placePeek(ev.currentTarget as HTMLElement)
+  const cached = peekCache.get(pageId)
+  if (cached) {
+    peekProfile.value = cached
+    peekUserId.value = cached.userId || peekUserId.value
+    peekFollowed.value = Boolean(cached.followedByMe)
+    if (pageId === watching.value?.owner?.pageId) peekFollowed.value = following.value
+    return
+  }
+  peekProfile.value = null
+  peekFollowed.value = false
+  try {
+    const profile = await api.userByPageId(pageId)
+    peekCache.set(pageId, profile)
+    if (peekPageId.value !== pageId) return
+    peekProfile.value = profile
+    peekUserId.value = profile.userId || peekUserId.value
+    peekFollowed.value =
+      pageId === watching.value?.owner?.pageId ? following.value : Boolean(profile.followedByMe)
+  } catch {
+    /* 资料失败仍可点进主页 */
+  }
+}
+
+async function togglePeekFollow() {
+  const pageId = peekPageId.value
+  if (!pageId || peekSelf.value || followBusy.value) return
+  if (!session.me) {
+    auth.show('login', route.fullPath)
+    return
+  }
+  followBusy.value = true
+  try {
+    if (peekFollowed.value) {
+      await api.unfollowUser(pageId)
+      peekFollowed.value = false
+    } else {
+      await api.followUser(pageId)
+      peekFollowed.value = true
+    }
+    const cached = peekCache.get(pageId)
+    if (cached) cached.followedByMe = peekFollowed.value
+    if (pageId === watching.value?.owner?.pageId) following.value = peekFollowed.value
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) auth.show('login', route.fullPath)
+  } finally {
+    followBusy.value = false
+  }
 }
 
 async function onSay() {
@@ -290,6 +441,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.clearTimeout(hostTimer)
   window.clearTimeout(hintTimer)
+  window.clearTimeout(peekTimer)
   stopPoll()
 })
 </script>
@@ -396,20 +548,41 @@ onUnmounted(() => {
         </div>
         <div ref="chatBox" class="live-chat">
           <p v-if="!chats.length" class="live-chat-empty">还没有人发言</p>
-          <p v-for="row in chats" :key="row.messageId" class="live-chat-row">
-            <span
-              v-if="row.author?.userId === watching.owner?.userId"
-              class="live-host-tag"
-            >主播</span>
-            <button
-              type="button"
-              class="live-chat-name"
-              :class="{ 'is-host': row.author?.userId === watching.owner?.userId }"
-              @click="goChatAuthor(row.author?.pageId || '')"
-            >
-              {{ row.author?.nickname || '用户' }}
-            </button>
-            <span class="live-chat-body">{{ row.body }}</span>
+          <p
+            v-for="row in chats"
+            :key="row.messageId"
+            class="live-chat-row"
+            :class="{ 'is-join': row.kind === 'join' }"
+          >
+            <template v-if="row.kind === 'join'">
+              <button
+                type="button"
+                class="live-join-name"
+                @mouseenter="openPeek(row.author?.pageId || '', row.author?.nickname || '用户', row.author?.avatarUrl || '', row.author?.userId || '', $event)"
+                @mouseleave="closePeek"
+                @click="goChatAuthor(row.author?.pageId || '')"
+              >
+                {{ row.author?.nickname || '用户' }}
+              </button>
+              来了
+            </template>
+            <template v-else>
+              <span
+                v-if="row.author?.userId === watching.owner?.userId"
+                class="live-host-tag"
+              >主播</span>
+              <button
+                type="button"
+                class="live-chat-name"
+                :class="{ 'is-host': row.author?.userId === watching.owner?.userId }"
+                @mouseenter="openPeek(row.author?.pageId || '', row.author?.nickname || '用户', row.author?.avatarUrl || '', row.author?.userId || '', $event)"
+                @mouseleave="closePeek"
+                @click="goChatAuthor(row.author?.pageId || '')"
+              >
+                {{ row.author?.nickname || '用户' }}
+              </button>
+              <span class="live-chat-body">{{ row.body }}</span>
+            </template>
           </p>
         </div>
         <form class="live-say" @submit.prevent="onSay">
@@ -446,10 +619,53 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
+    <div
+      v-if="peekOpen && peekPageId"
+      class="host-card live-peek"
+      :style="peekBox"
+      @mouseenter="keepPeek"
+      @mouseleave="closePeek"
+    >
+      <div class="host-card-top">
+        <button type="button" class="host-go" @click="goChatAuthor(peekPageId)">
+          <img v-if="peekProfile?.avatarUrl || peekAva" :src="peekProfile?.avatarUrl || peekAva" alt="" class="host-card-ava" />
+          <span v-else class="host-card-ava is-ph">{{ peekNick.slice(0, 1) }}</span>
+        </button>
+        <button type="button" class="host-go host-card-name" @click="goChatAuthor(peekPageId)">
+          {{ peekProfile?.nickname || peekNick }}
+        </button>
+        <button
+          v-if="!peekSelf"
+          type="button"
+          class="host-report"
+          aria-label="举报这个用户"
+          title="举报这个用户"
+          @click="openPeekReport"
+        >
+          <Icon name="triangle-alert" :size="16" />
+        </button>
+        <button
+          v-if="!peekSelf"
+          type="button"
+          class="live-follow"
+          :class="{ 'is-on': peekFollowed }"
+          :disabled="followBusy"
+          @click="togglePeekFollow"
+        >
+          {{ peekFollowed ? '已关注' : '关注' }}
+        </button>
+      </div>
+      <p class="host-bio">{{ peekBio }}</p>
+      <div class="host-stats">
+        <span><strong>{{ peekStats.following }}</strong> 关注</span>
+        <span><strong>{{ peekStats.fans }}</strong> 粉丝</span>
+        <span><strong>{{ peekStats.likes }}</strong> 获赞与收藏</span>
+      </div>
+    </div>
     <ReportDialog
       :open="reportOpen"
-      target-type="live"
-      :target-id="watching?.sessionId || ''"
+      :target-type="reportKind"
+      :target-id="reportTargetId"
       @close="reportOpen = false"
     />
   </section>
@@ -669,6 +885,12 @@ onUnmounted(() => {
   display: flex;
 }
 
+.live-peek {
+  position: fixed;
+  display: flex;
+  z-index: 50;
+}
+
 .host-card-top {
   display: flex;
   align-items: center;
@@ -815,6 +1037,17 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.55;
   word-break: break-word;
+}
+
+.live-chat-row.is-join {
+  color: #8a8a8a;
+  font-size: 12px;
+}
+
+.live-join-name {
+  margin-right: 4px;
+  color: #8a8a8a;
+  font-weight: 600;
 }
 
 .live-chat-name {

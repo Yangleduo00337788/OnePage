@@ -87,9 +87,16 @@ export type LiveSession = {
 
 export type LiveChatLine = {
   messageId: string
+  kind?: 'text' | 'join' | string
   body: string
   createdAt: string
   author: UserBrief
+}
+
+export type LivePresence = {
+  status: string
+  viewerCount: number
+  join?: LiveChatLine | null
 }
 
 export type LiveStart = {
@@ -768,6 +775,11 @@ export const api = {
     request<LiveChatLine>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}/messages`, {
       method: 'POST',
       body: JSON.stringify({ body }),
+    }),
+  liveHeartbeat: (sessionId: string, presenceId: string) =>
+    request<LivePresence>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}/heartbeat`, {
+      method: 'POST',
+      body: JSON.stringify({ presenceId }),
     }),
   polishPost: (body: { title?: string; body?: string; mode?: 'optimize' | 'continue' }) =>
     request<PolishResult>('/api/v1/ai/posts/polish', {
