@@ -102,15 +102,37 @@ onMounted(async () => {
 
 onUnmounted(() => closeCrop())
 
+const LIVE_LOCK = '直播中不可修改资料，请先结束直播'
+
+async function assertIdle() {
+  try {
+    const mine = await api.myLive()
+    if (mine?.sessionId) {
+      showToast(LIVE_LOCK)
+      return false
+    }
+  } catch {
+    /* 直播服务不可用时仍交给 PATCH；后端会再拦 */
+  }
+  return true
+}
+
 function onCoverClick(event: MouseEvent) {
   const t = event.target
   if (!(t instanceof Element)) return
   if (t.closest('button, a, input, textarea, label')) return
-  coverInput.value?.click()
+  void pickMedia('cover')
 }
 
-function openEdit() {
+async function pickMedia(purpose: 'avatar' | 'cover') {
+  if (!(await assertIdle())) return
+  if (purpose === 'cover') coverInput.value?.click()
+  else avatarInput.value?.click()
+}
+
+async function openEdit() {
   if (!session.me) return
+  if (!(await assertIdle())) return
   nickname.value = session.me.nickname
   bio.value = session.me.bio
   gender.value = Number(session.me.gender) || 0
@@ -258,7 +280,7 @@ async function logout() {
               type="button"
               class="group h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white"
               :disabled="uploading === 'avatar'"
-              @click="avatarInput?.click()"
+              @click="pickMedia('avatar')"
             >
               <img
                 v-if="session.me.avatarUrl"
@@ -280,7 +302,7 @@ async function logout() {
               class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1f] shadow-sm ring-1 ring-[#eee]"
               :disabled="uploading === 'avatar'"
               aria-label="更换头像"
-              @click="avatarInput?.click()"
+              @click="pickMedia('avatar')"
             >
               <Icon name="camera" :size="14" :stroke="1.8" />
             </button>

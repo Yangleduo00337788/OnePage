@@ -38,7 +38,8 @@ import java.util.stream.Collectors;
 
 /**
  * 单聊。pair_key 保证同一对用户只有一条会话。
- * 文本写入 content JSON 的 text 字段；图片只收已 complete 的 mediaId；笔记卡片走内部 sharePostCard。
+ * 文本写入 content JSON 的 text 字段；图片只收已 complete 的 mediaId；
+ * 笔记/直播卡片走内部 sharePostCard / shareLiveCard。
  * 落库后经 Redis 推到在线 WebSocket。
  */
 @Service
@@ -271,6 +272,33 @@ public class ImService {
       throw BusinessException.validation("消息序列化失败");
     }
     return persist(senderId, conversationId, "post_card", payload);
+  }
+
+  public ImDtos.MessageItem shareLiveCard(
+      long senderId, String conversationIdRaw, String targetUserIdRaw, JsonNode content) {
+    if (content == null || !StringUtils.hasText(textOf(content, "sessionId"))) {
+      throw BusinessException.validation("直播卡片不完整");
+    }
+    long conversationId;
+    if (StringUtils.hasText(conversationIdRaw)) {
+      conversationId = parseId(conversationIdRaw, "conversationId");
+    } else if (StringUtils.hasText(targetUserIdRaw)) {
+      conversationId = Long.parseLong(open(senderId, targetUserIdRaw).conversationId());
+    } else {
+      throw BusinessException.validation("请选择好友");
+    }
+    requireMember(conversationId, senderId);
+    String payload;
+    try {
+      payload = objectMapper.writeValueAsString(Map.of(
+          "sessionId", textOf(content, "sessionId"),
+          "title", textOf(content, "title"),
+          "coverUrl", textOf(content, "coverUrl"),
+          "authorNickname", textOf(content, "authorNickname")));
+    } catch (Exception ex) {
+      throw BusinessException.validation("消息序列化失败");
+    }
+    return persist(senderId, conversationId, "live_card", payload);
   }
 
   private ImDtos.MessageItem persist(long senderId, long conversationId, String msgType, String payload) {
@@ -519,6 +547,9 @@ public class ImService {
     }
     JsonNode title = node.get("title");
     if (title != null && title.isTextual() && StringUtils.hasText(title.asText())) {
+      if (node.has("sessionId")) {
+        return "[直播] " + title.asText();
+      }
       return "[笔记] " + title.asText();
     }
     JsonNode url = node.get("url");
@@ -530,6 +561,9 @@ public class ImService {
     }
     if ("post_card".equals(msgType)) {
       return "[笔记]";
+    }
+    if ("live_card".equals(msgType)) {
+      return "[直播]";
     }
     return "";
   }

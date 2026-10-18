@@ -45,6 +45,8 @@ const failed = ref('')
 const host = ref<LiveStart | null>(null)
 const copied = ref('')
 const coverMediaId = ref('')
+const notice = ref('')
+const noticeBusy = ref(false)
 const coverPreview = ref('')
 const cropSrc = ref('')
 const cropName = ref('')
@@ -68,6 +70,7 @@ async function loadMine() {
   try {
     const mine = await api.myLive()
     host.value = mine ?? null
+    if (mine?.notice) notice.value = mine.notice
   } catch {
     host.value = null
   }
@@ -119,6 +122,21 @@ function clearCover() {
   setCoverPreview('')
 }
 
+async function saveNotice() {
+  if (!host.value || noticeBusy.value) return
+  noticeBusy.value = true
+  failed.value = ''
+  try {
+    const r = await api.updateLiveNotice(host.value.roomId, notice.value)
+    host.value = { ...host.value, notice: r.notice }
+    notice.value = r.notice
+  } catch (e) {
+    failed.value = e instanceof ApiError ? e.message : '保存失败'
+  } finally {
+    noticeBusy.value = false
+  }
+}
+
 async function goLive() {
   const name = title.value.trim()
   if (!name || starting.value || uploading.value) return
@@ -129,9 +147,11 @@ async function goLive() {
       title: name,
       category: category.value,
       coverMediaId: coverMediaId.value || undefined,
+      notice: notice.value.trim() || undefined,
     })
     host.value = await api.startLive(room.roomId)
     title.value = ''
+    notice.value = host.value.notice || ''
     coverMediaId.value = ''
     setCoverPreview('')
   } catch (e) {
@@ -241,6 +261,10 @@ onUnmounted(() => {
               <option v-for="item in CATEGORIES" :key="item" :value="item">{{ item }}</option>
             </select>
           </label>
+          <label class="field">
+            <span>本场公告</span>
+            <textarea v-model="notice" maxlength="200" placeholder="空则用默认欢迎文案" />
+          </label>
           <p v-if="failed" class="err">{{ failed }}</p>
           <button
             type="button"
@@ -255,6 +279,14 @@ onUnmounted(() => {
         <template v-else>
           <p class="title">{{ host.title || '直播中' }}</p>
           <img v-if="host.coverUrl" class="cover-live" :src="host.coverUrl" alt="" />
+          <label class="field">
+            <span>本场公告</span>
+            <textarea v-model="notice" maxlength="200" placeholder="空则用默认欢迎文案" />
+          </label>
+          <button type="button" class="end" :disabled="noticeBusy" @click="saveNotice">
+            {{ noticeBusy ? '保存中…' : '保存公告' }}
+          </button>
+          <p v-if="failed" class="err">{{ failed }}</p>
           <p class="hint">复制下面两项到 OBS。先开始推流，再进直播间。关播请先点「结束直播」，再停 OBS。</p>
           <div class="row">
             <span>服务器</span>
@@ -504,8 +536,8 @@ onUnmounted(() => {
 }
 
 .field input,
-.field select {
-  height: 44px;
+.field select,
+.field textarea {
   border: 0;
   border-radius: 22px;
   background: rgb(248, 248, 248);
@@ -514,6 +546,18 @@ onUnmounted(() => {
   font: inherit;
   font-size: 14px;
   outline: none;
+}
+
+.field input,
+.field select {
+  height: 44px;
+}
+
+.field textarea {
+  min-height: 88px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  resize: none;
 }
 
 .err {

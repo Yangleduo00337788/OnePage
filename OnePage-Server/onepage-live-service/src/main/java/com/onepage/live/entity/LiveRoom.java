@@ -14,6 +14,7 @@ public class LiveRoom {
   private String title;
   private String category;
   private String coverObjectKey;
+  private String notice;
   private LocalDateTime createdAt;
 
   public Long getId() { return id; }
@@ -26,6 +27,8 @@ public class LiveRoom {
   public void setCategory(String category) { this.category = category; }
   public String getCoverObjectKey() { return coverObjectKey; }
   public void setCoverObjectKey(String coverObjectKey) { this.coverObjectKey = coverObjectKey; }
+  public String getNotice() { return notice; }
+  public void setNotice(String notice) { this.notice = notice; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

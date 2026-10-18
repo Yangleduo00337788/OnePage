@@ -6,6 +6,7 @@ import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.common.tx.AfterCommit;
 import com.onepage.user.client.ContentClient;
+import com.onepage.user.client.LiveClient;
 import com.onepage.user.client.NotificationClient;
 import com.onepage.user.client.SearchClient;
 import com.onepage.user.dto.FollowHit;
@@ -54,6 +55,7 @@ public class UserService {
   private final UserFollowMapper followMapper;
   private final ContentClient contentClient;
   private final NotificationClient notificationClient;
+  private final LiveClient liveClient;
   private final UserSearchIndexer userSearchIndexer;
   private final String internalToken;
   private final String mediaPublicBase;
@@ -64,6 +66,7 @@ public class UserService {
       UserFollowMapper followMapper,
       ContentClient contentClient,
       NotificationClient notificationClient,
+      LiveClient liveClient,
       UserSearchIndexer userSearchIndexer,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.media-public-base}") String mediaPublicBase) {
@@ -72,6 +75,7 @@ public class UserService {
     this.followMapper = followMapper;
     this.contentClient = contentClient;
     this.notificationClient = notificationClient;
+    this.liveClient = liveClient;
     this.userSearchIndexer = userSearchIndexer;
     this.internalToken = internalToken;
     this.mediaPublicBase = mediaPublicBase.endsWith("/")
@@ -278,6 +282,7 @@ public class UserService {
 
   public UserProfileView updateMe(Long userId, String nickname, String bio, Integer gender,
                                   String avatarMediaId, String coverMediaId) {
+    assertNotLive(userId);
     UserProfile profile = requireProfileByUserId(userId);
     if (StringUtils.hasText(nickname)) {
       profile.setNickname(nickname);
@@ -510,6 +515,22 @@ public class UserService {
       return byNick.get(0);
     }
     throw BusinessException.notFound("用户不存在");
+  }
+
+  private void assertNotLive(Long userId) {
+    if (userId == null) {
+      return;
+    }
+    try {
+      LiveClient.ActiveView view = liveClient.active(internalToken, userId);
+      if (view != null && view.active()) {
+        throw BusinessException.conflict("直播中不可修改资料，请先结束直播");
+      }
+    } catch (BusinessException ex) {
+      throw ex;
+    } catch (RuntimeException ex) {
+      log.warn("check live active failed userId={}", userId, ex);
+    }
   }
 
   private UserProfile requireProfileByUserId(Long userId) {

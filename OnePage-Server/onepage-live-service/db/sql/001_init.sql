@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS live_room (
   title VARCHAR(100) NOT NULL COMMENT '标题',
   category VARCHAR(32) NOT NULL DEFAULT '' COMMENT '分类，空为未分',
   cover_object_key VARCHAR(512) NULL COMMENT '封面 object key 或公开 URL',
+  notice VARCHAR(200) NOT NULL DEFAULT '' COMMENT '本场公告，空则前端用默认欢迎文案',
   created_at DATETIME(3) NOT NULL COMMENT '创建时间',
   PRIMARY KEY (id),
   KEY idx_owner (owner_id)

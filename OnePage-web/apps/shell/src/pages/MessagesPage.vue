@@ -42,6 +42,7 @@ function previewOf(item: ConversationItem) {
   if (last.text) return last.text
   if (last.msgType === 'image') return '[图片]'
   if (last.msgType === 'post_card') return '[笔记]'
+  if (last.msgType === 'live_card') return '[直播]'
   return '暂无消息'
 }
 
@@ -57,6 +58,10 @@ function isPostCard(row: ImMessage) {
   return row.msgType === 'post_card' && Boolean(row.content?.postId)
 }
 
+function isLiveCard(row: ImMessage) {
+  return row.msgType === 'live_card' && Boolean(row.content?.sessionId)
+}
+
 function openPostCard(row: ImMessage) {
   const id = row.content?.postId
   if (!id) return
@@ -67,6 +72,12 @@ function openPostCard(row: ImMessage) {
     likes: '0',
     image: row.content?.coverUrl || '',
   })
+}
+
+function openLiveCard(row: ImMessage) {
+  const id = row.content?.sessionId
+  if (!id) return
+  void router.push(`/live/${encodeURIComponent(id)}`)
 }
 
 function timeText(raw: string) {
@@ -353,6 +364,19 @@ watch(
                 <span class="im-card-meta">
                   <span class="im-card-title">{{ item.row.content.title || '笔记' }}</span>
                   <span class="im-card-sub">{{ item.row.content.authorNickname || '笔记' }}</span>
+                </span>
+              </button>
+              <button
+                v-else-if="isLiveCard(item.row)"
+                type="button"
+                class="im-card"
+                @click="openLiveCard(item.row)"
+              >
+                <img v-if="item.row.content.coverUrl" :src="item.row.content.coverUrl" alt="" />
+                <span v-else class="im-card-fallback">{{ item.row.content.title || '直播' }}</span>
+                <span class="im-card-meta">
+                  <span class="im-card-title">{{ item.row.content.title || '直播' }}</span>
+                  <span class="im-card-sub">{{ item.row.content.authorNickname || '直播' }}</span>
                 </span>
               </button>
               <p v-else class="im-bubble">{{ bubbleText(item.row) }}</p>

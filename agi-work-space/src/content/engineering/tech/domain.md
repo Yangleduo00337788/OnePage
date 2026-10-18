@@ -19,7 +19,7 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 | 检索 | onepage-search-service | 索引文档、查询 |
 | 智能 | onepage-ai-service | 润色、问答（HTTP LLM；会话在前端） |
 | 治理 | onepage-moderation-service | 举报单、处理记录、员工校验（P5；前端 `app-ops`。不另建 admin 服务） |
-| 直播 | onepage-live-service | 房间、场次 |
+| 直播 | onepage-live-service | 房间、场次、本场公告、间内聊天 |
 | 工作空间（本仓） | agi-work-space | 文档 Doc、角色 Role、工作目录 |
 
 ## 核心对象（产品）
@@ -31,13 +31,14 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 | Comment | `commentId`、`rootId`、`parentId` | social |
 | Conversation | 成员、最后消息时间 | message |
 | Notification | 类型、聚合键、已读 | notification |
-| LiveRoom | 推流/播放地址、状态 | live |
+| LiveRoom | 标题、封面、本场公告、推流/播放地址、状态 | live |
+| Message | `text` / `image` / `post_card` / `live_card` | message |
 
 跨服务只传 ID，禁止跨库 JOIN。
 
 ## 不变量（示例）
 
-- 一页号创建后不可变。
+- 一页号创建后不可变。直播中不可改资料（须先关播）。
 - 点赞/收藏对同一用户与目标唯一。
 - 关注单向、同一对用户仅一行；不能关注自己。
 - 本人收藏/点赞/浏览列表只出仍可见的已发布帖（他人仅自己可见不出现）。

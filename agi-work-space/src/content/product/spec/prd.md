@@ -114,6 +114,8 @@ PC **侧栏文案**以 [视觉规范](/design/system/specs) 为准（首页、�
 | 观看 | HLS | 观众端播放器；在线人数 = 心跳在场 ZSET |
 | 直播列表 | 正在直播 | 按开播时间排序 |
 | 直播间聊天 | 右侧文字列表 | live-service HTTP 轮询，含进房「来了」；不与私信混；画面弹幕 overlay 不做 |
+| 分享这场直播 | 链接 + 私信卡片 | 底栏分享：选好友走 `POST /live/sessions/{id}/share/im`（`live_card`）；底复制链接 |
+| 本场公告 | 房主可改 | 写入 `live_room.notice`；空则默认欢迎文案。开播台与直播间右侧都可改 |
 
 **不做（MVP）**：礼物、连麦、带货、录制回放管理台。
 
@@ -182,7 +184,7 @@ PC **侧栏文案**以 [视觉规范](/design/system/specs) 为准（首页、�
 - [x] REQ-C4：私信分享卡片（`POST /posts/{id}/share/im`，`post_card`）
 
 ### 用户与关系
-- [ ] REQ-D2：资料与一页号不可改
+- [x] REQ-D2：一页号注册后不可改；直播中不可改资料（须先关播，`PATCH /users/me` 409）
 - [x] REQ-D1、D3、D4：关注、我的 Tab 与历史、获赞/被收藏列表（仅作者）
 
 ### 消息
@@ -197,6 +199,7 @@ PC **侧栏文案**以 [视觉规范](/design/system/specs) 为准（首页、�
 - [x] REQ-G1：开播、列表、HLS 观看（开播在创作者中心；社区只看；本机 MediaMTX `mpegts`；直播间 hls.js；无画面弹幕）
 - [x] REQ-G2：直播间右侧文字聊天（`live_chat`；GET 公开、POST 登录；关播不可发）
 - [x] REQ-G3：直播间真实在场人数与进房「来了」（心跳 ZSET；`msg_type=join`）
+- [x] REQ-G4：分享这场直播（链接 + 私信 `live_card`）；本场公告可改
 
 ### 治理
 - [x] REQ-H1、H2：举报提交与入口；运营工单/用户（含关注粉丝与收件箱处置）/笔记审稿与下架/评论/媒体库/目录/私信巡查（隐藏走 `deleted_at`）

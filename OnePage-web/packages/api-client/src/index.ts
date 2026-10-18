@@ -79,6 +79,7 @@ export type LiveSession = {
   category: string
   status?: string
   coverUrl: string
+  notice?: string
   playUrlHls: string
   viewerCount: number
   owner: UserBrief
@@ -104,6 +105,7 @@ export type LiveStart = {
   roomId: string
   title?: string
   coverUrl?: string
+  notice?: string
   pushUrl: string
   playUrlHls: string
   streamKey: string
@@ -187,6 +189,7 @@ export type ImMessage = {
     mediaId?: string
     url?: string
     postId?: string
+    sessionId?: string
     title?: string
     coverUrl?: string
     authorNickname?: string
@@ -759,12 +762,27 @@ export const api = {
     const suffix = opts?.peek ? '?peek=true' : ''
     return request<LiveSession>(`/api/v1/live/sessions/${encodeURIComponent(sessionId)}${suffix}`)
   },
-  createLiveRoom: (body: { title: string; category?: string; coverMediaId?: string }) =>
+  createLiveRoom: (body: { title: string; category?: string; coverMediaId?: string; notice?: string }) =>
     request<{ roomId: string }>('/api/v1/live/rooms', { method: 'POST', body: JSON.stringify(body) }),
   startLive: (roomId: string) =>
     request<LiveStart>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/start`, { method: 'POST' }),
   endLive: (roomId: string) =>
     request<void>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/end`, { method: 'POST' }),
+  updateLiveNotice: (roomId: string, notice: string) =>
+    request<{ notice: string }>(`/api/v1/live/rooms/${encodeURIComponent(roomId)}/notice`, {
+      method: 'POST',
+      body: JSON.stringify({ notice }),
+    }),
+  shareLiveLink: (sessionId: string) =>
+    request<{ shareUrl: string }>(
+      `/api/v1/live/sessions/${encodeURIComponent(sessionId)}/share/link`,
+      { method: 'POST' },
+    ),
+  shareLiveIm: (sessionId: string, body: { conversationId?: string; targetUserId?: string }) =>
+    request<{ messageId: string }>(
+      `/api/v1/live/sessions/${encodeURIComponent(sessionId)}/share/im`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
   liveMessages: (sessionId: string, after?: string) => {
     const suffix = after ? `?after=${encodeURIComponent(after)}` : ''
     return request<{ items: LiveChatLine[] }>(

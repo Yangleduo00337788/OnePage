@@ -4,6 +4,7 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.live.client.ContentClient;
+import com.onepage.live.client.ImClient;
 import com.onepage.live.client.UserClient;
 import com.onepage.live.dto.LiveDtos;
 import com.onepage.live.dto.LiveHit;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,16 +35,19 @@ public class LiveService {
   private static final Logger log = LoggerFactory.getLogger(LiveService.class);
   private static final long PRESENCE_TTL_MS = 25_000L;
   private static final Duration PRESENCE_EXPIRE = Duration.ofMinutes(2);
+  private static final int NOTICE_MAX = 200;
   private final LiveRoomMapper roomMapper;
   private final LiveSessionMapper sessionMapper;
   private final LiveChatService chatService;
   private final UserClient userClient;
   private final ContentClient contentClient;
+  private final ImClient imClient;
   private final StringRedisTemplate redis;
   private final String internalToken;
   private final String pushBase;
   private final String hlsBase;
   private final String mediaPublicBase;
+  private final String frontendUrl;
 
   public LiveService(
       LiveRoomMapper roomMapper,
@@ -50,21 +55,25 @@ public class LiveService {
       LiveChatService chatService,
       UserClient userClient,
       ContentClient contentClient,
+      ImClient imClient,
       StringRedisTemplate redis,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.live-push-base}") String pushBase,
       @Value("${onepage.live-hls-base}") String hlsBase,
-      @Value("${onepage.media-public-base}") String mediaPublicBase) {
+      @Value("${onepage.media-public-base}") String mediaPublicBase,
+      @Value("${onepage.frontend-url}") String frontendUrl) {
     this.roomMapper = roomMapper;
     this.sessionMapper = sessionMapper;
     this.chatService = chatService;
     this.userClient = userClient;
     this.contentClient = contentClient;
+    this.imClient = imClient;
     this.redis = redis;
     this.internalToken = internalToken;
     this.pushBase = pushBase;
     this.hlsBase = hlsBase;
     this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
+    this.frontendUrl = frontendUrl == null ? "" : frontendUrl.replaceAll("/+$", "");
   }
 
   public LiveDtos.RoomCreated createRoom(long ownerId, LiveDtos.RoomSpec spec) {
@@ -79,6 +88,7 @@ public class LiveService {
     room.setCategory(spec.category() == null ? "" : spec.category().trim());
     String coverId = spec.coverMediaId() == null ? "" : spec.coverMediaId().trim();
     room.setCoverObjectKey(coverId.isEmpty() ? "" : objectKeyOwnedBy(ownerId, coverId));
+    room.setNotice(normalizeNotice(spec.notice()));
     room.setCreatedAt(LocalDateTime.now());
     roomMapper.insert(room);
     return new LiveDtos.RoomCreated(String.valueOf(room.getId()));
@@ -140,6 +150,49 @@ public class LiveService {
     redis.delete(presenceKey(live.getSessionId()));
   }
 
+  public boolean hasLive(long ownerId) {
+    return sessionMapper.findLiveByOwner(ownerId) != null;
+  }
+
+  public LiveDtos.NoticeView updateNotice(long ownerId, long roomId, LiveDtos.NoticeSpec spec) {
+    LiveRoom room = requireOwnedRoom(ownerId, roomId);
+    room.setNotice(normalizeNotice(spec == null ? null : spec.notice()));
+    roomMapper.updateById(room);
+    return new LiveDtos.NoticeView(nullToEmpty(room.getNotice()));
+  }
+
+  public LiveDtos.ShareLinkResult shareLink(long userId, long sessionId) {
+    requireHit(sessionId);
+    return new LiveDtos.ShareLinkResult(frontendUrl + "/live/" + sessionId);
+  }
+
+  public String shareIm(long userId, long sessionId, String conversationId, String targetUserId) {
+    LiveHit hit = requireHit(sessionId);
+    Map<Long, UserSummary> owners = loadOwners(
+        hit.getOwnerId() == null ? List.of() : List.of(hit.getOwnerId()));
+    UserSummary owner = owners.get(hit.getOwnerId());
+    Map<String, String> card = new LinkedHashMap<>();
+    card.put("sessionId", String.valueOf(hit.getSessionId()));
+    card.put("title", nullToEmpty(hit.getTitle()));
+    card.put("coverUrl", publicCoverUrl(hit.getCoverObjectKey()));
+    card.put("authorNickname", owner == null || owner.nickname() == null ? "" : owner.nickname());
+    try {
+      ImClient.ShareResult result = imClient.shareLiveCard(
+          internalToken,
+          String.valueOf(userId),
+          new ImClient.ShareCardRequest(conversationId, targetUserId, card));
+      if (result == null || !StringUtils.hasText(result.messageId())) {
+        throw BusinessException.validation("私信发送失败");
+      }
+      return result.messageId();
+    } catch (BusinessException ex) {
+      throw ex;
+    } catch (RuntimeException ex) {
+      log.warn("share live im failed sessionId={} userId={}", sessionId, userId, ex);
+      throw BusinessException.validation("私信发送失败");
+    }
+  }
+
   public LiveDtos.LivePage list(String q, String category) {
     String cat = category == null || "全部".equals(category.trim()) ? "" : category.trim();
     String keyword = q == null ? "" : q.trim();
@@ -188,6 +241,7 @@ public class LiveService {
         String.valueOf(hit.getRoomId()),
         nullToEmpty(hit.getTitle()),
         publicCoverUrl(hit.getCoverObjectKey()),
+        nullToEmpty(hit.getNotice()),
         trimSlash(pushBase) + "/" + key,
         hlsPlayUrl(key),
         key);
@@ -215,6 +269,7 @@ public class LiveService {
           nullToEmpty(row.getCategory()),
           nullToEmpty(row.getStatus()),
           publicCoverUrl(row.getCoverObjectKey()),
+          nullToEmpty(row.getNotice()),
           hlsPlayUrl(row.getStreamKey()),
           viewers(row.getSessionId()),
           owner,
@@ -330,5 +385,32 @@ public class LiveService {
 
   private static String nullToEmpty(String raw) {
     return raw == null ? "" : raw;
+  }
+
+  private LiveRoom requireOwnedRoom(long ownerId, long roomId) {
+    LiveRoom room = roomMapper.selectById(roomId);
+    if (room == null) {
+      throw BusinessException.notFound("房间不存在");
+    }
+    if (!ownerIdEquals(room.getOwnerId(), ownerId)) {
+      throw BusinessException.forbidden("只能改自己的直播");
+    }
+    return room;
+  }
+
+  private LiveHit requireHit(long sessionId) {
+    LiveHit hit = sessionMapper.findHit(sessionId);
+    if (hit == null) {
+      throw BusinessException.notFound("场次不存在");
+    }
+    return hit;
+  }
+
+  private static String normalizeNotice(String raw) {
+    String text = raw == null ? "" : raw.trim();
+    if (text.length() > NOTICE_MAX) {
+      throw BusinessException.validation("公告最多 200 字");
+    }
+    return text;
   }
 }

@@ -10,6 +10,7 @@ public class LiveHit {
   private String title;
   private String category;
   private String coverObjectKey;
+  private String notice;
   private String streamKey;
   private String status;
   private LocalDateTime startedAt;
@@ -26,6 +27,8 @@ public class LiveHit {
   public void setCategory(String category) { this.category = category; }
   public String getCoverObjectKey() { return coverObjectKey; }
   public void setCoverObjectKey(String coverObjectKey) { this.coverObjectKey = coverObjectKey; }
+  public String getNotice() { return notice; }
+  public void setNotice(String notice) { this.notice = notice; }
   public String getStreamKey() { return streamKey; }
   public void setStreamKey(String streamKey) { this.streamKey = streamKey; }
   public String getStatus() { return status; }

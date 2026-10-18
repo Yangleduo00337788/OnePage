@@ -36,6 +36,16 @@ public class InternalImController {
         body == null ? null : body.content());
   }
 
+  @PostMapping("/share-live-card")
+  public ImDtos.MessageItem shareLiveCard(HttpServletRequest request, @RequestBody ShareCardRequest body) {
+    tokenFilter.assertInternal(request);
+    return imService.shareLiveCard(
+        CurrentUser.requireUserId(request),
+        body == null ? null : body.conversationId(),
+        body == null ? null : body.targetUserId(),
+        body == null ? null : body.content());
+  }
+
   public record ShareCardRequest(String conversationId, String targetUserId, JsonNode content) {}
 
   @GetMapping("/ops/conversations")

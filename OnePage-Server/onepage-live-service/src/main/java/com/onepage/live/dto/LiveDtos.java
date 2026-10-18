@@ -8,7 +8,7 @@ import java.util.List;
 public final class LiveDtos {
   private LiveDtos() {}
 
-  public record RoomSpec(String title, String category, String coverMediaId) {}
+  public record RoomSpec(String title, String category, String coverMediaId, String notice) {}
 
   public record RoomCreated(String roomId) {}
 
@@ -17,6 +17,7 @@ public final class LiveDtos {
       String roomId,
       String title,
       String coverUrl,
+      String notice,
       String pushUrl,
       String playUrlHls,
       String streamKey) {}
@@ -28,6 +29,7 @@ public final class LiveDtos {
       String category,
       String status,
       String coverUrl,
+      String notice,
       String playUrlHls,
       long viewerCount,
       UserSummary owner,
@@ -45,4 +47,14 @@ public final class LiveDtos {
   public record HeartbeatSpec(String presenceId) {}
 
   public record PresenceTick(String status, long viewerCount, ChatLine join) {}
+
+  public record NoticeSpec(String notice) {}
+
+  public record NoticeView(String notice) {}
+
+  public record ShareImRequest(String conversationId, String targetUserId) {}
+
+  public record ShareImResult(String messageId) {}
+
+  public record ShareLinkResult(String shareUrl) {}
 }

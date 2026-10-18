@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-056 分享这场直播走 `live_card`；本场公告落房间；直播中不可改资料
+
+- **日期：** 2026-10-18
+- **状态：** 已采纳
+- **背景：** 底栏分享只复制当前 URL；右栏公告是写死欢迎文案。PRD REQ-D2 要求一页号不可改，离开直播去改资料也不允许。
+- **决策：** `POST /live/sessions/{id}/share/link` 与 `/share/im`（live Feign message 写 `live_card`）。`live_room.notice` 房主 `POST /rooms/{id}/notice` 可改；空则前端默认欢迎文案。`PATCH /users/me` 不接受 `pageId`；正在开播则 409。已有库执行 `004_notice.sql`。
+- **替代：** 分享只复制前端 `location.href`（否决：和笔记分享不一致、无卡片）；公告写死（否决：本场无法改）。
+- **影响：** 重启 live / message / user / gateway；社区直播间分享弹层；创作者开播台公告；「我的」直播中改资料提示先关播。
+
 ## DEC-055 直播在场用 Redis ZSET 心跳，进房通知落 `live_chat.join`
 
 - **日期：** 2026-10-17

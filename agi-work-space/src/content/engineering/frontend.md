@@ -49,9 +49,9 @@ packages/api-client/  fetch + Cookie
 | `/login`, `/register` | 不再渲染独立页；守卫打开 `AuthModal` 后回到 `/` |
 | `/video` | 视频瀑布流：与首页同卡片 280×440，无分类；只展示视频帖（右上播放图标，无时长） |
 | `/live` | 社区只看：分类 Tab + `LiveFeedCard`。开播在创作者中心。空态可跳 5175 |
-| `/live/:sessionId` | 独立直播间（无左栏、无顶栏）：左 `LivePlayer` 悬停底栏 + 主播条悬停资料卡，右深色栏人数/介绍/文字聊天（主播标 + 红底「发送」；进房灰字「昵称 来了」；悬停昵称出资料卡、点进 `/u/:pageId`，卡内关注左侧举报用户）。`POST /live/sessions/{id}/heartbeat` 约 8s；`GET/POST messages` 约 3s 轮询。房主左上「结束直播」二次确认；观众每 8s `peek` 轮询，关播后画面出「已结束」、输入禁用 |
+| `/live/:sessionId` | 独立直播间（无左栏、无顶栏）：左 `LivePlayer` 悬停底栏（分享弹层选好友走 `share/im`、底复制链接）+ 主播条悬停资料卡，右深色栏人数/介绍/本场公告（房主可点改）/文字聊天（主播标 + 红底「发送」；进房灰字「昵称 来了」；悬停昵称出资料卡、点进 `/u/:pageId`，卡内关注左侧举报用户）。`POST /live/sessions/{id}/heartbeat` 约 8s；`GET/POST messages` 约 3s 轮询。房主左上「结束直播」二次确认；观众每 8s `peek` 轮询，关播后画面出「已结束」、输入禁用 |
 | `/notify` | 通知：居中三 Tab 接 `GET /notifications?group=`；评论摘要；侧栏与 Tab 未读数 |
-| `/messages` | 私信：无顶栏、无搜索；左 320px 会话栏 + 右侧对话；`?c=` 打开会话；登录后 `WS /ws/im`；断线约 3 秒轮询；可发图片；`post_card` 出封面卡片，点开详情 |
+| `/messages` | 私信：无顶栏、无搜索；左 320px 会话栏 + 右侧对话；`?c=` 打开会话；登录后 `WS /ws/im`；断线约 3 秒轮询；可发图片；`post_card` 出封面卡片点开详情；`live_card` 进 `/live/:sessionId` |
 | `/about` | 关于我们：可拖装饰卡；协议/隐私/帮助/创作者弹窗 |
 | `/create` | 侧栏发布选中；主区同首页；点击时新开创作者站 |
 | `/creator` | 更多入口：新开创作者站后回首页 |

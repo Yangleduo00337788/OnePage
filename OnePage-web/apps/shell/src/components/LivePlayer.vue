@@ -6,7 +6,7 @@ import type { LiveSession } from '@onepage/api-client'
 import Icon from './Icon.vue'
 
 const props = defineProps<{ session: LiveSession; webFs?: boolean }>()
-const emit = defineEmits<{ 'web-fs': [] }>()
+const emit = defineEmits<{ 'web-fs': []; share: [] }>()
 
 const player = ref<HTMLVideoElement | null>(null)
 const playFailed = ref('')
@@ -18,7 +18,6 @@ const quality = ref(-1)
 const levels = ref<{ id: number; label: string }[]>([{ id: -1, label: '自动' }])
 const danmakuOn = ref(false)
 const danmakuHint = ref('')
-const copied = ref('')
 const isFs = ref(false)
 let hls: Hls | null = null
 let nativeOnError: (() => void) | null = null
@@ -178,17 +177,8 @@ async function toggleFs() {
   else await el.requestFullscreen()
 }
 
-async function share() {
-  try {
-    await navigator.clipboard.writeText(window.location.href)
-    copied.value = '已复制链接'
-  } catch {
-    copied.value = '复制失败'
-  }
-  window.clearTimeout(hintTimer)
-  hintTimer = window.setTimeout(() => {
-    copied.value = ''
-  }, 1600)
+function share() {
+  emit('share')
 }
 
 function onFsChange() {
@@ -235,7 +225,7 @@ onUnmounted(() => {
       :poster="session.coverUrl || undefined"
     />
     <div v-if="failHint" class="live-fail">{{ failHint }}</div>
-    <p v-if="danmakuHint || copied" class="live-toast">{{ danmakuHint || copied }}</p>
+    <p v-if="danmakuHint" class="live-toast">{{ danmakuHint }}</p>
     <div class="vbar" @click.stop>
       <div class="vrow">
         <button type="button" class="vbtn" :aria-label="playing ? '暂停' : '播放'" @click="togglePlay">

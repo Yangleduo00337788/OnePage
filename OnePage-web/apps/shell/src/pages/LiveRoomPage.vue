@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type LiveChatLine, type LiveSession, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import EmptyState from '../components/EmptyState.vue'
 import LivePlayer from '../components/LivePlayer.vue'
 import ReportDialog from '../components/ReportDialog.vue'
 import { formatCount } from '../data/home'
@@ -42,6 +43,21 @@ const reportTargetId = ref('')
 const webFs = ref(false)
 const askEnd = ref(false)
 const ending = ref(false)
+const DEFAULT_NOTICE = '欢迎来到直播间。请理性发言，遵守社区规范。'
+type SharePeer = {
+  userId: string
+  pageId: string
+  nickname: string
+  avatarUrl: string
+  conversationId?: string
+}
+const shareOpen = ref(false)
+const sharePeers = ref<SharePeer[]>([])
+const shareLoading = ref(false)
+const shareBusy = ref('')
+const noticeOpen = ref(false)
+const noticeDraft = ref('')
+const noticeBusy = ref(false)
 let hostTimer = 0
 let pollTimer = 0
 let chatTimer = 0
@@ -68,6 +84,8 @@ const peekSelf = computed(() => {
   return Boolean(me && uid && me === uid)
 })
 const peekBio = computed(() => peekProfile.value?.bio?.trim() || '这个人还没有简介')
+const noticeText = computed(() => watching.value?.notice?.trim() || DEFAULT_NOTICE)
+
 const peekStats = computed(() => {
   const s = peekProfile.value?.stats
   return {
@@ -401,6 +419,136 @@ async function togglePeekFollow() {
   }
 }
 
+function needLogin(e: unknown) {
+  if (e instanceof ApiError && e.status === 401) {
+    auth.show('login', route.fullPath)
+    return true
+  }
+  return false
+}
+
+function openShare() {
+  if (!session.me) {
+    auth.show('login', route.fullPath)
+    return
+  }
+  shareOpen.value = true
+}
+
+async function loadSharePeers() {
+  shareLoading.value = true
+  sharePeers.value = []
+  try {
+    const conv = await api.conversations()
+    const seen = new Set<string>()
+    const rows: SharePeer[] = []
+    for (const it of conv.items || []) {
+      if (!it.peer?.userId || seen.has(it.peer.userId)) continue
+      seen.add(it.peer.userId)
+      rows.push({
+        userId: it.peer.userId,
+        pageId: it.peer.pageId,
+        nickname: it.peer.nickname,
+        avatarUrl: it.peer.avatarUrl,
+        conversationId: it.conversationId,
+      })
+    }
+    if (session.me) {
+      const fol = await api.userFollowing(session.me.pageId, undefined, 50)
+      for (const u of fol.items) {
+        if (!u.userId || seen.has(u.userId) || u.userId === session.me.userId) continue
+        seen.add(u.userId)
+        rows.push({
+          userId: u.userId,
+          pageId: u.pageId,
+          nickname: u.nickname,
+          avatarUrl: u.avatarUrl,
+        })
+      }
+    }
+    sharePeers.value = rows
+  } catch (e) {
+    if (needLogin(e)) shareOpen.value = false
+  } finally {
+    shareLoading.value = false
+  }
+}
+
+async function shareTo(peer: SharePeer) {
+  const id = watching.value?.sessionId || ''
+  if (!id || shareBusy.value) return
+  shareBusy.value = peer.userId
+  try {
+    await api.shareLiveIm(
+      id,
+      peer.conversationId ? { conversationId: peer.conversationId } : { targetUserId: peer.userId },
+    )
+    flashHint('已发送')
+    shareOpen.value = false
+  } catch (e) {
+    if (needLogin(e)) {
+      shareOpen.value = false
+      return
+    }
+    flashHint(e instanceof ApiError ? e.message : '发送失败')
+  } finally {
+    shareBusy.value = ''
+  }
+}
+
+async function copyLiveLink() {
+  const id = watching.value?.sessionId || ''
+  let url = `${location.origin}/live/${id}`
+  if (id) {
+    try {
+      const r = await api.shareLiveLink(id)
+      if (r.shareUrl) url = r.shareUrl
+    } catch (e) {
+      if (needLogin(e)) {
+        shareOpen.value = false
+        return
+      }
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url)
+    flashHint('链接已复制')
+  } catch {
+    flashHint('复制失败')
+  }
+  shareOpen.value = false
+}
+
+function openNotice() {
+  if (!isSelf.value || watching.value?.status !== 'live') return
+  noticeDraft.value = watching.value?.notice?.trim() || DEFAULT_NOTICE
+  noticeOpen.value = true
+}
+
+async function saveNotice() {
+  const roomId = watching.value?.roomId
+  if (!roomId || noticeBusy.value) return
+  noticeBusy.value = true
+  try {
+    const r = await api.updateLiveNotice(roomId, noticeDraft.value)
+    if (watching.value) watching.value = { ...watching.value, notice: r.notice }
+    noticeOpen.value = false
+    flashHint('公告已更新')
+  } catch (e) {
+    if (needLogin(e)) {
+      noticeOpen.value = false
+      return
+    }
+    flashHint(e instanceof ApiError ? e.message : '保存失败')
+  } finally {
+    noticeBusy.value = false
+  }
+}
+
+watch(shareOpen, (on) => {
+  if (on) void loadSharePeers()
+})
+
 async function onSay() {
   const id = watching.value?.sessionId
   const text = draft.value.trim()
@@ -454,7 +602,7 @@ onUnmounted(() => {
     </div>
     <template v-else-if="watching">
       <div class="live-left">
-        <LivePlayer :session="watching" :web-fs="webFs" @web-fs="webFs = !webFs" />
+        <LivePlayer :session="watching" :web-fs="webFs" @web-fs="webFs = !webFs" @share="openShare" />
         <div class="live-chip">
           <button type="button" class="live-chip-back" aria-label="返回" @click="goList">
             <Icon name="chevron-left" :size="20" />
@@ -543,7 +691,15 @@ onUnmounted(() => {
           <h1>{{ watching.title }}</h1>
           <p class="live-intro-b">
             <span class="live-notice">公告</span>
-            欢迎来到直播间。请理性发言，遵守社区规范。
+            <button
+              v-if="isSelf && watching.status === 'live'"
+              type="button"
+              class="live-notice-text is-edit"
+              @click="openNotice"
+            >
+              {{ noticeText }}
+            </button>
+            <span v-else class="live-notice-text">{{ noticeText }}</span>
           </p>
         </div>
         <div ref="chatBox" class="live-chat">
@@ -660,6 +816,50 @@ onUnmounted(() => {
         <span><strong>{{ peekStats.following }}</strong> 关注</span>
         <span><strong>{{ peekStats.fans }}</strong> 粉丝</span>
         <span><strong>{{ peekStats.likes }}</strong> 获赞与收藏</span>
+      </div>
+    </div>
+    <div v-if="shareOpen" class="live-end-mask" @click.self="shareOpen = false">
+      <div class="live-share-card">
+        <p class="live-share-title">分享至</p>
+        <div class="live-share-list">
+          <p v-if="shareLoading" class="live-share-empty">加载中…</p>
+          <EmptyState v-else-if="!sharePeers.length" compact src="/empty-people.png" title="暂无好友" />
+          <button
+            v-for="peer in sharePeers"
+            :key="peer.userId"
+            type="button"
+            class="live-share-row"
+            :disabled="Boolean(shareBusy)"
+            @click="shareTo(peer)"
+          >
+            <img v-if="peer.avatarUrl" :src="peer.avatarUrl" alt="" />
+            <span v-else class="live-share-ph">{{ (peer.nickname || '一').slice(0, 1) }}</span>
+            <span class="live-share-meta">
+              <strong>{{ peer.nickname }}</strong>
+              <em>{{ peer.pageId }}</em>
+            </span>
+            <span class="live-share-send">{{ shareBusy === peer.userId ? '…' : '发送' }}</span>
+          </button>
+        </div>
+        <button type="button" class="live-share-link" @click="copyLiveLink">
+          <span><Icon name="link" :size="22" /></span>
+          复制链接
+        </button>
+      </div>
+    </div>
+    <div v-if="noticeOpen" class="live-end-mask" @click.self="noticeOpen = false">
+      <div class="live-end-card">
+        <div class="live-end-head">
+          <strong>本场公告</strong>
+          <button type="button" class="live-end-x" aria-label="关闭" @click="noticeOpen = false">
+            <Icon name="x" :size="16" />
+          </button>
+        </div>
+        <textarea v-model="noticeDraft" maxlength="200" rows="4" />
+        <p class="live-notice-count">{{ noticeDraft.length }}/200</p>
+        <button type="button" class="live-end-yes" :disabled="noticeBusy" @click="saveNotice">
+          {{ noticeBusy ? '保存中…' : '保存' }}
+        </button>
       </div>
     </div>
     <ReportDialog
@@ -1010,6 +1210,157 @@ onUnmounted(() => {
   font-size: 11px;
   font-weight: 700;
   line-height: 22px;
+}
+
+.live-notice-text {
+  display: inline;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  vertical-align: top;
+}
+
+.live-notice-text.is-edit:hover {
+  color: #fff;
+}
+
+.live-end-card textarea {
+  display: block;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #f5f5f5;
+  color: #1f1f1f;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+}
+
+.live-notice-count {
+  margin: 0 0 12px;
+  color: #8a8a8a;
+  font-size: 12px;
+  text-align: right;
+}
+
+.live-share-card {
+  display: flex;
+  width: 360px;
+  height: 420px;
+  flex-direction: column;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.live-share-title {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+.live-share-list {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 0 8px;
+}
+
+.live-share-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: #8a8a8a;
+  font-size: 13px;
+}
+
+.live-share-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  text-align: left;
+  color: #1f1f1f;
+}
+
+.live-share-row:hover {
+  background: #f7f7f7;
+}
+
+.live-share-row img,
+.live-share-ph {
+  height: 44px;
+  width: 44px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.live-share-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f2f2;
+  color: #8a8a8a;
+  font-size: 14px;
+}
+
+.live-share-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.live-share-meta strong,
+.live-share-meta em {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.live-share-meta strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.live-share-meta em {
+  margin-top: 2px;
+  color: #8a8a8a;
+  font-size: 12px;
+}
+
+.live-share-send {
+  color: #ff2442;
+  font-size: 12px;
+}
+
+.live-share-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 0;
+  border-top: 1px solid #f2f2f2;
+  color: #1f1f1f;
+  font-size: 13px;
+}
+
+.live-share-link span {
+  display: flex;
+  height: 48px;
+  width: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f5f5f5;
 }
 
 .live-chat {

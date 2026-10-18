@@ -45,6 +45,33 @@ public class LiveController {
     liveService.end(CurrentUser.requireUserId(request), roomId);
   }
 
+  @PostMapping("/rooms/{roomId}/notice")
+  public LiveDtos.NoticeView notice(
+      HttpServletRequest request,
+      @PathVariable("roomId") long roomId,
+      @RequestBody LiveDtos.NoticeSpec spec) {
+    return liveService.updateNotice(CurrentUser.requireUserId(request), roomId, spec);
+  }
+
+  @PostMapping("/sessions/{sessionId}/share/link")
+  public LiveDtos.ShareLinkResult shareLink(
+      HttpServletRequest request, @PathVariable("sessionId") long sessionId) {
+    return liveService.shareLink(CurrentUser.requireUserId(request), sessionId);
+  }
+
+  @PostMapping("/sessions/{sessionId}/share/im")
+  public ResponseEntity<LiveDtos.ShareImResult> shareIm(
+      HttpServletRequest request,
+      @PathVariable("sessionId") long sessionId,
+      @RequestBody LiveDtos.ShareImRequest body) {
+    String messageId = liveService.shareIm(
+        CurrentUser.requireUserId(request),
+        sessionId,
+        body == null ? null : body.conversationId(),
+        body == null ? null : body.targetUserId());
+    return ResponseEntity.status(HttpStatus.CREATED).body(new LiveDtos.ShareImResult(messageId));
+  }
+
   @GetMapping("/mine")
   public ResponseEntity<LiveDtos.LiveStart> mine(HttpServletRequest request) {
     LiveDtos.LiveStart start = liveService.mine(CurrentUser.requireUserId(request));

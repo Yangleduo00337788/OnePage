@@ -350,6 +350,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | title | VARCHAR(100) | |
 | category | VARCHAR(32) | 分类，空为未分；对齐直播 Tab |
 | cover_object_key | VARCHAR(512) 可空 | |
+| notice | VARCHAR(200) | 本场公告；空则前端用默认欢迎文案 |
 | created_at | DATETIME(3) | |
 
 ### live_session
@@ -408,6 +409,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-18 | `live_room.notice` 本场公告 |
 | 2026-10-17 | `live_chat.msg_type`；在场 Redis `live:presence` |
 | 2026-10-17 | `live_chat` 直播间文字聊天 |
 | 2026-10-07 | 全库 SQL 写入 [数据库脚本](/engineering/tech/sql)；P0 已落地 auth/user 资料/media_asset |

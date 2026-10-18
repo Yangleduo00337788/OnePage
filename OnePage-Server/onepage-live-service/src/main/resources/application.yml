@@ -39,6 +39,7 @@ onepage:
   live-push-base: ${LIVE_PUSH_BASE}
   live-hls-base: ${LIVE_HLS_BASE}
   media-public-base: ${MEDIA_PUBLIC_BASE}
+  frontend-url: ${FRONTEND_URL}
 
 mybatis-plus:
   configuration:
