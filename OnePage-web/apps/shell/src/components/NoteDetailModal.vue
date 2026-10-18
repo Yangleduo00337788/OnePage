@@ -1069,7 +1069,7 @@ watch(moreOpen, async (on) => {
     >
       <div
         ref="cardEl"
-        class="relative flex h-[min(780px,calc(100vh-48px))] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
+        class="relative flex h-[min(780px,calc(100vh-48px))] overflow-hidden rounded-[20px] bg-[var(--panel)] shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
         :style="{
           transformOrigin: 'center center',
           width: dialogWidth || 'min(1080px, calc(100vw - 48px))',
@@ -1236,7 +1236,7 @@ watch(moreOpen, async (on) => {
           </div>
         </div>
 
-        <div class="relative flex w-[400px] shrink-0 flex-col border-l border-[#f2f2f2]">
+        <div class="relative flex w-[400px] shrink-0 flex-col border-l border-[var(--line)]">
           <div class="relative flex items-center gap-2 px-4 py-3">
             <div
               class="author-hit"
@@ -1245,7 +1245,7 @@ watch(moreOpen, async (on) => {
               @mouseleave="closeAuthor"
             >
               <img v-if="avatar" :src="avatar" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover" />
-              <span v-else class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[13px] text-[#8a8a8a]">
+              <span v-else class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[13px] text-[#8a8a8a]">
                 {{ (detail.note.author || '一').slice(0, 1) }}
               </span>
               <span class="flex min-w-0 items-center gap-1 truncate text-[15px] font-medium">
@@ -1271,7 +1271,7 @@ watch(moreOpen, async (on) => {
                     <img v-if="avatar" :src="avatar" alt="" class="h-11 w-11 rounded-full object-cover" />
                     <span
                       v-else
-                      class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f2f2f2] text-[14px] text-[#8a8a8a]"
+                      class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]"
                     >
                       {{ (detail.note.author || '一').slice(0, 1) }}
                     </span>
@@ -1308,7 +1308,7 @@ watch(moreOpen, async (on) => {
                     {{ followBusy ? '…' : followingAuthor ? '已关注' : '关注' }}
                   </button>
                 </div>
-                <p class="mt-2.5 line-clamp-2 text-[13px] leading-5 text-[#555]">{{ authorBio }}</p>
+                <p class="mt-2.5 line-clamp-2 text-[13px] leading-5 text-[var(--muted)]">{{ authorBio }}</p>
                 <div class="mt-2.5 grid grid-cols-3 gap-2 text-center">
                   <button type="button" class="author-go" @click.stop="goAuthor">
                     <p class="text-[16px] font-semibold">{{ authorStats.following }}</p>
@@ -1344,7 +1344,7 @@ watch(moreOpen, async (on) => {
 
           <div class="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
             <h2 class="text-[16px] font-semibold leading-6">{{ detail.note.title }}</h2>
-            <p v-if="body" class="mt-2 text-[14px] leading-6 text-[#555]">{{ body }}</p>
+            <p v-if="body" class="mt-2 text-[14px] leading-6 text-[var(--muted)]">{{ body }}</p>
             <div v-if="topics.length" class="mt-3 flex flex-wrap gap-2">
               <span v-for="tag in topics" :key="tag" class="text-[13px] text-[#ff2442]">{{ tag }}</span>
             </div>
@@ -1352,7 +1352,7 @@ watch(moreOpen, async (on) => {
               <span
                 v-for="chip in settingChips"
                 :key="chip"
-                class="rounded-full bg-[#f7f7f7] px-2.5 py-0.5 text-[12px] text-[#555]"
+                class="rounded-full bg-[var(--fill)] px-2.5 py-0.5 text-[12px] text-[var(--muted)]"
               >
                 {{ chip }}
               </span>
@@ -1360,16 +1360,16 @@ watch(moreOpen, async (on) => {
             <div class="relative mt-4 flex items-center justify-between text-[12px] text-[#8a8a8a]">
               <span>{{ published }}</span>
               <div v-if="!mine" ref="moreWrap" class="relative">
-                <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#f2f2f2]" aria-label="更多" @click.stop="moreOpen = !moreOpen">
+                <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[var(--hover)]" aria-label="更多" @click.stop="moreOpen = !moreOpen">
                   <Icon name="ellipsis" :size="18" />
                 </button>
-                <div v-if="moreOpen" class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-white py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[#eee]">
-                  <button type="button" class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f7]" @click="report">举报</button>
+                <div v-if="moreOpen" class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-[var(--panel)] py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[var(--line)]">
+                  <button type="button" class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[var(--hover)]" @click="report">举报</button>
                 </div>
               </div>
             </div>
 
-            <div class="my-4 h-px bg-[#f2f2f2]" />
+            <div class="my-4 h-px bg-[var(--hover)]" />
 
             <p class="mb-3 text-[13px] font-medium">评论 {{ commentLabel }}</p>
             <ul v-if="comments.length" class="space-y-3">
@@ -1382,7 +1382,7 @@ watch(moreOpen, async (on) => {
                 />
                 <span
                   v-else
-                  class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[11px] text-[#8a8a8a]"
+                  class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[11px] text-[#8a8a8a]"
                 >
                   {{ item.name.slice(0, 1) }}
                 </span>
@@ -1412,7 +1412,7 @@ watch(moreOpen, async (on) => {
                       {{ item.repliesOpen ? '收起回复' : `展开 ${item.replyCount} 条回复` }}
                     </button>
                   </p>
-                  <ul v-if="item.repliesOpen && item.replies.length" class="mt-2 space-y-2 border-l border-[#f2f2f2] pl-3">
+                  <ul v-if="item.repliesOpen && item.replies.length" class="mt-2 space-y-2 border-l border-[var(--line)] pl-3">
                     <li v-for="reply in item.replies" :key="reply.id" class="flex gap-2">
                       <img
                         v-if="reply.avatarUrl"
@@ -1422,7 +1422,7 @@ watch(moreOpen, async (on) => {
                       />
                       <span
                         v-else
-                        class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[10px] text-[#8a8a8a]"
+                        class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[10px] text-[#8a8a8a]"
                       >
                         {{ reply.name.slice(0, 1) }}
                       </span>
@@ -1462,7 +1462,7 @@ watch(moreOpen, async (on) => {
             <EmptyState v-else compact src="/empty-chat.png" title="还没有评论" />
           </div>
 
-          <div class="border-t border-[#f2f2f2] px-3 py-3">
+          <div class="border-t border-[var(--line)] px-3 py-3">
             <div class="compose flex items-center gap-2" :class="{ 'is-on': composing }">
               <div class="relative min-w-0 flex-1">
                 <ul v-if="mentionOpen && mentionHits.length" class="at-pop">
@@ -1481,12 +1481,12 @@ watch(moreOpen, async (on) => {
                       />
                       <span
                         v-else
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-[12px] text-[#8a8a8a]"
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[12px] text-[#8a8a8a]"
                       >
                         {{ (user.nickname || user.pageId).slice(0, 1) }}
                       </span>
                       <span class="min-w-0 flex-1 text-left">
-                        <span class="block truncate text-[13px] text-[#1f1f1f]">{{ user.nickname }}</span>
+                        <span class="block truncate text-[13px] text-[var(--ink)]">{{ user.nickname }}</span>
                         <span class="block truncate text-[11px] text-[#8a8a8a]">{{ user.pageId }}</span>
                       </span>
                     </button>
@@ -1500,7 +1500,7 @@ watch(moreOpen, async (on) => {
                 <input
                   ref="commentBox"
                   v-model="draft"
-                  class="h-9 w-full rounded-[20px] bg-[#f7f7f7] px-3.5 text-[13px] outline-none"
+                  class="h-9 w-full rounded-[20px] bg-[var(--fill)] px-3.5 text-[13px] outline-none"
                   :placeholder="replyTo ? `回复 ${replyTo.name}` : composing ? '说点什么… @ 可搜昵称或一页号' : '说点什么…'"
                   @focus="onCommentFocus"
                   @blur="onCommentBlur"
@@ -1551,7 +1551,7 @@ watch(moreOpen, async (on) => {
       </div>
 
       <div v-if="shareOpen" class="absolute inset-0 z-30 flex items-center justify-center bg-black/25" @click.self="shareOpen = false">
-        <div class="flex h-[420px] w-[360px] flex-col rounded-[20px] bg-white shadow-[0_16px_48px_rgba(0,0,0,0.16)]">
+        <div class="flex h-[420px] w-[360px] flex-col rounded-[20px] bg-[var(--panel)] shadow-[0_16px_48px_rgba(0,0,0,0.16)]">
           <p class="py-4 text-center text-[16px] font-medium">分享至</p>
           <div class="min-h-0 flex-1 overflow-y-auto px-2">
             <p v-if="shareLoading" class="py-10 text-center text-[13px] text-[#8a8a8a]">加载中…</p>
@@ -1560,12 +1560,12 @@ watch(moreOpen, async (on) => {
               v-for="peer in sharePeers"
               :key="peer.userId"
               type="button"
-              class="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left hover:bg-[#f7f7f7]"
+              class="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left hover:bg-[var(--hover)]"
               :disabled="Boolean(shareBusy)"
               @click="shareTo(peer)"
             >
               <img v-if="peer.avatarUrl" :src="peer.avatarUrl" alt="" class="h-11 w-11 rounded-full object-cover" />
-              <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f2f2f2] text-[14px] text-[#8a8a8a]">
+              <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]">
                 {{ (peer.nickname || '一').slice(0, 1) }}
               </span>
               <span class="min-w-0 flex-1">
@@ -1575,9 +1575,9 @@ watch(moreOpen, async (on) => {
               <span class="text-[12px] text-[#ff2442]">{{ shareBusy === peer.userId ? '…' : '发送' }}</span>
             </button>
           </div>
-          <div class="flex justify-center gap-16 border-t border-[#f2f2f2] py-6">
-            <button type="button" class="flex flex-col items-center gap-2 text-[13px] text-[#1f1f1f]" @click="copyLink">
-              <span class="flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f5f5]">
+          <div class="flex justify-center gap-16 border-t border-[var(--line)] py-6">
+            <button type="button" class="flex flex-col items-center gap-2 text-[13px] text-[var(--ink)]" @click="copyLink">
+              <span class="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--fill)]">
                 <Icon name="link" :size="22" />
               </span>
               复制链接
@@ -1831,7 +1831,7 @@ watch(moreOpen, async (on) => {
   padding: 14px 16px 12px;
   overflow: hidden;
   border-radius: 20px;
-  background: #fff;
+  background: var(--panel);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
 }
 
@@ -1868,8 +1868,8 @@ watch(moreOpen, async (on) => {
 }
 
 .follow-btn.is-on {
-  background: #f2f2f2;
-  color: #555;
+  background: var(--hover);
+  color: var(--muted);
 }
 
 .close-x {
@@ -1886,8 +1886,8 @@ watch(moreOpen, async (on) => {
 .close-x:hover,
 .close-x:focus-visible,
 .close-x:active {
-  background: #f2f2f2;
-  color: #1f1f1f;
+  background: var(--hover);
+  color: var(--ink);
 }
 
 .compose {
@@ -1966,7 +1966,7 @@ watch(moreOpen, async (on) => {
   height: 48px;
   flex-shrink: 0;
   padding: 0;
-  color: #333;
+  color: var(--ink);
 }
 
 .act.is-on {
@@ -2010,7 +2010,7 @@ watch(moreOpen, async (on) => {
   max-height: 240px;
   overflow-y: auto;
   border-radius: 16px;
-  background: #fff;
+  background: var(--panel);
   box-shadow: 0 8px 28px rgb(0 0 0 / 12%);
 }
 

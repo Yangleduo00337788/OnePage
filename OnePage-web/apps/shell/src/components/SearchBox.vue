@@ -198,8 +198,8 @@ onBeforeUnmount(() => {
     </button>
     <label
       v-else
-      class="flex h-11 w-full items-center rounded-full bg-[#fafafa] px-4 text-sm ring-1"
-      :class="open ? 'ring-[#ddd] bg-white' : 'ring-[#eee]'"
+      class="search-field flex h-11 w-full items-center rounded-full px-4 text-sm"
+      :class="open ? 'is-open' : ''"
     >
       <Icon name="search" :size="16" class="text-[#bbb]" />
       <input
@@ -214,17 +214,17 @@ onBeforeUnmount(() => {
 
     <div
       v-if="open"
-      class="absolute top-[calc(100%+8px)] right-0 left-0 z-30 overflow-hidden rounded-2xl bg-white p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-[#eee]"
+      class="search-panel absolute top-[calc(100%+8px)] right-0 left-0 z-30 overflow-hidden rounded-2xl p-5"
     >
       <div class="mb-3 flex items-center justify-between">
         <h3 class="text-[15px] font-semibold">历史记录</h3>
-        <button v-if="history.length" type="button" class="text-[12px] text-[#8a8a8a] hover:text-[#333]" @click="clearHistory">
+        <button v-if="history.length" type="button" class="text-[12px] text-[#8a8a8a] hover:text-[var(--ink)]" @click="clearHistory">
           清空
         </button>
       </div>
       <ul v-if="history.length" class="flex flex-wrap gap-2">
         <li v-for="item in history" :key="item">
-          <span class="inline-flex items-center gap-1.5 rounded-full bg-[#fafafa] py-1 pr-2 pl-2.5 text-[13px] text-[#333]">
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--fill)] py-1 pr-2 pl-2.5 text-[13px] text-[var(--ink)]">
             <Icon name="clock" :size="13" class="text-[#bbb]" />
             <button type="button" class="max-w-[180px] truncate" @click="search(item)">{{ item }}</button>
             <button type="button" class="text-[#ccc] hover:text-[#666]" aria-label="删除" @click="removeHistory(item)">
@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
             <li v-for="item in liveHits" :key="item.sessionId">
               <button
                 type="button"
-                class="flex w-full items-center gap-2 text-left text-[13px] text-[#333] hover:text-[#ff2442]"
+                class="flex w-full items-center gap-2 text-left text-[13px] text-[var(--ink)] hover:text-[#ff2442]"
                 @click="goLive(item.sessionId)"
               >
                 <img
@@ -271,7 +271,7 @@ onBeforeUnmount(() => {
             <li v-for="item in topicHits" :key="item.topicId">
               <button
                 type="button"
-                class="rounded-full bg-[#fafafa] px-2.5 py-1 text-[13px] text-[#333] hover:bg-[#f2f2f2]"
+                class="rounded-full bg-[var(--fill)] px-2.5 py-1 text-[13px] text-[var(--ink)] hover:bg-[var(--hover)]"
                 @click="search(item.name)"
               >
                 {{ item.name }}

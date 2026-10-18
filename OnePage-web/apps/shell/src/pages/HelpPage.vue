@@ -88,13 +88,13 @@ onUnmounted(() => {
 
     <label class="mt-5 block text-[14px] font-medium">图片（选填，最多 6 张）</label>
     <div class="mt-2 flex flex-wrap gap-2">
-      <div v-for="(item, i) in images" :key="item.url" class="relative h-20 w-20 overflow-hidden rounded-xl bg-[#ececec]">
+      <div v-for="(item, i) in images" :key="item.url" class="relative h-20 w-20 overflow-hidden rounded-xl bg-[var(--fill)]">
         <img :src="item.url" alt="" class="h-full w-full object-cover" />
         <button type="button" class="absolute top-1 right-1 rounded-full bg-black/55 px-1.5 text-[10px] text-white" @click="removeImage(i)">
           ×
         </button>
       </div>
-      <label v-if="images.length < 6" class="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl bg-[#f7f7f7] text-[24px] text-[#bbb]">
+      <label v-if="images.length < 6" class="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl bg-[var(--fill)] text-[24px] text-[#bbb]">
         +
         <input type="file" accept="image/*" multiple class="hidden" @change="pickImages" />
       </label>
@@ -103,7 +103,7 @@ onUnmounted(() => {
     <label class="mt-5 block text-[14px] font-medium">联系方式</label>
     <input v-model="contact" class="field mt-2" placeholder="手机号 / 邮箱，方便我们联系你" />
 
-    <p v-if="hint" class="mt-3 text-[13px]" :class="hint.startsWith('已') ? 'text-[#1f1f1f]' : 'text-[#ff2442]'">{{ hint }}</p>
+    <p v-if="hint" class="mt-3 text-[13px]" :class="hint.startsWith('已') ? 'text-[var(--ink)]' : 'text-[#ff2442]'">{{ hint }}</p>
     <button type="button" class="btn-auth mt-5 w-full max-w-[200px]" :disabled="sending" @click="submit">
       {{ sending ? '提交中…' : '提交' }}
     </button>

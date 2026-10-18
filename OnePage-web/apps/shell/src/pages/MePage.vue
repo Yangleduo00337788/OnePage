@@ -263,7 +263,7 @@ async function logout() {
     <div class="profile-hero cursor-pointer" @click="onCoverClick">
       <div class="profile-hero-bg">
         <img v-if="session.me.coverUrl" :src="session.me.coverUrl" alt="" />
-        <div v-else class="relative h-full w-full overflow-hidden bg-[#fafafa]">
+        <div v-else class="relative h-full w-full overflow-hidden bg-[var(--fill)]">
           <span class="pointer-events-none absolute -top-10 -left-8 h-48 w-48 rounded-full bg-[#ff2442]/[0.07]" />
           <span class="pointer-events-none absolute right-[-24px] bottom-[-28px] h-44 w-44 rounded-full bg-[#ff2442]/[0.05]" />
         </div>
@@ -278,7 +278,7 @@ async function logout() {
           <div class="relative">
             <button
               type="button"
-              class="group h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white"
+              class="group h-24 w-24 overflow-hidden rounded-full bg-[var(--fill)] ring-4 ring-[var(--panel)]"
               :disabled="uploading === 'avatar'"
               @click="pickMedia('avatar')"
             >
@@ -299,7 +299,7 @@ async function logout() {
             </button>
             <button
               type="button"
-              class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1f] shadow-sm ring-1 ring-[#eee]"
+              class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--panel)] text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]"
               :disabled="uploading === 'avatar'"
               aria-label="更换头像"
               @click="pickMedia('avatar')"
@@ -393,7 +393,7 @@ async function logout() {
 
     <p
       v-if="toast"
-      class="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#1f1f1f] px-4 py-2 text-[13px] text-white"
+      class="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[var(--ink)] px-4 py-2 text-[13px] text-[var(--bg)]"
     >
       {{ toast }}
     </p>
@@ -411,7 +411,7 @@ async function logout() {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4"
         @click.self="closeEdit"
       >
-        <div class="relative w-[440px] max-w-[calc(100vw-32px)] rounded-[20px] bg-white px-8 py-7 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
+        <div class="relative w-[440px] max-w-[calc(100vw-32px)] rounded-[20px] bg-[var(--panel)] px-8 py-7 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
           <button type="button" class="icon-btn absolute top-3 right-3" aria-label="关闭" @click="closeEdit">
             <Icon name="x" :size="18" />
           </button>

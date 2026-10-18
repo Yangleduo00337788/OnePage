@@ -201,11 +201,11 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         </button>
         <div
           v-if="moreOpen"
-          class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-white py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[#eee]"
+          class="absolute right-0 top-full z-10 mt-1 min-w-[108px] rounded-[12px] bg-[var(--panel)] py-1 shadow-[0_8px_28px_rgba(0,0,0,0.12)] ring-1 ring-[var(--line)]"
         >
           <button
             type="button"
-            class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[#f7f7f7]"
+            class="block w-full px-3 py-2 text-left text-[13px] hover:bg-[var(--hover)]"
             @click="report"
           >
             举报
@@ -216,7 +216,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <div class="profile-hero">
       <div class="profile-hero-bg">
         <img v-if="profile.coverUrl" :src="profile.coverUrl" alt="" />
-        <div v-else class="relative h-full w-full overflow-hidden bg-[#fafafa]">
+        <div v-else class="relative h-full w-full overflow-hidden bg-[var(--fill)]">
           <span class="pointer-events-none absolute -top-10 -left-8 h-48 w-48 rounded-full bg-[#ff2442]/[0.07]" />
           <span class="pointer-events-none absolute right-[-24px] bottom-[-28px] h-44 w-44 rounded-full bg-[#ff2442]/[0.05]" />
         </div>
@@ -224,7 +224,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       <div class="profile-hero-shade" />
       <div class="profile-hero-body">
         <div class="flex justify-center">
-          <div class="relative h-24 w-24 overflow-hidden rounded-full bg-[#f3f3f3] ring-4 ring-white">
+          <div class="relative h-24 w-24 overflow-hidden rounded-full bg-[var(--fill)] ring-4 ring-[var(--panel)]">
             <img v-if="profile.avatarUrl" :src="profile.avatarUrl" class="h-full w-full object-cover" alt="" />
             <span v-else class="flex h-full items-center justify-center text-[28px] text-[#c4c4c4]">
               {{ (profile.nickname || '一').slice(0, 1) }}
@@ -287,7 +287,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
     <p
       v-if="toast"
-      class="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#1f1f1f] px-4 py-2 text-[13px] text-white"
+      class="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[var(--ink)] px-4 py-2 text-[13px] text-[var(--bg)]"
     >
       {{ toast }}
     </p>
@@ -322,8 +322,8 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   line-height: 1;
 }
 .follow-btn.is-on {
-  background: #f2f2f2;
-  color: #555;
+  background: var(--hover);
+  color: var(--muted);
 }
 .stat-link:hover span {
   color: #ff2442;
@@ -336,10 +336,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: #1f1f1f;
+  color: var(--ink);
 }
 
 .user-round:hover {
-  background: #f2f2f2;
+  background: var(--hover);
 }
 </style>

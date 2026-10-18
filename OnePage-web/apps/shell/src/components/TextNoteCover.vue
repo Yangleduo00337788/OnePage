@@ -35,8 +35,8 @@ const headline = computed(() => {
   min-height: 0;
   overflow: hidden;
   padding: 28px 20px;
-  background: #f7f7f7;
-  color: #1f1f1f;
+  background: var(--fill);
+  color: var(--ink);
 }
 
 .tnc-title {

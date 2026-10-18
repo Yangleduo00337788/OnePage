@@ -95,7 +95,7 @@ async function submit() {
   width: 360px;
   padding: 24px;
   border-radius: 20px;
-  background: #fff;
+  background: var(--panel);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
 }
 
@@ -128,8 +128,8 @@ textarea {
   padding: 10px 12px;
   border: 0;
   border-radius: 12px;
-  background: #f7f7f7;
-  color: #1f1f1f;
+  background: var(--fill);
+  color: var(--ink);
   font: inherit;
   font-size: 13px;
   resize: none;

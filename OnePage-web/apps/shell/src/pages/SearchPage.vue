@@ -237,12 +237,12 @@ onUnmounted(() => {
         :key="item"
         type="button"
         class="pb-1.5"
-        :class="tab === item ? 'text-[18px] font-semibold text-[#1f1f1f] shadow-[inset_0_-2px_0_#ff2442]' : 'hover:text-[#333]'"
+        :class="tab === item ? 'text-[18px] font-semibold text-[var(--ink)] shadow-[inset_0_-2px_0_#ff2442]' : 'hover:text-[var(--ink)]'"
         @click="tab = item"
       >
         {{ item }}
       </button>
-      <button type="button" class="inline-flex items-center gap-1 pb-1.5 hover:text-[#333]" @click="openYehyeh()">
+      <button type="button" class="inline-flex items-center gap-1 pb-1.5 hover:text-[var(--ink)]" @click="openYehyeh()">
         问耶耶
         <span class="text-[11px] font-medium text-[#ff2442]">AI</span>
       </button>
@@ -326,7 +326,7 @@ onUnmounted(() => {
       <div class="min-w-0 flex-1">
         <p v-if="loading" class="py-16 text-center text-[14px] text-[#8a8a8a]">搜索中…</p>
         <p v-else-if="failed" class="py-16 text-center text-[14px] text-[#8a8a8a]">{{ failed }}</p>
-        <div v-else-if="tab === '用户' && users.length" class="divide-y divide-[#f2f2f2]">
+        <div v-else-if="tab === '用户' && users.length" class="divide-y divide-[var(--line)]">
           <button
             v-for="user in users"
             :key="user.userId"
@@ -340,9 +340,9 @@ onUnmounted(() => {
               alt=""
               class="h-12 w-12 shrink-0 rounded-full object-cover"
             />
-            <span v-else class="h-12 w-12 shrink-0 rounded-full bg-[#ececec]" />
+            <span v-else class="h-12 w-12 shrink-0 rounded-full bg-[var(--fill)]" />
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-[15px] font-medium text-[#1f1f1f]">{{ user.nickname }}</span>
+              <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ user.nickname }}</span>
               <span class="mt-0.5 block truncate text-[13px] text-[#8a8a8a]">
                 {{ user.bio?.trim() || `一页号 ${user.pageId}` }}
               </span>
@@ -357,7 +357,7 @@ onUnmounted(() => {
             v-for="item in topics"
             :key="item.topicId"
             type="button"
-            class="rounded-[20px] bg-[#f3f3f3] px-4 py-2 text-[14px] text-[#1f1f1f] hover:bg-[#eee]"
+            class="rounded-[20px] bg-[var(--fill)] px-4 py-2 text-[14px] text-[var(--ink)] hover:bg-[var(--hover)]"
             @click="openTopic(item.name)"
           >
             #{{ item.name }}
@@ -378,15 +378,15 @@ onUnmounted(() => {
       </div>
 
       <aside class="sticky top-[84px] hidden h-[calc(100vh-108px)] w-[400px] shrink-0 flex-col lg:flex">
-        <div class="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl bg-[#fafafa] p-5">
+        <div class="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl bg-[var(--fill)] p-5">
           <div class="flex items-center gap-2">
             <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff2442] text-white">
               <Icon name="spark" :size="14" :stroke="2" />
             </span>
             <span class="text-[15px] font-semibold">耶耶</span>
-            <span class="rounded-full bg-white px-2 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">AI</span>
+            <span class="rounded-full bg-[var(--panel)] px-2 py-0.5 text-[11px] text-[var(--muted)] ring-1 ring-[var(--line)]">AI</span>
           </div>
-          <p class="mt-3 text-[14px] leading-6 text-[#555]">
+          <p class="mt-3 text-[14px] leading-6 text-[var(--muted)]">
             根据「{{ q || '你感兴趣的内容' }}」去问耶耶，耶耶会先检索站内笔记再回答。
           </p>
         </div>

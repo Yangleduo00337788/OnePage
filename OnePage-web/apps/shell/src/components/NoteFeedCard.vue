@@ -27,7 +27,7 @@ const isText = computed(() => !props.note.video && !props.note.image)
     class="flex w-[280px] cursor-pointer flex-col"
     @click="open"
   >
-    <div class="group relative h-[360px] overflow-hidden rounded-2xl bg-[#ececec]">
+    <div class="group relative h-[360px] overflow-hidden rounded-2xl bg-[var(--fill)]">
       <video
         v-if="note.video && note.image"
         :src="videoSrc"

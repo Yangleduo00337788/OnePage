@@ -1007,9 +1007,9 @@ onUnmounted(() => {
 .live-end-card {
   width: min(400px, 90vw);
   border-radius: 20px;
-  background: #fff;
+  background: var(--panel);
   padding: 16px 18px 20px;
-  color: #1f1f1f;
+  color: var(--ink);
 }
 
 .live-end-head {
@@ -1030,7 +1030,7 @@ onUnmounted(() => {
 }
 
 .live-end-x:hover {
-  background: #f2f2f2;
+  background: var(--hover);
 }
 
 .live-end-card p {
@@ -1052,8 +1052,8 @@ onUnmounted(() => {
 }
 
 .live-end-no {
-  background: #f3f3f3;
-  color: #1f1f1f;
+  background: var(--fill);
+  color: var(--ink);
 }
 
 .live-end-yes {
@@ -1076,8 +1076,8 @@ onUnmounted(() => {
   flex-direction: column;
   padding: 14px 16px 12px;
   border-radius: 20px;
-  background: #fff;
-  color: #1f1f1f;
+  background: var(--panel);
+  color: var(--ink);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
 }
 
@@ -1124,7 +1124,7 @@ onUnmounted(() => {
 }
 
 .host-report:hover {
-  background: #f3f3f3;
+  background: var(--fill);
 }
 
 .host-card .live-follow {
@@ -1135,15 +1135,15 @@ onUnmounted(() => {
 }
 
 .host-card .live-follow.is-on {
-  background: #f2f2f2;
-  color: #555;
+  background: var(--hover);
+  color: var(--muted);
 }
 
 .host-bio {
   margin: 10px 0 0;
   font-size: 13px;
   line-height: 1.6;
-  color: #555;
+  color: var(--muted);
 }
 
 .host-stats {
@@ -1156,7 +1156,7 @@ onUnmounted(() => {
 
 .host-stats strong {
   margin-right: 4px;
-  color: #1f1f1f;
+  color: var(--ink);
   font-size: 14px;
 }
 
@@ -1231,8 +1231,8 @@ onUnmounted(() => {
   padding: 12px;
   border: 0;
   border-radius: 12px;
-  background: #f5f5f5;
-  color: #1f1f1f;
+  background: var(--fill);
+  color: var(--ink);
   font: inherit;
   font-size: 14px;
   line-height: 1.5;
@@ -1253,7 +1253,7 @@ onUnmounted(() => {
   height: 420px;
   flex-direction: column;
   border-radius: 20px;
-  background: #fff;
+  background: var(--panel);
 }
 
 .live-share-title {
@@ -1262,7 +1262,7 @@ onUnmounted(() => {
   text-align: center;
   font-size: 16px;
   font-weight: 500;
-  color: #1f1f1f;
+  color: var(--ink);
 }
 
 .live-share-list {
@@ -1287,11 +1287,11 @@ onUnmounted(() => {
   padding: 10px 12px;
   border-radius: 16px;
   text-align: left;
-  color: #1f1f1f;
+  color: var(--ink);
 }
 
 .live-share-row:hover {
-  background: #f7f7f7;
+  background: var(--fill);
 }
 
 .live-share-row img,
@@ -1307,7 +1307,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f2f2f2;
+  background: var(--hover);
   color: #8a8a8a;
   font-size: 14px;
 }
@@ -1348,8 +1348,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 20px 0;
-  border-top: 1px solid #f2f2f2;
-  color: #1f1f1f;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
   font-size: 13px;
 }
 
@@ -1360,7 +1360,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #f5f5f5;
+  background: var(--fill);
 }
 
 .live-chat {
@@ -1380,7 +1380,7 @@ onUnmounted(() => {
 .live-chat-empty {
   margin: 12px 0 0;
   font-size: 13px;
-  color: #6a6a6a;
+  color: var(--muted);
 }
 
 .live-chat-row {

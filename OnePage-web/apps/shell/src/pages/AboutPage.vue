@@ -134,8 +134,8 @@ onUnmounted(() => {
     <header class="about-hero">
       <div class="mx-auto flex justify-center"><BrandLogo size="hero" /></div>
       <p class="mt-2 text-[12px] tracking-[0.16em] text-[#8a8a8a]">Every Day, A New Page</p>
-      <h1 class="mt-6 text-[22px] font-semibold text-[#1f1f1f]">关于我们</h1>
-      <p class="mx-auto mt-3 max-w-[520px] text-[15px] leading-7 text-[#555]">
+      <h1 class="mt-6 text-[22px] font-semibold text-[var(--ink)]">关于我们</h1>
+      <p class="mx-auto mt-3 max-w-[520px] text-[15px] leading-7 text-[var(--muted)]">
         ONEPAGE（一页）是生活方式社区。我们希望你每天都能留下一页：看见别人的日常，也写下自己的。
       </p>
     </header>
@@ -168,7 +168,7 @@ onUnmounted(() => {
 
     <section class="mt-8">
       <h2 class="text-[16px] font-semibold">联系与条款</h2>
-      <p class="mt-2 text-[14px] leading-7 text-[#555]">
+      <p class="mt-2 text-[14px] leading-7 text-[var(--muted)]">
         使用本服务即表示你同意相关约定。点下面入口会打开弹窗，不离开这一页。
       </p>
       <div class="mt-5 flex flex-wrap gap-2">
@@ -192,10 +192,10 @@ onUnmounted(() => {
 
         <div v-if="sheet === 'terms' || sheet === 'privacy'" class="about-dialog-body">
           <p class="text-[12px] text-[#8a8a8a]">更新于 {{ legalDoc.updated }}</p>
-          <p class="mt-3 text-[14px] leading-7 text-[#555]">{{ legalDoc.intro }}</p>
+          <p class="mt-3 text-[14px] leading-7 text-[var(--muted)]">{{ legalDoc.intro }}</p>
           <section v-for="block in legalDoc.sections" :key="block.heading" class="mt-5">
             <h3 class="text-[14px] font-semibold">{{ block.heading }}</h3>
-            <p v-for="p in block.paragraphs" :key="p" class="mt-2 text-[14px] leading-7 text-[#555]">{{ p }}</p>
+            <p v-for="p in block.paragraphs" :key="p" class="mt-2 text-[14px] leading-7 text-[var(--muted)]">{{ p }}</p>
           </section>
         </div>
 
@@ -203,13 +203,13 @@ onUnmounted(() => {
           <p class="text-[13px] leading-6 text-[#8a8a8a]">写下问题或建议，可附图和联系方式。</p>
           <textarea v-model="content" rows="5" class="field mt-3 text-[14px]" placeholder="反馈和意见" />
           <div class="mt-2 flex flex-wrap gap-1.5">
-            <div v-for="(item, i) in images" :key="item.url" class="relative h-16 w-16 overflow-hidden rounded-lg bg-[#ececec]">
+            <div v-for="(item, i) in images" :key="item.url" class="relative h-16 w-16 overflow-hidden rounded-lg bg-[var(--fill)]">
               <img :src="item.url" alt="" class="h-full w-full object-cover" />
               <button type="button" class="absolute top-0.5 right-0.5 rounded-full bg-black/55 px-1 text-[9px] text-white" @click="removeImage(i)">
                 ×
               </button>
             </div>
-            <label v-if="images.length < 6" class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg bg-[#f7f7f7] text-[20px] text-[#bbb]">
+            <label v-if="images.length < 6" class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg bg-[var(--fill)] text-[20px] text-[#bbb]">
               +
               <input type="file" accept="image/*" multiple class="hidden" @change="pickImages" />
             </label>
@@ -224,15 +224,15 @@ onUnmounted(() => {
         <div v-else class="about-dialog-body">
           <p class="text-[13px] text-[#8a8a8a]">弹窗只作简介。完整数据与作品管理在独立创作者中心。</p>
           <div class="mt-4 grid grid-cols-3 gap-2">
-            <div class="rounded-[16px] bg-[#fafafa] p-3">
+            <div class="rounded-[16px] bg-[var(--fill)] p-3">
               <p class="text-[12px] text-[#8a8a8a]">近 7 日浏览</p>
               <p class="mt-2 text-[20px] font-semibold">—</p>
             </div>
-            <div class="rounded-[16px] bg-[#fafafa] p-3">
+            <div class="rounded-[16px] bg-[var(--fill)] p-3">
               <p class="text-[12px] text-[#8a8a8a]">新增关注</p>
               <p class="mt-2 text-[20px] font-semibold">—</p>
             </div>
-            <div class="rounded-[16px] bg-[#fafafa] p-3">
+            <div class="rounded-[16px] bg-[var(--fill)] p-3">
               <p class="text-[12px] text-[#8a8a8a]">互动</p>
               <p class="mt-2 text-[20px] font-semibold">—</p>
             </div>

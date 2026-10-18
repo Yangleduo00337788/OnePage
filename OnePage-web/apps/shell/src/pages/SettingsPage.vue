@@ -216,14 +216,14 @@ function bindOAuth(provider: 'github' | 'google') {
           autocomplete="new-password"
         />
         <p v-if="pwdError" class="text-[13px] text-[#ff2442]">{{ pwdError }}</p>
-        <p v-else-if="pwdHint" class="text-[13px] text-[#1f1f1f]">{{ pwdHint }}</p>
+        <p v-else-if="pwdHint" class="text-[13px] text-[var(--ink)]">{{ pwdHint }}</p>
         <button type="submit" class="btn-auth btn-auth-inline text-[14px]" :disabled="pwdSaving">
           {{ pwdSaving ? '保存中…' : '确定' }}
         </button>
       </form>
       <button
         type="button"
-        class="mt-4 text-[13px] text-[#8a8a8a] hover:text-[#333]"
+        class="mt-4 text-[13px] text-[#8a8a8a] hover:text-[var(--ink)]"
         @click="showReset = !showReset"
       >
         {{ showReset ? '收起找回密码' : '忘记密码？' }}
@@ -250,7 +250,7 @@ function bindOAuth(provider: 'github' | 'google') {
           autocomplete="new-password"
         />
         <p v-if="resetError" class="text-[13px] text-[#ff2442]">{{ resetError }}</p>
-        <p v-else-if="resetHint" class="text-[13px] text-[#1f1f1f]">{{ resetHint }}</p>
+        <p v-else-if="resetHint" class="text-[13px] text-[var(--ink)]">{{ resetHint }}</p>
         <button type="submit" class="btn-auth btn-auth-inline text-[14px]" :disabled="resetSaving">
           {{ resetSaving ? '提交中…' : '重置密码' }}
         </button>

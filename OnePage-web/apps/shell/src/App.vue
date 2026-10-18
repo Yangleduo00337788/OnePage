@@ -178,13 +178,13 @@ const pageGutter = computed(() => {
     >
       <RouterLink to="/" class="mb-5 inline-flex" aria-label="ONEPAGE"><BrandLogo /></RouterLink>
 
-      <nav class="flex w-full flex-col items-center space-y-1 text-[16px] font-medium text-[#1f1f1f]">
+      <nav class="flex w-full flex-col items-center space-y-1 text-[16px] font-medium text-[var(--ink)]">
         <RouterLink
           v-for="item in nav"
           :key="item.label"
           :to="item.to"
-          class="flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
-          :class="active(item) ? 'bg-[#f2f2f2]' : ''"
+          class="nav-pill flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
+          :class="active(item) ? 'is-on' : ''"
           @click="onNav(item)"
         >
           <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
@@ -217,8 +217,8 @@ const pageGutter = computed(() => {
         <RouterLink
           v-else
           :to="meNav.to"
-          class="flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
-          :class="active(meNav) ? 'bg-[#f2f2f2]' : ''"
+          class="nav-pill flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
+          :class="active(meNav) ? 'is-on' : ''"
         >
           <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
             <Icon :name="meNav.icon" :size="24" :stroke="1.75" class="shrink-0" />
@@ -227,7 +227,7 @@ const pageGutter = computed(() => {
         </RouterLink>
       </nav>
 
-      <nav class="mt-auto flex w-full flex-col items-center space-y-1 pb-2 text-[16px] font-medium text-[#1f1f1f]">
+      <nav class="mt-auto flex w-full flex-col items-center space-y-1 pb-2 text-[16px] font-medium text-[var(--ink)]">
         <button
           ref="moreBtn"
           type="button"
@@ -242,8 +242,8 @@ const pageGutter = computed(() => {
         </button>
         <RouterLink
           :to="about.to"
-          class="flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5 hover:bg-[#f2f2f2]"
-          :class="route.path === about.to ? 'bg-[#f2f2f2]' : ''"
+          class="nav-pill flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
+          :class="route.path === about.to ? 'is-on' : ''"
         >
           <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
             <Icon :name="about.icon" :size="24" :stroke="1.75" class="shrink-0" />

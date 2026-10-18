@@ -313,7 +313,7 @@ watch(
           <img v-if="item.peer.avatarUrl" :src="item.peer.avatarUrl" alt="" />
           <span
             v-else
-            class="flex h-11 w-11 items-center justify-center rounded-full bg-[#ececec] text-[14px] text-[#8a8a8a]"
+            class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--fill)] text-[14px] text-[#8a8a8a]"
           >
             {{ (item.peer.nickname || '一').slice(0, 1) }}
           </span>
@@ -322,7 +322,7 @@ watch(
           </span>
         </span>
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-[15px] font-medium text-[#1f1f1f]">{{ item.peer.nickname }}</span>
+          <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ item.peer.nickname }}</span>
           <span class="mt-0.5 block truncate text-[12px] text-[#8a8a8a]">{{ previewOf(item) }}</span>
         </span>
       </button>

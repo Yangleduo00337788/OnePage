@@ -187,7 +187,7 @@ onUnmounted(() => {
     <div
       v-if="more.open"
       ref="panelRef"
-      class="more-panel pointer-events-auto fixed z-50 flex max-h-[min(640px,calc(100vh-48px))] flex-col overflow-hidden rounded-[16px] bg-[var(--bg)] shadow-[0_16px_48px_rgba(0,0,0,0.16)] ring-1 ring-[#eee]"
+      class="more-panel pointer-events-auto fixed z-50 flex max-h-[min(640px,calc(100vh-48px))] flex-col overflow-hidden rounded-[16px]"
       :class="view === 'menu' ? 'is-menu' : 'is-page'"
       :style="{ left: `${more.left}px`, bottom: `${more.bottom}px` }"
     >
@@ -195,33 +195,33 @@ onUnmounted(() => {
         <div class="overflow-y-auto px-2 py-2">
           <button type="button" class="more-row" @click="openView('privacy')">
             <span>隐私</span>
-            <Icon name="chevron" :size="14" class="text-[#bbb]" />
+            <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
           </button>
           <button type="button" class="more-row" @click="openView('terms')">
             <span>协议</span>
-            <Icon name="chevron" :size="14" class="text-[#bbb]" />
+            <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
           </button>
           <button type="button" class="more-row" @click="openView('help')">
             <span>帮助与客服</span>
-            <Icon name="chevron" :size="14" class="text-[#bbb]" />
+            <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
           </button>
 
           <div class="more-split" />
 
           <button type="button" class="more-row" @click="more.hide(); openCreatorSite()">
             <span>创作者中心</span>
-            <Icon name="arrow-up-right" :size="14" class="text-[#bbb]" />
+            <Icon name="arrow-up-right" :size="14" class="text-[var(--muted)]" />
           </button>
           <button type="button" class="more-row" @click="openView('biz')">
             <span>业务合作</span>
-            <Icon name="chevron" :size="14" class="text-[#bbb]" />
+            <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
           </button>
 
           <div class="more-split" />
 
           <button type="button" class="more-row" @click="openView('shortcuts')">
             <span>键盘快捷键</span>
-            <Icon name="chevron" :size="14" class="text-[#bbb]" />
+            <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
           </button>
           <button type="button" class="more-row" @click="addToDesktop">
             <span>添加 ONEPAGE 到桌面</span>
@@ -251,7 +251,7 @@ onUnmounted(() => {
 
           <button v-if="session.me" type="button" class="more-row" @click="openSettings">
             <span>设置</span>
-            <Icon name="chevron" :size="14" class="text-[#bbb]" />
+            <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
           </button>
           <button type="button" class="more-row" @click="logout">
             {{ session.me ? '退出登录' : '登录' }}
@@ -260,8 +260,8 @@ onUnmounted(() => {
       </template>
 
       <template v-else>
-        <div class="flex shrink-0 items-center gap-1 border-b border-[#eee] px-2 py-2">
-          <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#f2f2f2]" @click="back">
+        <div class="flex shrink-0 items-center gap-1 border-b border-[var(--line)] px-2 py-2">
+          <button type="button" class="page-back !h-7 !w-7" @click="back">
             <Icon name="chevron-left" :size="16" />
           </button>
           <h2 class="text-[14px] font-semibold">{{ titles[view] }}</h2>
@@ -269,10 +269,10 @@ onUnmounted(() => {
         <div class="more-page overflow-y-auto px-3 py-3">
           <template v-if="view === 'privacy' || view === 'terms'">
             <p class="text-[11px] text-[#8a8a8a]">更新于 {{ legalDoc.updated }}</p>
-            <p class="mt-2 text-[12px] leading-5 text-[#555]">{{ legalDoc.intro }}</p>
+            <p class="mt-2 text-[12px] leading-5 text-[var(--muted)]">{{ legalDoc.intro }}</p>
             <section v-for="block in legalDoc.sections" :key="block.heading" class="mt-3">
               <h3 class="text-[12px] font-semibold">{{ block.heading }}</h3>
-              <p v-for="p in block.paragraphs" :key="p" class="mt-1 text-[12px] leading-5 text-[#555]">{{ p }}</p>
+              <p v-for="p in block.paragraphs" :key="p" class="mt-1 text-[12px] leading-5 text-[var(--muted)]">{{ p }}</p>
             </section>
           </template>
 
@@ -280,13 +280,13 @@ onUnmounted(() => {
             <p class="text-[12px] leading-5 text-[#8a8a8a]">写下问题或建议，可附图和联系方式。</p>
             <textarea v-model="content" rows="5" class="field mt-3 text-[12px]" placeholder="反馈和意见" />
             <div class="mt-2 flex flex-wrap gap-1.5">
-              <div v-for="(item, i) in images" :key="item.url" class="relative h-14 w-14 overflow-hidden rounded-lg bg-[#ececec]">
+              <div v-for="(item, i) in images" :key="item.url" class="relative h-14 w-14 overflow-hidden rounded-lg bg-[var(--fill)]">
                 <img :src="item.url" alt="" class="h-full w-full object-cover" />
                 <button type="button" class="absolute top-0.5 right-0.5 rounded-full bg-black/55 px-1 text-[9px] text-white" @click="removeImage(i)">
                   ×
                 </button>
               </div>
-              <label v-if="images.length < 6" class="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg bg-[#f7f7f7] text-[20px] text-[#bbb]">
+              <label v-if="images.length < 6" class="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg bg-[var(--fill)] text-[20px] text-[var(--muted)]">
                 +
                 <input type="file" accept="image/*" multiple class="hidden" @change="pickImages" />
               </label>
@@ -301,11 +301,11 @@ onUnmounted(() => {
           <template v-else-if="view === 'biz'">
             <button type="button" class="more-row" @click="openView('live')">
               <span>主播入驻</span>
-              <Icon name="chevron" :size="14" class="text-[#bbb]" />
+              <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
             </button>
             <button type="button" class="more-row" @click="openView('verify')">
               <span>大 V 认证</span>
-              <Icon name="chevron" :size="14" class="text-[#bbb]" />
+              <Icon name="chevron" :size="14" class="text-[var(--muted)]" />
             </button>
           </template>
 
@@ -321,10 +321,10 @@ onUnmounted(() => {
           </template>
 
           <template v-else-if="view === 'shortcuts'">
-            <ul class="divide-y divide-[#f2f2f2]">
+            <ul class="divide-y divide-[var(--line)]">
               <li v-for="row in shortcuts" :key="row.keys" class="flex items-center justify-between py-2">
                 <span class="text-[12px]">{{ row.action }}</span>
-                <kbd class="rounded-md bg-[#f7f7f7] px-1.5 py-0.5 text-[11px] text-[#555]">{{ row.keys }}</kbd>
+                <kbd class="rounded-md bg-[var(--fill)] px-1.5 py-0.5 text-[11px] text-[var(--ink)]">{{ row.keys }}</kbd>
               </li>
             </ul>
           </template>

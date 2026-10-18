@@ -216,11 +216,11 @@ function openLegal(kind: 'terms' | 'privacy') {
       @click.self="auth.hide()"
     >
       <div
-        class="relative flex h-[480px] w-[800px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.16)]"
+        class="relative flex h-[480px] w-[800px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[20px] bg-[var(--panel)] shadow-[0_20px_60px_rgba(0,0,0,0.16)]"
       >
         <button
           type="button"
-          class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-[#999] hover:bg-black/5 hover:text-[#333]"
+          class="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-[#999] hover:bg-black/5 hover:text-[var(--ink)]"
           aria-label="关闭"
           @click="onClose()"
         >
@@ -228,22 +228,22 @@ function openLegal(kind: 'terms' | 'privacy') {
         </button>
 
         <div v-if="legal && doc()" class="h-full w-full overflow-y-auto px-10 py-8">
-          <button type="button" class="mb-4 text-[13px] text-[#8a8a8a] hover:text-[#333]" @click="legal = null">
+          <button type="button" class="mb-4 text-[13px] text-[#8a8a8a] hover:text-[var(--ink)]" @click="legal = null">
             ← 返回{{ resetting ? '找回密码' : auth.mode === 'login' ? '登录' : '注册' }}
           </button>
           <h2 class="text-[18px] font-semibold">{{ doc()!.title }}</h2>
           <p class="mt-1 text-[12px] text-[#bbb]">更新日期 {{ doc()!.updated }}</p>
-          <p class="mt-4 text-[13px] leading-6 text-[#555]">{{ doc()!.intro }}</p>
-          <div class="mt-5 space-y-5 text-[13px] leading-6 text-[#555]">
+          <p class="mt-4 text-[13px] leading-6 text-[var(--muted)]">{{ doc()!.intro }}</p>
+          <div class="mt-5 space-y-5 text-[13px] leading-6 text-[var(--muted)]">
             <section v-for="sec in doc()!.sections" :key="sec.heading">
-              <h3 class="mb-1.5 font-semibold text-[#1f1f1f]">{{ sec.heading }}</h3>
+              <h3 class="mb-1.5 font-semibold text-[var(--ink)]">{{ sec.heading }}</h3>
               <p v-for="(p, i) in sec.paragraphs" :key="i" class="mt-1">{{ p }}</p>
             </section>
           </div>
         </div>
 
         <template v-else>
-          <aside class="relative flex h-full w-1/2 flex-col items-center justify-center overflow-hidden bg-[#fafafa] px-8">
+          <aside class="relative flex h-full w-1/2 flex-col items-center justify-center overflow-hidden bg-[var(--fill)] px-8">
             <span class="pointer-events-none absolute -top-16 -left-16 h-40 w-40 rounded-full bg-[#ff2442]/[0.06]" />
             <span class="pointer-events-none absolute right-[-40px] bottom-[-30px] h-36 w-36 rounded-full bg-[#ff2442]/[0.05]" />
             <span class="pointer-events-none absolute top-12 right-10 h-2 w-2 rounded-full bg-[#ff2442]/40" />
@@ -251,27 +251,27 @@ function openLegal(kind: 'terms' | 'privacy') {
             <span class="pointer-events-none absolute bottom-16 left-12 h-8 w-8 rounded-full border border-[#ff2442]/15" />
             <div class="relative"><BrandLogo size="auth" /></div>
             <div class="relative mt-3 flex flex-wrap justify-center gap-2">
-              <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">记录生活</span>
-              <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">耶耶 AI</span>
-              <span class="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] text-[#8a8a8a] ring-1 ring-[#eee]">直播</span>
+              <span class="rounded-full bg-[var(--panel)] px-2.5 py-0.5 text-[11px] text-[var(--muted)] ring-1 ring-[var(--line)]">记录生活</span>
+              <span class="rounded-full bg-[var(--panel)] px-2.5 py-0.5 text-[11px] text-[var(--muted)] ring-1 ring-[var(--line)]">耶耶 AI</span>
+              <span class="rounded-full bg-[var(--panel)] px-2.5 py-0.5 text-[11px] text-[var(--muted)] ring-1 ring-[var(--line)]">直播</span>
             </div>
             <div
-              class="relative mt-6 flex h-[128px] w-[128px] items-center justify-center rounded-[16px] bg-white text-center text-[12px] leading-5 text-[#bbb] shadow-[0_4px_16px_rgba(0,0,0,0.04)] ring-1 ring-dashed ring-[#eee]"
+              class="relative mt-6 flex h-[128px] w-[128px] items-center justify-center rounded-[16px] bg-[var(--panel)] text-center text-[12px] leading-5 text-[#bbb] shadow-[0_4px_16px_rgba(0,0,0,0.04)] ring-1 ring-dashed ring-[var(--line)]"
             >
               App 扫码登录即将接入
             </div>
           </aside>
 
           <div class="flex h-full w-1/2 min-w-0 flex-col justify-center overflow-y-auto px-10 py-8">
-            <div v-if="!resetting" class="relative grid grid-cols-2 rounded-[20px] bg-[#f7f7f7] p-1 text-[14px]">
+            <div v-if="!resetting" class="relative grid grid-cols-2 rounded-[20px] bg-[var(--fill)] p-1 text-[14px]">
               <span
-                class="pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-[20px] bg-white shadow-sm transition-transform duration-300 ease-out"
+                class="pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-[20px] bg-[var(--panel)] shadow-sm transition-transform duration-300 ease-out"
                 :class="auth.mode === 'register' ? 'translate-x-full' : 'translate-x-0'"
               />
               <button
                 type="button"
                 class="relative z-[1] py-2 font-medium transition-colors duration-300"
-                :class="auth.mode === 'login' ? 'text-[#1f1f1f]' : 'text-[#8a8a8a]'"
+                :class="auth.mode === 'login' ? 'text-[var(--ink)]' : 'text-[#8a8a8a]'"
                 @click="auth.mode = 'login'"
               >
                 登录
@@ -279,7 +279,7 @@ function openLegal(kind: 'terms' | 'privacy') {
               <button
                 type="button"
                 class="relative z-[1] py-2 font-medium transition-colors duration-300"
-                :class="auth.mode === 'register' ? 'text-[#1f1f1f]' : 'text-[#8a8a8a]'"
+                :class="auth.mode === 'register' ? 'text-[var(--ink)]' : 'text-[#8a8a8a]'"
                 @click="auth.mode = 'register'"
               >
                 注册
@@ -287,10 +287,10 @@ function openLegal(kind: 'terms' | 'privacy') {
             </div>
 
             <form v-if="resetting" class="mt-5 space-y-3" @submit.prevent="resetPassword">
-              <button type="button" class="text-[13px] text-[#8a8a8a] hover:text-[#333]" @click="resetting = false">
+              <button type="button" class="text-[13px] text-[#8a8a8a] hover:text-[var(--ink)]" @click="resetting = false">
                 ← 返回登录
               </button>
-              <p class="text-[15px] font-medium text-[#1f1f1f]">找回密码</p>
+              <p class="text-[15px] font-medium text-[var(--ink)]">找回密码</p>
               <input v-model="phone" class="field-auth" placeholder="手机号" />
               <div class="flex gap-2">
                 <input v-model="code" class="field-auth flex-1" placeholder="验证码" />
@@ -305,7 +305,7 @@ function openLegal(kind: 'terms' | 'privacy') {
               </div>
               <input v-model="password" type="password" class="field-auth" placeholder="新密码 8～32 位，须含字母和数字" />
               <p class="text-[12px] text-[#bbb]">仅已用该手机号开过户的账号可重置。开发环境验证码 888888</p>
-              <p v-if="hint" class="text-[13px] text-[#1f1f1f]">{{ hint }}</p>
+              <p v-if="hint" class="text-[13px] text-[var(--ink)]">{{ hint }}</p>
               <p v-if="error" class="text-[13px] text-[#ff2442]">{{ error }}</p>
               <button class="btn-auth" :disabled="loading">{{ loading ? '提交中…' : '重置并登录' }}</button>
             </form>
@@ -315,7 +315,7 @@ function openLegal(kind: 'terms' | 'privacy') {
                 <button
                   type="button"
                   class="pb-1"
-                  :class="loginTab === 'sms' ? 'font-medium text-[#1f1f1f] shadow-[inset_0_-2px_0_#ff2442]' : 'text-[#8a8a8a]'"
+                  :class="loginTab === 'sms' ? 'font-medium text-[var(--ink)] shadow-[inset_0_-2px_0_#ff2442]' : 'text-[#8a8a8a]'"
                   @click="loginTab = 'sms'"
                 >
                   验证码
@@ -323,7 +323,7 @@ function openLegal(kind: 'terms' | 'privacy') {
                 <button
                   type="button"
                   class="pb-1"
-                  :class="loginTab === 'password' ? 'font-medium text-[#1f1f1f] shadow-[inset_0_-2px_0_#ff2442]' : 'text-[#8a8a8a]'"
+                  :class="loginTab === 'password' ? 'font-medium text-[var(--ink)] shadow-[inset_0_-2px_0_#ff2442]' : 'text-[#8a8a8a]'"
                   @click="loginTab = 'password'"
                 >
                   密码
@@ -351,7 +351,7 @@ function openLegal(kind: 'terms' | 'privacy') {
                 </div>
                 <p class="text-[12px] text-[#bbb]">开发环境验证码固定 888888</p>
               </template>
-              <p v-if="hint" class="text-[13px] text-[#1f1f1f]">{{ hint }}</p>
+              <p v-if="hint" class="text-[13px] text-[var(--ink)]">{{ hint }}</p>
               <p v-if="error" class="text-[13px] text-[#ff2442]">{{ error }}</p>
               <button class="btn-auth" :disabled="loading">{{ loading ? '登录中…' : '登录' }}</button>
             </form>
@@ -377,10 +377,10 @@ function openLegal(kind: 'terms' | 'privacy') {
             </label>
 
             <div v-if="auth.mode === 'login' && !resetting" class="mt-5">
-              <div class="flex items-center gap-3 text-[12px] text-[#ccc]">
-                <span class="h-px flex-1 bg-[#eee]" />
+              <div class="flex items-center gap-3 text-[12px] text-[var(--muted)]">
+                <span class="h-px flex-1 bg-[var(--line)]" />
                 其他方式
-                <span class="h-px flex-1 bg-[#eee]" />
+                <span class="h-px flex-1 bg-[var(--line)]" />
               </div>
               <div class="mt-3 flex justify-center gap-3">
                 <button type="button" class="btn-oauth" @click="startOAuth('github')">

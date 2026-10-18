@@ -178,11 +178,11 @@ onUnmounted(() => {
     <template v-else>
       <div v-if="props.source === 'history'" class="mb-3 flex items-center justify-end gap-3 text-[13px]">
         <template v-if="!picking">
-          <button type="button" class="text-[#8a8a8a] hover:text-[#1f1f1f]" @click="startPick">清空浏览记录</button>
+          <button type="button" class="text-[#8a8a8a] hover:text-[var(--ink)]" @click="startPick">清空浏览记录</button>
         </template>
         <template v-else>
-          <button type="button" class="text-[#8a8a8a] hover:text-[#1f1f1f]" @click="cancelPick">取消</button>
-          <button type="button" class="text-[#8a8a8a] hover:text-[#1f1f1f]" @click="toggleAll">
+          <button type="button" class="text-[#8a8a8a] hover:text-[var(--ink)]" @click="cancelPick">取消</button>
+          <button type="button" class="text-[#8a8a8a] hover:text-[var(--ink)]" @click="toggleAll">
             {{ allOn ? '取消全选' : '全选' }}
           </button>
           <button

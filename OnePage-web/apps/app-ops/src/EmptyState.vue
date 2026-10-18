@@ -49,7 +49,7 @@ withDefaults(
   margin-top: 16px;
   font-size: 16px;
   font-weight: 500;
-  color: #1f1f1f;
+  color: var(--ink, #1f1f1f);
 }
 
 .me-empty-desc {
@@ -57,6 +57,6 @@ withDefaults(
   max-width: 280px;
   font-size: 13px;
   line-height: 1.6;
-  color: #8a8a8a;
+  color: var(--muted, #8a8a8a);
 }
 </style>

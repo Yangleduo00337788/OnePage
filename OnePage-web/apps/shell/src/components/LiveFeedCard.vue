@@ -42,7 +42,7 @@ const emit = defineEmits<{ click: [] }>()
           />
           <span
             v-else
-            class="flex h-full w-full items-center justify-center rounded-full bg-[#d9d9d9] text-[10px] text-[#555]"
+            class="flex h-full w-full items-center justify-center rounded-full bg-[#d9d9d9] text-[10px] text-[var(--muted)]"
           >
             {{ (item.owner?.nickname || '主').slice(0, 1) }}
           </span>
@@ -76,7 +76,7 @@ const emit = defineEmits<{ click: [] }>()
   flex-shrink: 0;
   padding: 1px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--panel);
   box-shadow: 0 0 0 0 rgba(255, 36, 66, 0.55);
   animation: live-ring 1.6s ease-out infinite;
 }

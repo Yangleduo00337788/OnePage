@@ -142,10 +142,10 @@ watch(
 <template>
   <Teleport to="body">
     <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4" @click.self="emit('close')">
-      <div class="flex max-h-[min(560px,80vh)] w-[400px] max-w-[calc(100vw-32px)] flex-col rounded-[20px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
+      <div class="flex max-h-[min(560px,80vh)] w-[400px] max-w-[calc(100vw-32px)] flex-col rounded-[20px] bg-[var(--panel)] shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
         <div class="relative border-b border-[#ececec] px-5 py-4">
           <h2 class="text-center text-[16px] font-semibold">{{ title() }}</h2>
-          <button type="button" class="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2]" aria-label="关闭" @click="emit('close')">
+          <button type="button" class="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full hover:bg-[var(--hover)]" aria-label="关闭" @click="emit('close')">
             <Icon name="x" :size="16" />
           </button>
         </div>
@@ -157,15 +157,15 @@ watch(
             v-for="user in items"
             :key="user.userId"
             type="button"
-            class="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left hover:bg-[#f7f7f7]"
+            class="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left hover:bg-[var(--hover)]"
             @click="openProfile(user.pageId)"
           >
             <img v-if="user.avatarUrl" :src="user.avatarUrl" alt="" class="h-11 w-11 rounded-full object-cover" />
-            <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f2f2f2] text-[14px] text-[#8a8a8a]">
+            <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]">
               {{ (user.nickname || '一').slice(0, 1) }}
             </span>
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-[15px] font-medium text-[#1f1f1f]">{{ user.nickname }}</span>
+              <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ user.nickname }}</span>
               <span class="mt-0.5 block truncate text-[12px] text-[#8a8a8a]">{{ user.pageId }}</span>
             </span>
             <span
@@ -197,7 +197,7 @@ watch(
   line-height: 28px;
 }
 .follow-mini.is-on {
-  background: #f2f2f2;
-  color: #555;
+  background: var(--hover);
+  color: var(--muted);
 }
 </style>

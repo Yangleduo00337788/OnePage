@@ -20,10 +20,10 @@ const doc = computed(() => LEGAL[kind.value])
       <h1 class="text-[22px] font-semibold">{{ doc.title }}</h1>
     </div>
     <p class="mt-1 text-[13px] text-[#8a8a8a]">更新于 {{ doc.updated }}</p>
-    <p class="mt-5 text-[15px] leading-7 text-[#333]">{{ doc.intro }}</p>
+    <p class="mt-5 text-[15px] leading-7 text-[var(--ink)]">{{ doc.intro }}</p>
     <section v-for="block in doc.sections" :key="block.heading" class="mt-6">
       <h2 class="text-[16px] font-semibold">{{ block.heading }}</h2>
-      <p v-for="p in block.paragraphs" :key="p" class="mt-2 text-[15px] leading-7 text-[#555]">{{ p }}</p>
+      <p v-for="p in block.paragraphs" :key="p" class="mt-2 text-[15px] leading-7 text-[var(--muted)]">{{ p }}</p>
     </section>
   </article>
 </template>

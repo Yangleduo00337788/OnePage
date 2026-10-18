@@ -205,7 +205,7 @@ watch([items, loading], async () => {
         v-for="row in items"
         :key="row.id"
         type="button"
-        class="flex w-full items-center gap-3 rounded-[16px] px-2 py-2.5 text-left hover:bg-[#f7f7f7]"
+        class="flex w-full items-center gap-3 rounded-[16px] px-2 py-2.5 text-left hover:bg-[var(--hover)]"
         @click="openItem(row)"
       >
         <span class="relative shrink-0">
@@ -217,18 +217,18 @@ watch([items, loading], async () => {
           />
           <span
             v-else
-            class="flex h-11 w-11 items-center justify-center rounded-full bg-[#f2f2f2] text-[14px] text-[#8a8a8a]"
+            class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]"
           >
             {{ (row.actor?.nickname || '一').slice(0, 1) }}
           </span>
           <span v-if="!row.read" class="absolute top-0 right-0 h-2 w-2 rounded-full bg-[#ff2442]" />
         </span>
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-[15px] font-medium text-[#1f1f1f]">
+          <span class="block truncate text-[15px] font-medium text-[var(--ink)]">
             {{ row.actor?.nickname || '用户' }}
             <span class="ml-1 font-normal text-[#8a8a8a]">{{ ACTION[row.type] || row.type }}</span>
           </span>
-          <span v-if="row.preview" class="mt-0.5 block truncate text-[13px] text-[#333]">{{ row.preview }}</span>
+          <span v-if="row.preview" class="mt-0.5 block truncate text-[13px] text-[var(--ink)]">{{ row.preview }}</span>
           <span class="mt-0.5 block truncate text-[12px] text-[#8a8a8a]">{{ timeText(row.createdAt) }}</span>
         </span>
       </button>
