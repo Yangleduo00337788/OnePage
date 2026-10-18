@@ -21,6 +21,7 @@ import HelpPage from './pages/HelpPage.vue'
 import CreatorPage from './pages/CreatorPage.vue'
 import PartnerPage from './pages/PartnerPage.vue'
 import ShortcutsPage from './pages/ShortcutsPage.vue'
+import SettingsPage from './pages/SettingsPage.vue'
 import { useAuthModal } from './stores/authModal'
 
 export const router = createRouter({
@@ -45,6 +46,7 @@ export const router = createRouter({
     { path: '/partner/live', component: PartnerPage },
     { path: '/partner/verify', component: PartnerPage },
     { path: '/shortcuts', component: ShortcutsPage },
+    { path: '/settings', component: SettingsPage },
     { path: '/login', component: HomePage },
     { path: '/register', component: HomePage },
   ],

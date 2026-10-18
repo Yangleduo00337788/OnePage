@@ -127,7 +127,7 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 
 ### GET `/api/v1/auth/oauth/{provider}/callback`
 
-OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub 无公开邮箱再打 `/user/emails`）。`state` 为 bind：绑到当前用户，不新开号；对方 id 已绑别人则 302 `/?oauth=already_bound`，成功 `/?oauth=bind_ok`。登录：已有该平台绑定则进原号；**邮箱已被占用则不开新号**，302 `/?oauth=email_taken`；否则建号（name 作昵称，email 写入账号）、种 Cookie、302 首页。无 `code` 或带 `error`：不 500，直接 302 回首页。不落头像 URL、不改表、不静默按邮箱并号。
+OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub 无公开邮箱再打 `/user/emails`）。`state` 为 bind：绑到当前用户，不新开号；对方 id 已绑别人则 302 `/settings?oauth=already_bound`，成功 `/settings?oauth=bind_ok`。登录：已有该平台绑定则进原号；**邮箱已被占用则不开新号**，302 `/?oauth=email_taken`；否则建号（name 作昵称，email 写入账号）、种 Cookie、302 首页。无 `code` 或带 `error`：不 500，直接 302 回首页。不落头像 URL、不改表、不静默按邮箱并号。
 
 ---
 

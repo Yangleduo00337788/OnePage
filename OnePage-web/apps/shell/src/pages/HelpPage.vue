@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Icon from '../components/Icon.vue'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
 
@@ -68,9 +69,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="mx-auto max-w-[640px] py-4">
-    <button type="button" class="mb-4 text-[13px] text-[#8a8a8a] hover:text-[#333]" @click="router.back()">← 返回</button>
-    <h1 class="text-[22px] font-semibold">帮助与客服</h1>
+  <section class="w-full py-4">
+    <div class="mb-4 flex items-center gap-2">
+      <button type="button" class="page-back" aria-label="返回" @click="router.back()">
+        <Icon name="chevron-left" :size="20" />
+      </button>
+      <h1 class="text-[22px] font-semibold">帮助与客服</h1>
+    </div>
     <p class="mt-2 text-[14px] leading-6 text-[#8a8a8a]">遇到问题、想提建议，或需要人工协助，都可以写在这里。我们会按你留下的联系方式回复。</p>
 
     <label class="mt-6 block text-[14px] font-medium">反馈和意见</label>

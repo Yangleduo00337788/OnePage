@@ -1,6 +1,6 @@
 <!--
   侧栏「更多」：无遮罩弹窗。协议/帮助等在弹窗内切 view，不跳路由（直达 /privacy 仍可用）。
-  已登录才有设置密码、退出。
+  已登录才有设置、退出。设密/绑定在 /settings。
 -->
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -11,10 +11,9 @@ import { useTheme, type ThemePref } from '../stores/theme'
 import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
-import { api, ApiError } from '@onepage/api-client'
 import { openCreatorSite } from '../creatorSite'
 
-type View = 'menu' | 'privacy' | 'terms' | 'help' | 'biz' | 'live' | 'verify' | 'shortcuts' | 'password'
+type View = 'menu' | 'privacy' | 'terms' | 'help' | 'biz' | 'live' | 'verify' | 'shortcuts'
 
 const more = useMoreMenu()
 const theme = useTheme()
@@ -42,7 +41,6 @@ const titles: Record<View, string> = {
   live: '主播入驻',
   verify: '大 V 认证',
   shortcuts: '键盘快捷键',
-  password: '设置密码',
 }
 
 const legalKind = computed((): 'privacy' | 'terms' => (view.value === 'privacy' ? 'privacy' : 'terms'))
@@ -57,16 +55,6 @@ const applyName = ref('')
 const applyContact = ref('')
 const applyIntro = ref('')
 const applyHint = ref('')
-const hasPassword = ref(false)
-const githubBound = ref(false)
-const googleBound = ref(false)
-const oldPassword = ref('')
-const newPassword = ref('')
-const pwdError = ref('')
-const pwdSaving = ref(false)
-const pwdHint = ref('')
-
-const passwordTitle = computed(() => (hasPassword.value ? '修改密码' : '设置密码'))
 
 const shortcuts = [
   { keys: '/', action: '聚焦顶栏搜索' },
@@ -97,59 +85,13 @@ function addToDesktop() {
   }, 3200)
 }
 
-async function openPassword() {
+function openSettings() {
+  more.hide()
   if (!session.me) {
-    more.hide()
-    auth.show('login')
+    auth.show('login', '/settings')
     return
   }
-  oldPassword.value = ''
-  newPassword.value = ''
-  pwdError.value = ''
-  pwdHint.value = ''
-  openView('password')
-  try {
-    const acc = await api.account()
-    hasPassword.value = acc.hasPassword
-    githubBound.value = acc.githubBound
-    googleBound.value = acc.googleBound
-  } catch {
-    hasPassword.value = false
-  }
-}
-
-function bindOAuth(provider: 'github' | 'google') {
-  window.location.assign(`/api/v1/auth/oauth/${provider}/authorize?intent=bind`)
-}
-
-async function savePassword() {
-  pwdError.value = ''
-  pwdHint.value = ''
-  if (newPassword.value.length < 8 || newPassword.value.length > 32
-    || !/[A-Za-z]/.test(newPassword.value) || !/\d/.test(newPassword.value)) {
-    pwdError.value = '密码需 8～32 位，并同时包含字母和数字'
-    return
-  }
-  if (hasPassword.value && !oldPassword.value) {
-    pwdError.value = '请填写原密码'
-    return
-  }
-  pwdSaving.value = true
-  try {
-    const setting = !hasPassword.value
-    const acc = await api.setPassword({
-      oldPassword: hasPassword.value ? oldPassword.value : undefined,
-      password: newPassword.value,
-    })
-    hasPassword.value = acc.hasPassword
-    oldPassword.value = ''
-    newPassword.value = ''
-    pwdHint.value = setting ? '密码已设置' : '密码已更新'
-  } catch (e) {
-    pwdError.value = e instanceof ApiError ? e.message : '设置失败'
-  } finally {
-    pwdSaving.value = false
-  }
+  void router.push('/settings')
 }
 
 async function logout() {
@@ -159,7 +101,7 @@ async function logout() {
     return
   }
   await session.logout()
-  if (route.path === '/me') {
+  if (route.path === '/me' || route.path === '/settings') {
     await router.replace('/')
   }
 }
@@ -227,17 +169,6 @@ watch(
     if (open) {
       view.value = 'menu'
       window.setTimeout(() => document.addEventListener('mousedown', onDocDown), 0)
-      if (session.me) {
-        api.account().then((a) => {
-          hasPassword.value = a.hasPassword
-          githubBound.value = a.githubBound
-          googleBound.value = a.googleBound
-        }).catch(() => {
-          hasPassword.value = false
-          githubBound.value = false
-          googleBound.value = false
-        })
-      }
     } else {
       document.removeEventListener('mousedown', onDocDown)
       view.value = 'menu'
@@ -318,27 +249,9 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <button v-if="session.me" type="button" class="more-row" @click="openPassword">
-            <span>{{ passwordTitle }}</span>
+          <button v-if="session.me" type="button" class="more-row" @click="openSettings">
+            <span>设置</span>
             <Icon name="chevron" :size="14" class="text-[#bbb]" />
-          </button>
-          <button
-            v-if="session.me"
-            type="button"
-            class="more-row"
-            :disabled="githubBound"
-            @click="bindOAuth('github')"
-          >
-            <span>{{ githubBound ? '已绑定 GitHub' : '绑定 GitHub' }}</span>
-          </button>
-          <button
-            v-if="session.me"
-            type="button"
-            class="more-row"
-            :disabled="googleBound"
-            @click="bindOAuth('google')"
-          >
-            <span>{{ googleBound ? '已绑定 Google' : '绑定 Google' }}</span>
           </button>
           <button type="button" class="more-row" @click="logout">
             {{ session.me ? '退出登录' : '登录' }}
@@ -351,7 +264,7 @@ onUnmounted(() => {
           <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#f2f2f2]" @click="back">
             <Icon name="chevron-left" :size="16" />
           </button>
-          <h2 class="text-[14px] font-semibold">{{ view === 'password' ? passwordTitle : titles[view] }}</h2>
+          <h2 class="text-[14px] font-semibold">{{ titles[view] }}</h2>
         </div>
         <div class="more-page overflow-y-auto px-3 py-3">
           <template v-if="view === 'privacy' || view === 'terms'">
@@ -405,32 +318,6 @@ onUnmounted(() => {
             <textarea v-model="applyIntro" rows="3" class="field mt-2 text-[12px]" placeholder="补充说明" />
             <p v-if="applyHint" class="mt-2 text-[12px]">{{ applyHint }}</p>
             <button type="button" class="btn-auth mt-3 h-9 text-[13px]" @click="submitApply">提交申请</button>
-          </template>
-
-          <template v-else-if="view === 'password'">
-            <p class="text-[12px] leading-5 text-[#8a8a8a]">
-              {{ hasPassword ? '验证原密码后设置新密码。' : '短信开户还没有密码，设好后可以用手机号或邮箱 + 密码登录。' }}
-            </p>
-            <form class="mt-3 space-y-2" @submit.prevent="savePassword">
-              <input
-                v-if="hasPassword"
-                v-model="oldPassword"
-                type="password"
-                class="field text-[12px]"
-                placeholder="原密码"
-              />
-              <input
-                v-model="newPassword"
-                type="password"
-                class="field text-[12px]"
-                placeholder="新密码 8～32 位，须含字母和数字"
-              />
-              <p v-if="pwdError" class="text-[12px] text-[#ff2442]">{{ pwdError }}</p>
-              <p v-else-if="pwdHint" class="text-[12px]">{{ pwdHint }}</p>
-              <button type="submit" class="btn-auth mt-2 h-9 text-[13px]" :disabled="pwdSaving">
-                {{ pwdSaving ? '保存中…' : '确定' }}
-              </button>
-            </form>
           </template>
 
           <template v-else-if="view === 'shortcuts'">

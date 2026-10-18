@@ -359,9 +359,87 @@ textarea.field-auth::placeholder {
   background: #eee;
 }
 
+.btn-oauth:disabled {
+  cursor: default;
+  color: #8a8a8a;
+}
+
+.btn-oauth:disabled:hover {
+  background: #f7f7f7;
+}
+
 .btn-oauth svg {
   display: block;
   flex-shrink: 0;
+}
+
+.btn-auth-inline {
+  width: auto;
+  min-width: 96px;
+  padding: 0 20px;
+}
+
+.page-back {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #1f1f1f;
+  background: transparent;
+  cursor: pointer;
+}
+
+.page-back:hover {
+  background: #f2f2f2;
+}
+
+.settings-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 48px;
+}
+
+.settings-card {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 16px;
+  padding: 20px 22px 22px;
+  border: 1px solid #eee;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.settings-kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+}
+
+.settings-kv + .settings-kv {
+  border-top: 1px solid #f2f2f2;
+}
+
+.settings-bind {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid #eee;
+  border-radius: 20px;
+  background: #f7f7f7;
+}
+
+.settings-bind + .settings-bind {
+  margin-top: 10px;
 }
 
 .filter-pill {

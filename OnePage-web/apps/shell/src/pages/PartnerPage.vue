@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import Icon from '../components/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,9 +23,13 @@ function submit() {
 </script>
 
 <template>
-  <section class="mx-auto max-w-[560px] py-4">
-    <button type="button" class="mb-4 text-[13px] text-[#8a8a8a] hover:text-[#333]" @click="router.back()">← 返回</button>
-    <h1 class="text-[22px] font-semibold">{{ title }}</h1>
+  <section class="w-full py-4">
+    <div class="mb-4 flex items-center gap-2">
+      <button type="button" class="page-back" aria-label="返回" @click="router.back()">
+        <Icon name="chevron-left" :size="20" />
+      </button>
+      <h1 class="text-[22px] font-semibold">{{ title }}</h1>
+    </div>
     <p class="mt-2 text-[14px] leading-6 text-[#8a8a8a]">
       {{ isLive ? '申请开通直播能力，通过后可在直播页开播。' : '认证后主页展示认证标识，适合有稳定创作与影响力的账号。' }}
     </p>

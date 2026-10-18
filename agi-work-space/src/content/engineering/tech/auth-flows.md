@@ -21,7 +21,7 @@ flowchart TB
     CreatorLogin[CreatorLogin 创作者站]
     OpsLogin[OpsLogin 运营后台]
     Me[MePage 资料]
-    More[MoreMenu 设置密码]
+    More[MoreMenu 进设置页]
     Sess[session store]
   end
   subgraph edge [Edge]
@@ -67,7 +67,7 @@ flowchart TB
 | auth | `auth_account`、验证码、密码哈希、种 Session |
 | user | `user_profile`（昵称、一页号）、`user_stat` |
 
-账号表有手机 / 邮箱 / 密码哈希；资料表只有昵称等展示字段。短信开户可以 **没有密码**。GitHub / Google：已有绑定则进原号；邮箱已被占用则 **不开新号**（DEC-061），回登录提示后在「更多」绑定。邮箱空或未被占用才开户（name 作昵称，email 写入账号）。已登录 `intent=bind` 绑到当前号。无密码。不把对方头像 URL 写入 `avatar_object_key`。
+账号表有手机 / 邮箱 / 密码哈希；资料表只有昵称等展示字段。短信开户可以 **没有密码**。GitHub / Google：已有绑定则进原号；邮箱已被占用则 **不开新号**（DEC-061），回登录提示后在设置页绑定。邮箱空或未被占用才开户（name 作昵称，email 写入账号）。已登录 `intent=bind` 绑到当前号。无密码。不把对方头像 URL 写入 `avatar_object_key`。
 
 ## 2. 总流程图
 
@@ -239,12 +239,12 @@ sequenceDiagram
 
 ## 7. 时序：已登录设置 / 修改密码
 
-短信开户后没有密码。在「更多」设密；已有密码则改密（要旧密码）。
+短信开户后没有密码。在设置页设密；已有密码则改密（要旧密码）。
 
 ```mermaid
 sequenceDiagram
   participant B as Browser
-  participant W as MoreMenu
+  participant W as SettingsPage
   participant G as Gateway
   participant A as auth
   participant R as Redis
@@ -308,5 +308,5 @@ sequenceDiagram
 | 创作者站 :5175 未登录 | 整页 `CreatorLogin`，同一套 `api-client`；无账号去社区注册 |
 | `/register` | AuthModal 注册 |
 | 登录 · 密码 Tab · 忘记密码 | 找回（手机验证码 + 新密码） |
-| 「更多」设置密码 / 修改密码 | 已登录写哈希 |
-| 「更多」绑定 GitHub / Google | 已登录 `intent=bind`；已绑则灰字不可点 |
+| 「更多」设置 | 已登录进 `/settings` |
+| `/settings` | 设密/改密、短信找回、绑定 GitHub/Google |

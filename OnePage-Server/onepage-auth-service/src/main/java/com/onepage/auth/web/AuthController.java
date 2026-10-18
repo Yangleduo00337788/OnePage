@@ -137,19 +137,25 @@ public class AuthController {
       if (intent.userId() == null) {
         return redirectHome(AuthService.OAUTH_NEED_LOGIN);
       }
-      return redirectHome(
+      return redirectTo(
+          "/settings",
           authService.oauthBind(intent.userId(), provider, profile.providerUserId(), profile.email()));
     }
-    return redirectHome(
+    return redirectTo(
+        "/",
         authService.oauthLogin(
             provider, profile.providerUserId(), profile.nickname(), profile.email(), request));
   }
 
   private ResponseEntity<Void> redirectHome(String oauth) {
+    return redirectTo("/", oauth);
+  }
+
+  private ResponseEntity<Void> redirectTo(String path, String oauth) {
     String base = frontendUrl == null ? "" : frontendUrl.replaceAll("/+$", "");
-    String loc = base + "/";
+    String loc = base + (path.startsWith("/") ? path : "/" + path);
     if (StringUtils.hasText(oauth) && !AuthService.OAUTH_OK.equals(oauth)) {
-      loc = loc + "?oauth=" + oauth;
+      loc = loc + (loc.contains("?") ? "&" : "?") + "oauth=" + oauth;
     }
     return ResponseEntity.status(HttpStatus.FOUND)
         .location(URI.create(loc))

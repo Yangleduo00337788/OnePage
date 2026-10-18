@@ -48,12 +48,12 @@ watch(
       auth.show(
         'login',
         route.path,
-        '该邮箱已注册，请用手机号或密码登录，登录后在「更多」里绑定 GitHub / Google',
+        '该邮箱已注册，请用手机号或密码登录，登录后在设置里绑定 GitHub / Google',
       )
       return
     }
     if (flag === 'need_login') {
-      auth.show('login', route.path, '请先登录，再在「更多」里绑定 GitHub / Google')
+      auth.show('login', '/settings', '请先登录，再在设置里绑定 GitHub / Google')
       return
     }
     oauthToast.value =
@@ -157,6 +157,17 @@ const flushMain = computed(
     route.path.startsWith('/u/'),
 )
 const searchFull = computed(() => route.path === '/' || route.path === '/search')
+const pageGutter = computed(() => {
+  const path = route.path
+  return (
+    path === '/settings' ||
+    path === '/help' ||
+    path === '/privacy' ||
+    path === '/terms' ||
+    path === '/shortcuts' ||
+    path.startsWith('/partner/')
+  )
+})
 </script>
 
 <template>
@@ -251,7 +262,10 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
         <SearchBox :compact="!searchFull" />
       </header>
 
-      <main class="bg-[var(--bg)]" :class="flushMain ? 'p-0' : 'px-8 pb-16 pt-1'">
+      <main
+        class="bg-[var(--bg)]"
+        :class="flushMain ? 'p-0' : pageGutter ? 'px-[100px] pb-16 pt-1' : 'px-8 pb-16 pt-1'"
+      >
         <!-- 当前路由对应的页面组件插在这里，侧栏不重绘。 -->
         <RouterView />
       </main>
