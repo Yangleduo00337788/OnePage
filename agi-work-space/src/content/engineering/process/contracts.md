@@ -20,6 +20,7 @@ order: 3
 | 密码 | 注册 8～32 位，须同时包含字母和数字；BCrypt 存储 |
 | 登出 | `POST /api/v1/auth/logout` 由**网关** invalidate **当前请求选中的** WebSession，返回 200。运营须 `?audience=ops`，只清运营 Cookie |
 | 设密 | 已登录 `POST /auth/password`；未登录找回 `POST /auth/password/reset` + `sms scene=reset` |
+| OAuth | 登录走 `GET /auth/oauth/{provider}/authorize`；已登录绑定加 `intent=bind`。邮箱已占用不开新号。回调 302 首页可带 `oauth=`（`email_taken` / `bind_ok` / `already_bound` / `need_login`） |
 | 内部调用 | Feign 带 **`X-Internal-Token`**（与 env `INTERNAL_TOKEN` / yml `onepage.internal-token` 相同） |
 | 前端 | 请求必须 `credentials: 'include'`；不要把 token 塞 localStorage |
 | 服务里谁是我 | 内网用 Gateway 传来的 **`X-User-Id`**，服务自己不解析 Cookie |

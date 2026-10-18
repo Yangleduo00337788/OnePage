@@ -7,9 +7,12 @@ import com.onepage.common.web.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +33,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+  private static final Logger log = LoggerFactory.getLogger(AuthController.class);
   private final AuthService authService;
   private final OAuthService oAuthService;
   private final String frontendUrl;
@@ -101,22 +105,54 @@ public class AuthController {
    * Boot 3 默认可能拿不到参数名，不写会 500。
    */
   @GetMapping("/oauth/{provider}/authorize")
-  public ResponseEntity<Void> oauthAuthorize(@PathVariable("provider") String provider) {
+  public ResponseEntity<Void> oauthAuthorize(
+      @PathVariable("provider") String provider,
+      @RequestParam(value = "intent", required = false) String intent,
+      HttpServletRequest request) {
+    boolean bind = "bind".equals(intent);
+    String state = authService.newOAuthState(bind, CurrentUser.tryUserId(request));
+    if (state == null) {
+      return redirectHome(AuthService.OAUTH_NEED_LOGIN);
+    }
     return ResponseEntity.status(HttpStatus.FOUND)
-        .location(URI.create(oAuthService.authorizeUrl(provider)))
+        .location(URI.create(oAuthService.authorizeUrl(provider, state)))
         .build();
   }
 
-  /** 第三方带着 code 回调这里：换用户信息、建号、写 Session，再 302 回前端首页。 */
+  /** 第三方带着 code 回调这里：换用户信息、建号或绑定、写 Session，再 302 回前端。 */
   @GetMapping("/oauth/{provider}/callback")
   public ResponseEntity<Void> oauthCallback(
       @PathVariable("provider") String provider,
-      @RequestParam("code") String code,
+      @RequestParam(value = "code", required = false) String code,
+      @RequestParam(value = "error", required = false) String error,
+      @RequestParam(value = "state", required = false) String state,
       HttpServletRequest request) {
+    if (!StringUtils.hasText(code)) {
+      log.warn("OAuth 回调无 code provider={} error={}", provider, error);
+      return redirectHome(null);
+    }
+    AuthService.OAuthIntent intent = authService.consumeOAuthState(state);
     OAuthService.OAuthProfile profile = oAuthService.exchange(provider, code);
-    authService.oauthLogin(provider, profile.providerUserId(), profile.nickname(), request);
+    if (intent.bind()) {
+      if (intent.userId() == null) {
+        return redirectHome(AuthService.OAUTH_NEED_LOGIN);
+      }
+      return redirectHome(
+          authService.oauthBind(intent.userId(), provider, profile.providerUserId(), profile.email()));
+    }
+    return redirectHome(
+        authService.oauthLogin(
+            provider, profile.providerUserId(), profile.nickname(), profile.email(), request));
+  }
+
+  private ResponseEntity<Void> redirectHome(String oauth) {
+    String base = frontendUrl == null ? "" : frontendUrl.replaceAll("/+$", "");
+    String loc = base + "/";
+    if (StringUtils.hasText(oauth) && !AuthService.OAUTH_OK.equals(oauth)) {
+      loc = loc + "?oauth=" + oauth;
+    }
     return ResponseEntity.status(HttpStatus.FOUND)
-        .location(URI.create(frontendUrl + "/"))
+        .location(URI.create(loc))
         .build();
   }
 

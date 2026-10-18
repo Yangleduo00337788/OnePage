@@ -58,6 +58,8 @@ const applyContact = ref('')
 const applyIntro = ref('')
 const applyHint = ref('')
 const hasPassword = ref(false)
+const githubBound = ref(false)
+const googleBound = ref(false)
 const oldPassword = ref('')
 const newPassword = ref('')
 const pwdError = ref('')
@@ -107,10 +109,17 @@ async function openPassword() {
   pwdHint.value = ''
   openView('password')
   try {
-    hasPassword.value = (await api.account()).hasPassword
+    const acc = await api.account()
+    hasPassword.value = acc.hasPassword
+    githubBound.value = acc.githubBound
+    googleBound.value = acc.googleBound
   } catch {
     hasPassword.value = false
   }
+}
+
+function bindOAuth(provider: 'github' | 'google') {
+  window.location.assign(`/api/v1/auth/oauth/${provider}/authorize?intent=bind`)
 }
 
 async function savePassword() {
@@ -221,8 +230,12 @@ watch(
       if (session.me) {
         api.account().then((a) => {
           hasPassword.value = a.hasPassword
+          githubBound.value = a.githubBound
+          googleBound.value = a.googleBound
         }).catch(() => {
           hasPassword.value = false
+          githubBound.value = false
+          googleBound.value = false
         })
       }
     } else {
@@ -308,6 +321,24 @@ onUnmounted(() => {
           <button v-if="session.me" type="button" class="more-row" @click="openPassword">
             <span>{{ passwordTitle }}</span>
             <Icon name="chevron" :size="14" class="text-[#bbb]" />
+          </button>
+          <button
+            v-if="session.me"
+            type="button"
+            class="more-row"
+            :disabled="githubBound"
+            @click="bindOAuth('github')"
+          >
+            <span>{{ githubBound ? '已绑定 GitHub' : '绑定 GitHub' }}</span>
+          </button>
+          <button
+            v-if="session.me"
+            type="button"
+            class="more-row"
+            :disabled="googleBound"
+            @click="bindOAuth('google')"
+          >
+            <span>{{ googleBound ? '已绑定 Google' : '绑定 Google' }}</span>
           </button>
           <button type="button" class="more-row" @click="logout">
             {{ session.me ? '退出登录' : '登录' }}

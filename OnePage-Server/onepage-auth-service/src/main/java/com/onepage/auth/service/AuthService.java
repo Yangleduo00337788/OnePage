@@ -12,14 +12,20 @@ import com.onepage.common.id.IdGenerator;
 import com.onepage.common.ops.OpsStaffAllowlist;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 登录注册编排：写 auth 库、调 user-service 建档、再把 userId 放进 HttpSession（Redis）。
@@ -27,11 +33,21 @@ import java.util.Set;
  */
 @Service
 public class AuthService {
+  private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+  private static final int NICKNAME_MAX = 64;
+  private static final int EMAIL_MAX = 128;
+  private static final Duration OAUTH_STATE_TTL = Duration.ofMinutes(10);
+  public static final String OAUTH_OK = "ok";
+  public static final String OAUTH_EMAIL_TAKEN = "email_taken";
+  public static final String OAUTH_BIND_OK = "bind_ok";
+  public static final String OAUTH_ALREADY_BOUND = "already_bound";
+  public static final String OAUTH_NEED_LOGIN = "need_login";
   private final AuthAccountMapper accountMapper;
   private final AuthOauthBindingMapper oauthMapper;
   private final SmsService smsService;
   private final PasswordEncoder passwordEncoder;
   private final UserClient userClient;
+  private final StringRedisTemplate redis;
   private final String internalToken;
   private final Set<Long> opsStaffIds;
 
@@ -41,6 +57,7 @@ public class AuthService {
       SmsService smsService,
       PasswordEncoder passwordEncoder,
       UserClient userClient,
+      StringRedisTemplate redis,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.ops-staff-user-ids:}") String opsStaffUserIds) {
     this.accountMapper = accountMapper;
@@ -48,6 +65,7 @@ public class AuthService {
     this.smsService = smsService;
     this.passwordEncoder = passwordEncoder;
     this.userClient = userClient;
+    this.redis = redis;
     this.internalToken = internalToken;
     this.opsStaffIds = OpsStaffAllowlist.parse(opsStaffUserIds);
   }
@@ -121,32 +139,161 @@ public class AuthService {
     return loginSession(row.getId(), request);
   }
 
-  /** 按「平台 + 平台用户 id」找绑定；没有则新建 auth 账号并绑上，避免每次 OAuth 都新号。 */
+  public String newOAuthState(boolean bind, Long userId) {
+    if (bind && userId == null) {
+      return null;
+    }
+    String token = UUID.randomUUID().toString().replace("-", "");
+    String payload = bind ? "bind:" + userId : "login";
+    redis.opsForValue().set("oauth:state:" + token, payload, OAUTH_STATE_TTL);
+    return token;
+  }
+
+  public OAuthIntent consumeOAuthState(String state) {
+    if (!StringUtils.hasText(state)) {
+      return OAuthIntent.login();
+    }
+    String payload = redis.opsForValue().getAndDelete("oauth:state:" + state);
+    if (!StringUtils.hasText(payload) || payload.equals("login")) {
+      return OAuthIntent.login();
+    }
+    if (payload.startsWith("bind:")) {
+      try {
+        return new OAuthIntent(true, Long.parseLong(payload.substring(5)));
+      } catch (NumberFormatException ignored) {
+        return OAuthIntent.login();
+      }
+    }
+    return OAuthIntent.login();
+  }
+
+  /**
+   * 按「平台 + 平台用户 id」找绑定。没有绑定时：邮箱已被占用则不开新号（避免和手机注册号裂开）；
+   * 邮箱空或未被占用才建号。
+   */
   @Transactional
-  public UserSummary oauthLogin(String provider, String providerUserId, String nickname, HttpServletRequest request) {
-    AuthOauthBinding binding = oauthMapper.selectOne(
+  public String oauthLogin(
+      String provider,
+      String providerUserId,
+      String nickname,
+      String email,
+      HttpServletRequest request) {
+    AuthOauthBinding binding = findBinding(provider, providerUserId);
+    if (binding == null) {
+      AuthAccount emailOwner = findByEmail(email);
+      if (emailOwner != null) {
+        log.warn("OAuth 登录邮箱已注册，拒绝开新号");
+        return OAUTH_EMAIL_TAKEN;
+      }
+      AuthAccount account = newAccount(null, unusedEmail(email, null), null);
+      accountMapper.insert(account);
+      insertBinding(account.getId(), provider, providerUserId);
+      String name = StringUtils.hasText(nickname) ? nickname : provider + "用户";
+      ensureProfile(account.getId(), clip(name, NICKNAME_MAX));
+      assertActive(account);
+      loginSession(account.getId(), request);
+      return OAUTH_OK;
+    }
+    AuthAccount account = accountMapper.selectById(binding.getUserId());
+    assertActive(account);
+    fillEmailIfEmpty(account, email);
+    loginSession(binding.getUserId(), request);
+    return OAUTH_OK;
+  }
+
+  /** 已登录绑定。不要求邮箱相同。对方账号已绑别人则失败。 */
+  @Transactional
+  public String oauthBind(long userId, String provider, String providerUserId, String email) {
+    AuthAccount account = accountMapper.selectById(userId);
+    assertActive(account);
+    AuthOauthBinding byProvider = findBinding(provider, providerUserId);
+    if (byProvider != null) {
+      return Objects.equals(userId, byProvider.getUserId()) ? OAUTH_BIND_OK : OAUTH_ALREADY_BOUND;
+    }
+    AuthOauthBinding mine = oauthMapper.selectOne(
+        Wrappers.<AuthOauthBinding>lambdaQuery()
+            .eq(AuthOauthBinding::getUserId, userId)
+            .eq(AuthOauthBinding::getProvider, provider));
+    if (mine != null) {
+      return Objects.equals(mine.getProviderUserId(), providerUserId)
+          ? OAUTH_BIND_OK
+          : OAUTH_ALREADY_BOUND;
+    }
+    insertBinding(userId, provider, providerUserId);
+    fillEmailIfEmpty(account, email);
+    return OAUTH_BIND_OK;
+  }
+
+  private AuthOauthBinding findBinding(String provider, String providerUserId) {
+    return oauthMapper.selectOne(
         Wrappers.<AuthOauthBinding>lambdaQuery()
             .eq(AuthOauthBinding::getProvider, provider)
             .eq(AuthOauthBinding::getProviderUserId, providerUserId));
-    long userId;
-    if (binding == null) {
-      AuthAccount account = newAccount(null, null, null);
-      accountMapper.insert(account);
-      userId = account.getId();
-      AuthOauthBinding created = new AuthOauthBinding();
-      created.setId(IdGenerator.nextId());
-      created.setUserId(userId);
-      created.setProvider(provider);
-      created.setProviderUserId(providerUserId);
-      created.setCreatedAt(LocalDateTime.now());
-      oauthMapper.insert(created);
-      ensureProfile(userId, StringUtils.hasText(nickname) ? nickname : provider + "用户");
-    } else {
-      userId = binding.getUserId();
+  }
+
+  private boolean hasBinding(long userId, String provider) {
+    return oauthMapper.selectOne(
+        Wrappers.<AuthOauthBinding>lambdaQuery()
+            .eq(AuthOauthBinding::getUserId, userId)
+            .eq(AuthOauthBinding::getProvider, provider)) != null;
+  }
+
+  private void insertBinding(long userId, String provider, String providerUserId) {
+    AuthOauthBinding created = new AuthOauthBinding();
+    created.setId(IdGenerator.nextId());
+    created.setUserId(userId);
+    created.setProvider(provider);
+    created.setProviderUserId(providerUserId);
+    created.setCreatedAt(LocalDateTime.now());
+    oauthMapper.insert(created);
+  }
+
+  private AuthAccount findByEmail(String email) {
+    String value = clip(email, EMAIL_MAX);
+    if (!StringUtils.hasText(value)) {
+      return null;
     }
-    AuthAccount account = accountMapper.selectById(userId);
-    assertActive(account);
-    return loginSession(userId, request);
+    return accountMapper.selectOne(
+        Wrappers.<AuthAccount>lambdaQuery().eq(AuthAccount::getEmail, value));
+  }
+
+  private void fillEmailIfEmpty(AuthAccount account, String email) {
+    if (account == null || StringUtils.hasText(account.getEmail())) {
+      return;
+    }
+    String fill = unusedEmail(email, account.getId());
+    if (!StringUtils.hasText(fill)) {
+      return;
+    }
+    account.setEmail(fill);
+    account.setUpdatedAt(LocalDateTime.now());
+    accountMapper.updateById(account);
+  }
+
+  /** 邮箱唯一；已被别人占用就空着，不挡登录。 */
+  private String unusedEmail(String email, Long selfUserId) {
+    String value = clip(email, EMAIL_MAX);
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    AuthAccount occupied = accountMapper.selectOne(
+        Wrappers.<AuthAccount>lambdaQuery().eq(AuthAccount::getEmail, value));
+    if (occupied == null) {
+      return value;
+    }
+    if (selfUserId != null && selfUserId.equals(occupied.getId())) {
+      return value;
+    }
+    log.warn("OAuth 邮箱已被占用，跳过写入");
+    return null;
+  }
+
+  private String clip(String value, int max) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.length() <= max ? trimmed : trimmed.substring(0, max);
   }
 
   public AccountView account(Long userId) {
@@ -157,7 +304,9 @@ public class AuthService {
     return new AccountView(
         row.getPhone() == null ? "" : row.getPhone(),
         row.getEmail() == null ? "" : row.getEmail(),
-        StringUtils.hasText(row.getPasswordHash()));
+        StringUtils.hasText(row.getPasswordHash()),
+        hasBinding(userId, "github"),
+        hasBinding(userId, "google"));
   }
 
   /** 已有密码必须带旧密码；OAuth 用户第一次设密可以不带旧密码。 */
@@ -315,7 +464,14 @@ public class AuthService {
     return StringUtils.hasText(value) ? value : null;
   }
 
-  public record AccountView(String phone, String email, boolean hasPassword) {}
+  public record AccountView(
+      String phone, String email, boolean hasPassword, boolean githubBound, boolean googleBound) {}
+
+  public record OAuthIntent(boolean bind, Long userId) {
+    static OAuthIntent login() {
+      return new OAuthIntent(false, null);
+    }
+  }
 
   public record FreezeView(String userId, boolean frozen) {}
 }

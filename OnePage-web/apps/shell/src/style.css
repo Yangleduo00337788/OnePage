@@ -340,6 +340,30 @@ textarea.field-auth::placeholder {
   cursor: pointer;
 }
 
+/* 全局 button { background: none; border: 0 } 会盖掉 Tailwind，OAuth 胶囊写在这里。 */
+.btn-oauth {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #eee;
+  border-radius: 20px;
+  padding: 0 14px;
+  font-size: 12px;
+  color: #555;
+  background: #f7f7f7;
+}
+
+.btn-oauth:hover {
+  background: #eee;
+}
+
+.btn-oauth svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 .filter-pill {
   display: inline-flex;
   align-items: center;
@@ -443,6 +467,15 @@ textarea.field-auth::placeholder {
 
 .more-row:hover {
   background: #f7f7f7;
+}
+
+.more-row:disabled {
+  cursor: default;
+  color: #8a8a8a;
+}
+
+.more-row:disabled:hover {
+  background: transparent;
 }
 
 html[data-theme='dark'] .more-row:hover {

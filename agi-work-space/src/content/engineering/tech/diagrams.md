@@ -162,7 +162,7 @@ sequenceDiagram
   participant R as Redis
 
   B->>W: AuthModal 勾选协议后提交
-  W->>G: POST /auth/login 或 /sms/login 或 /register
+  W->>G: POST /auth/login 或 /sms/login 或 /register；OAuth 走 GET /auth/oauth/{provider}/authorize 再 callback
   Note over G: 上述路径公开，不验 Session
   G->>A: 转发
   A->>A: 校验账密或验证码；短信未注册则建号（无密码）

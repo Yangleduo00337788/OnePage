@@ -109,7 +109,7 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 
 ### GET `/api/v1/auth/account`
 
-已登录。**Response 200** `{ "phone", "email", "hasPassword" }`（空字符串表示未绑）
+已登录。**Response 200** `{ "phone", "email", "hasPassword", "githubBound", "googleBound" }`（空字符串表示未绑手机/邮箱）
 
 ### POST `/api/v1/auth/password`
 
@@ -123,11 +123,11 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 
 ### GET `/api/v1/auth/oauth/{provider}/authorize`
 
-`provider`: `github` | `google` → 302 到 IdP
+`provider`: `github` | `google`。**Query** `intent` 可选：`bind` 表示已登录绑定（须带 Session，网关公开路径仍会注入 `X-User-Id`）。302 到 IdP，`state` 存 Redis 10 分钟。`intent=bind` 且未登录：302 `/?oauth=need_login`。
 
 ### GET `/api/v1/auth/oauth/{provider}/callback`
 
-OAuth 回调 → 建号/绑定 → Cookie → 302 到前端首页
+OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub 无公开邮箱再打 `/user/emails`）。`state` 为 bind：绑到当前用户，不新开号；对方 id 已绑别人则 302 `/?oauth=already_bound`，成功 `/?oauth=bind_ok`。登录：已有该平台绑定则进原号；**邮箱已被占用则不开新号**，302 `/?oauth=email_taken`；否则建号（name 作昵称，email 写入账号）、种 Cookie、302 首页。无 `code` 或带 `error`：不 500，直接 302 回首页。不落头像 URL、不改表、不静默按邮箱并号。
 
 ---
 

@@ -59,7 +59,7 @@ flowchart TB
 
 | 组件 | 职责 |
 | --- | --- |
-| AuthModal | 社区站登录（短信 / 账密）、注册、找回密码、协议勾选 |
+| AuthModal | 社区站登录（短信 / 账密 / GitHub / Google）、注册、找回密码、协议勾选 |
 | CreatorLogin | 创作者独立登录页（短信/账密）；与社区同一 Session，不注册 |
 | OpsLogin | 运营独立登录；`audience=ops`；种 `ONEPAGE_OPS_SESSION`；须在 `OPS_STAFF_USER_IDS` 内，非员工 403 不种 Cookie；不注册、不短信开户 |
 | MePage | 已登录设密 / 改密；资料不展示手机号邮箱 |
@@ -67,7 +67,7 @@ flowchart TB
 | auth | `auth_account`、验证码、密码哈希、种 Session |
 | user | `user_profile`（昵称、一页号）、`user_stat` |
 
-账号表有手机 / 邮箱 / 密码哈希；资料表只有昵称等展示字段。短信开户可以 **没有密码**。
+账号表有手机 / 邮箱 / 密码哈希；资料表只有昵称等展示字段。短信开户可以 **没有密码**。GitHub / Google：已有绑定则进原号；邮箱已被占用则 **不开新号**（DEC-061），回登录提示后在「更多」绑定。邮箱空或未被占用才开户（name 作昵称，email 写入账号）。已登录 `intent=bind` 绑到当前号。无密码。不把对方头像 URL 写入 `avatar_object_key`。
 
 ## 2. 总流程图
 
@@ -79,6 +79,7 @@ flowchart TD
   Which --> Reg[注册]
   Which --> PwdLogin[账密登录]
   Which --> SmsLogin[手机号+验证码]
+  Which --> Oauth[GitHub或Google]
   Which --> Reset[找回密码]
 
   Reg --> Need{手机或邮箱至少一项?}
@@ -108,6 +109,20 @@ flowchart TD
   AutoReg --> AutoNick2[昵称 一页+手机后4位]
   AutoNick2 --> Profile2[user 建档]
   Profile2 --> Cookie
+
+  Oauth --> Bound{已有该平台绑定?}
+  Bound -->|是| Cookie
+  Bound -->|否| MailHit{对方已验证邮箱已被占用?}
+  MailHit -->|是| EmailTaken[回登录页提示先登已有号再绑定]
+  MailHit -->|否| OauthAcc[建账号: 无手机无密码]
+  OauthAcc --> OauthMail{有邮箱?}
+  OauthMail -->|是| WriteMail[写入 auth_account.email]
+  OauthMail -->|否| SkipMail[邮箱留空]
+  WriteMail --> OauthNick[昵称用对方 name]
+  SkipMail --> OauthNick
+  OauthNick --> OauthBind[写 auth_oauth_binding]
+  OauthBind --> Profile3[user 建档]
+  Profile3 --> Cookie
 
   Reset --> ResetCode{reset 验证码对?}
   ResetCode -->|否| BadCode
@@ -294,3 +309,4 @@ sequenceDiagram
 | `/register` | AuthModal 注册 |
 | 登录 · 密码 Tab · 忘记密码 | 找回（手机验证码 + 新密码） |
 | 「更多」设置密码 / 修改密码 | 已登录写哈希 |
+| 「更多」绑定 GitHub / Google | 已登录 `intent=bind`；已绑则灰字不可点 |

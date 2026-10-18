@@ -6,7 +6,7 @@
 -->
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { api } from '@onepage/api-client'
 import { useSession } from './stores/session'
 import { useImSocket } from './stores/imSocket'
@@ -30,10 +30,46 @@ const more = useMoreMenu()
 const theme = useTheme()
 const detail = useNoteDetail()
 const route = useRoute()
+const router = useRouter()
+const oauthToast = ref('')
 onMounted(() => {
   session.refresh()
   theme.init()
 })
+
+watch(
+  () => route.query.oauth,
+  (flag) => {
+    if (typeof flag !== 'string' || !flag) return
+    const query = { ...route.query }
+    delete query.oauth
+    void router.replace({ path: route.path, query })
+    if (flag === 'email_taken') {
+      auth.show(
+        'login',
+        route.path,
+        '该邮箱已注册，请用手机号或密码登录，登录后在「更多」里绑定 GitHub / Google',
+      )
+      return
+    }
+    if (flag === 'need_login') {
+      auth.show('login', route.path, '请先登录，再在「更多」里绑定 GitHub / Google')
+      return
+    }
+    oauthToast.value =
+      flag === 'bind_ok'
+        ? '已绑定'
+        : flag === 'already_bound'
+          ? '该 GitHub / Google 已绑定其他账号'
+          : ''
+    if (oauthToast.value) {
+      window.setTimeout(() => {
+        if (oauthToast.value) oauthToast.value = ''
+      }, 4000)
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   () => session.me?.userId,
@@ -223,5 +259,11 @@ const searchFull = computed(() => route.path === '/' || route.path === '/search'
     <NoteDetailModal />
     <MoreMenu />
     <AuthModal />
+    <p
+      v-if="oauthToast"
+      class="pointer-events-none fixed bottom-8 left-1/2 z-[120] -translate-x-1/2 rounded-full bg-black/70 px-4 py-2 text-[13px] text-white"
+    >
+      {{ oauthToast }}
+    </p>
   </div>
 </template>

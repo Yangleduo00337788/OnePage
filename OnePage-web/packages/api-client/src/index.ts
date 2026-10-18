@@ -610,7 +610,13 @@ export const api = {
       { method: 'POST' },
     ),
   account: () =>
-    request<{ phone: string; email: string; hasPassword: boolean }>('/api/v1/auth/account'),
+    request<{
+      phone: string
+      email: string
+      hasPassword: boolean
+      githubBound: boolean
+      googleBound: boolean
+    }>('/api/v1/auth/account'),
   setPassword: (body: { oldPassword?: string; password: string }) =>
     request<{ phone: string; email: string; hasPassword: boolean }>('/api/v1/auth/password', {
       method: 'POST',

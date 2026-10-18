@@ -26,6 +26,13 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-18 — OAuth 邮箱已占用不开新号；已登录可在「更多」绑定 GitHub/Google（DEC-061）
+- 2026-10-18 — OAuth 开户写入对方 id / 显示名 / 邮箱（冲突跳过邮箱）；不改表、不存头像
+- 2026-10-18 — GitHub/Google 登录钮恢复 20px 圆角描边胶囊，字前官方标
+- 2026-10-18 — GitHub/Google 入口须先勾选协议，未勾选提示、不跳授权页
+- 2026-10-18 — OAuth 回调允许无 `code`（取消授权）302 回首页，不再 500
+- 2026-10-18 — GitHub/Google 授权 URL 对 `scope` 空格做 encode（原先 `build(true)` 直接 500）
+- 2026-10-18 — search 启动回填：user 未进 Nacos 时分段重试，不拖垮话题/直播；content 拉作者 503 不再打整段堆栈
 - 2026-10-18 — 通知/私信根包与启动类对齐模块名：`com.onepage.notification.NotificationApplication`、`com.onepage.message.MessageApplication`（DEC-060）；IDEA 运行配置用 Maven 模块名
 - 2026-10-18 — 去掉网关 `/api/v1/media/**`；未匹配路径回 404，不再 500（文件走 MinIO URL）
 - 2026-10-18 — 补 `DELETE /reactions/comments/{id}/like`（原先只有 POST 切换，DELETE 500）

@@ -8,16 +8,19 @@ export const useAuthModal = defineStore('authModal', () => {
   const open = ref(false)
   const mode = ref<'login' | 'register'>('login')
   const redirect = ref('/me')
+  const notice = ref('')
 
-  function show(next: 'login' | 'register' = 'login', after = '/me') {
+  function show(next: 'login' | 'register' = 'login', after = '/me', message = '') {
     mode.value = next
     redirect.value = after
+    notice.value = message
     open.value = true
   }
 
   function hide() {
     open.value = false
+    notice.value = ''
   }
 
-  return { open, mode, redirect, show, hide }
+  return { open, mode, redirect, notice, show, hide }
 })

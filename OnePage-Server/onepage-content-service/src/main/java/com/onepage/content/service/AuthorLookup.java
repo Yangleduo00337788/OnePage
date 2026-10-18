@@ -4,6 +4,7 @@ import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.content.client.UserClient;
 import com.onepage.content.dto.FeedDtos;
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,8 +36,11 @@ public class AuthorLookup {
           summary.pageId(),
           summary.nickname() == null ? "用户" : summary.nickname(),
           summary.avatarUrl() == null ? "" : summary.avatarUrl());
+    } catch (FeignException.ServiceUnavailable ex) {
+      log.warn("拉作者摘要失败 userId={}（onepage-user-service 未在 Nacos）", userId);
+      return fallback(userId);
     } catch (Exception ex) {
-      log.warn("拉作者摘要失败 userId={}", userId, ex);
+      log.warn("拉作者摘要失败 userId={}：{}", userId, ex.getMessage());
       return fallback(userId);
     }
   }

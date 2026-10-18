@@ -19,6 +19,8 @@ import java.util.List;
 public class IndexBackfill {
   private static final Logger log = LoggerFactory.getLogger(IndexBackfill.class);
   private static final int PAGE = 50;
+  private static final int STARTUP_TRIES = 8;
+  private static final long STARTUP_RETRY_MS = 2_000L;
 
   private final ContentClient contentClient;
   private final UserClient userClient;
@@ -41,7 +43,14 @@ public class IndexBackfill {
 
   @EventListener(ApplicationReadyEvent.class)
   public void onReady() {
-    run("startup");
+    for (int attempt = 1; attempt <= STARTUP_TRIES; attempt++) {
+      if (run("startup")) {
+        return;
+      }
+      log.warn("search backfill startup 第 {}/{} 次未齐（对端可能还没进 Nacos），{}ms 后再试",
+          attempt, STARTUP_TRIES, STARTUP_RETRY_MS);
+      sleepQuiet();
+    }
   }
 
   @Scheduled(fixedDelay = 600_000L, initialDelay = 30_000L)
@@ -49,15 +58,26 @@ public class IndexBackfill {
     run("schedule");
   }
 
-  private void run(String reason) {
-    try {
-      fillPosts();
-      fillUsers();
-      fillTopics();
-      fillLives();
+  /** 四段各自吞错；全成功才 true。避免 user 未就绪时话题/直播也不回填。 */
+  private boolean run(String reason) {
+    boolean posts = safe("posts", this::fillPosts);
+    boolean users = safe("users", this::fillUsers);
+    boolean topics = safe("topics", this::fillTopics);
+    boolean lives = safe("lives", this::fillLives);
+    boolean ok = posts && users && topics && lives;
+    if (ok) {
       log.info("search backfill {} done", reason);
+    }
+    return ok;
+  }
+
+  private boolean safe(String part, Runnable action) {
+    try {
+      action.run();
+      return true;
     } catch (RuntimeException ex) {
-      log.warn("search backfill {} failed", reason, ex);
+      log.warn("search backfill {} failed: {}", part, ex.getMessage());
+      return false;
     }
   }
 
@@ -116,11 +136,15 @@ public class IndexBackfill {
   }
 
   private void fillLives() {
+    SearchDtos.LivePage page = liveClient.searchableLives(internalToken);
+    searchService.replaceLives(page == null ? List.of() : page.items());
+  }
+
+  private static void sleepQuiet() {
     try {
-      SearchDtos.LivePage page = liveClient.searchableLives(internalToken);
-      searchService.replaceLives(page == null ? List.of() : page.items());
-    } catch (RuntimeException ex) {
-      log.warn("search backfill lives failed", ex);
+      Thread.sleep(STARTUP_RETRY_MS);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
     }
   }
 }

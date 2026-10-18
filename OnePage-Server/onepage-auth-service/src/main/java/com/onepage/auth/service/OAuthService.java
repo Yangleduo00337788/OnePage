@@ -7,11 +7,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,7 +49,7 @@ public class OAuthService {
   }
 
   /** {@code switch} 表达式：每个 case 必须给出 URL 或抛错，漏写编译不过。 */
-  public String authorizeUrl(String provider) {
+  public String authorizeUrl(String provider, String state) {
     return switch (provider) {
       case "github" -> {
         require(githubClientId, "GitHub");
@@ -54,7 +57,9 @@ public class OAuthService {
             .queryParam("client_id", githubClientId)
             .queryParam("redirect_uri", githubRedirect)
             .queryParam("scope", "read:user user:email")
-            .build(true)
+            .queryParam("state", state)
+            .encode()
+            .build()
             .toUriString();
       }
       case "google" -> {
@@ -64,7 +69,9 @@ public class OAuthService {
             .queryParam("redirect_uri", googleRedirect)
             .queryParam("response_type", "code")
             .queryParam("scope", "openid email profile")
-            .build(true)
+            .queryParam("state", state)
+            .encode()
+            .build()
             .toUriString();
       }
       default -> throw BusinessException.validation("不支持的登录方式");
@@ -105,8 +112,12 @@ public class OAuthService {
     if (user == null || user.get("id") == null) {
       throw BusinessException.unauthorized("GitHub 用户信息失败");
     }
-    String name = user.get("name") != null ? String.valueOf(user.get("name")) : String.valueOf(user.get("login"));
-    return new OAuthProfile(String.valueOf(user.get("id")), name);
+    String name = firstText(user.get("name"), user.get("login"));
+    String email = text(user.get("email"));
+    if (!StringUtils.hasText(email)) {
+      email = githubPrimaryEmail(access);
+    }
+    return new OAuthProfile(String.valueOf(user.get("id")), name, email);
   }
 
   @SuppressWarnings("unchecked")
@@ -135,8 +146,61 @@ public class OAuthService {
     if (user == null || user.get("sub") == null) {
       throw BusinessException.unauthorized("Google 用户信息失败");
     }
-    String name = user.get("name") != null ? String.valueOf(user.get("name")) : "Google用户";
-    return new OAuthProfile(String.valueOf(user.get("sub")), name);
+    String name = firstText(user.get("name"), "Google用户");
+    return new OAuthProfile(String.valueOf(user.get("sub")), name, text(user.get("email")));
+  }
+
+  /** GitHub 公开资料经常没有 email，要用 user:email 再拉一次列表。拉失败不影响登录。 */
+  private String githubPrimaryEmail(String access) {
+    try {
+      List<Map<String, Object>> rows = restClient.get()
+          .uri("https://api.github.com/user/emails")
+          .header("Authorization", "Bearer " + access)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(new ParameterizedTypeReference<>() {});
+      if (rows == null || rows.isEmpty()) {
+        return null;
+      }
+      String verified = null;
+      String any = null;
+      for (Map<String, Object> row : rows) {
+        String email = text(row.get("email"));
+        if (!StringUtils.hasText(email)) {
+          continue;
+        }
+        if (any == null) {
+          any = email;
+        }
+        boolean primary = Boolean.TRUE.equals(row.get("primary"));
+        boolean ok = Boolean.TRUE.equals(row.get("verified"));
+        if (primary && ok) {
+          return email;
+        }
+        if (ok && verified == null) {
+          verified = email;
+        }
+      }
+      return verified != null ? verified : any;
+    } catch (RestClientException ignored) {
+      return null;
+    }
+  }
+
+  private String firstText(Object preferred, Object fallback) {
+    String value = text(preferred);
+    return value != null ? value : text(fallback);
+  }
+
+  private String text(Object value) {
+    if (value == null) {
+      return null;
+    }
+    String raw = String.valueOf(value).trim();
+    if (!StringUtils.hasText(raw) || "null".equals(raw)) {
+      return null;
+    }
+    return raw;
   }
 
   private void require(String clientId, String name) {
@@ -149,5 +213,5 @@ public class OAuthService {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 
-  public record OAuthProfile(String providerUserId, String nickname) {}
+  public record OAuthProfile(String providerUserId, String nickname, String email) {}
 }
