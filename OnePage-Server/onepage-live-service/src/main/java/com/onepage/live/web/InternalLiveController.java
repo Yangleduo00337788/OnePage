@@ -31,6 +31,12 @@ public class InternalLiveController {
     return new ActiveView(liveService.hasLive(userId));
   }
 
+  @GetMapping("/search")
+  public LiveDtos.LivePage searchable(HttpServletRequest request) {
+    tokenFilter.assertInternal(request);
+    return liveService.list("", "");
+  }
+
   @PostMapping("/hooks/publish")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void publish(

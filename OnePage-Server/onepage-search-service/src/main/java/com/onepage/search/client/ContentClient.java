@@ -21,4 +21,10 @@ public interface ContentClient {
   @GetMapping("/internal/users/{userId}/history-ids")
   List<String> historyIds(
       @RequestHeader("X-Internal-Token") String token, @PathVariable("userId") long userId);
+
+  @GetMapping("/internal/search/topics")
+  SearchDtos.TopicPage searchableTopics(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit);
 }

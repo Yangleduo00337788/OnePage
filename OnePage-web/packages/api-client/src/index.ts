@@ -65,11 +65,11 @@ export type SearchUserHit = {
   bio?: string
 }
 
-export type SearchResult = {
-  posts: PostBrief[]
-  users: SearchUserHit[]
-  nextCursor: string | null
-  hasMore: boolean
+export type SearchTopicHit = {
+  topicId: string
+  name: string
+  official: boolean
+  sortOrder: number
 }
 
 export type LiveSession = {
@@ -84,6 +84,15 @@ export type LiveSession = {
   viewerCount: number
   owner: UserBrief
   startedAt?: string
+}
+
+export type SearchResult = {
+  posts: PostBrief[]
+  users: SearchUserHit[]
+  topics?: SearchTopicHit[]
+  lives?: LiveSession[]
+  nextCursor: string | null
+  hasMore: boolean
 }
 
 export type LiveChatLine = {
@@ -900,6 +909,10 @@ export const api = {
   likeComment: (commentId: string) =>
     request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/comments/${commentId}/like`, {
       method: 'POST',
+    }),
+  unlikeComment: (commentId: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/api/v1/reactions/comments/${commentId}/like`, {
+      method: 'DELETE',
     }),
   conversations: () => request<{ items: ConversationItem[] }>('/api/v1/conversations'),
   openConversation: (peerUserId: string) =>

@@ -1,10 +1,10 @@
 <!--
-  搜索结果。笔记/用户走 GET /search（筛选进查询）；话题走 /catalog/topics；直播走 /live/sessions。
+  搜索结果。笔记/用户/话题/直播走 GET /search（ES）。空关键词不请求。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, ApiError, type LiveSession, type OpsTopic, type SearchUserHit } from '@onepage/api-client'
+import { api, ApiError, type LiveSession, type SearchTopicHit, type SearchUserHit } from '@onepage/api-client'
 import { noteFromPost, type NoteCard } from '../data/home'
 import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -53,7 +53,7 @@ const TABS = ['笔记', '用户', '话题', '直播'] as const
 
 const notes = ref<NoteCard[]>([])
 const users = ref<SearchUserHit[]>([])
-const topics = ref<OpsTopic[]>([])
+const topics = ref<SearchTopicHit[]>([])
 const lives = ref<LiveSession[]>([])
 const cursor = ref<string | null>(null)
 const hasMore = ref(false)
@@ -67,6 +67,8 @@ let seq = 0
 function searchType() {
   if (tab.value === '用户') return 'user' as const
   if (tab.value === '笔记') return 'post' as const
+  if (tab.value === '话题') return 'topic' as const
+  if (tab.value === '直播') return 'live' as const
   return null
 }
 
@@ -116,20 +118,16 @@ async function refresh() {
   }
   loading.value = true
   try {
-    if (tab.value === '话题') {
-      topics.value = await api.suggestTopics(q.value)
-    } else if (tab.value === '直播') {
-      lives.value = (await api.liveSessions({ q: q.value })).items
-    } else {
-      const kind = searchType()
-      if (!kind) return
-      const page = await api.search(q.value, kind, undefined, 20, extra())
-      if (token !== seq) return
-      notes.value = (page.posts || []).map(noteFromPost)
-      users.value = page.users || []
-      cursor.value = page.nextCursor
-      hasMore.value = page.hasMore
-    }
+    const kind = searchType()
+    if (!kind) return
+    const page = await api.search(q.value, kind, undefined, 20, extra())
+    if (token !== seq) return
+    notes.value = (page.posts || []).map(noteFromPost)
+    users.value = page.users || []
+    topics.value = page.topics || []
+    lives.value = page.lives || []
+    cursor.value = page.nextCursor
+    hasMore.value = page.hasMore
   } catch (e) {
     if (token !== seq) return
     failed.value = e instanceof ApiError ? e.message : '搜索失败'
@@ -148,6 +146,8 @@ async function loadMore() {
     if (token !== seq) return
     notes.value = notes.value.concat((page.posts || []).map(noteFromPost))
     users.value = users.value.concat(page.users || [])
+    topics.value = topics.value.concat(page.topics || [])
+    lives.value = lives.value.concat(page.lives || [])
     cursor.value = page.nextCursor
     hasMore.value = page.hasMore
   } catch {

@@ -6,6 +6,33 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-060 服务模块、根包、启动类同一段名字
+
+- **日期：** 2026-10-18
+- **状态：** 已采纳
+- **背景：** IDEA Services 里 `NotifyApplication` / `ImApplication` 和 Maven 模块 `onepage-notification-service` / `onepage-message-service` 对不上；自动探测的 `*Application` 配置和模块名配置叠成两份。
+- **决策：** `onepage-{name}-service` → 根包 `com.onepage.{name}` → 启动类 `{Name}Application`。通知从 `com.onepage.notify.NotifyApplication` 改为 `com.onepage.notification.NotificationApplication`；私信从 `com.onepage.im.ImApplication` 改为 `com.onepage.message.MessageApplication`。业务类（`NotifyController`、`ImService` 等）不改名。IDEA 运行配置只保留模块名，不保留按启动类自动生成的那一份。
+- **替代：** 只改 IDEA 显示名、包仍用 `notify`/`im`（否决：启动类仍对不上模块）。
+- **影响：** 重启 notification、message；IDEA 刷新 Maven 后灰名单 `*Application` 会消失。
+
+## DEC-059 在播、顶栏联想、耶耶检索进 Elasticsearch
+
+- **日期：** 2026-10-18
+- **状态：** 已采纳
+- **背景：** 社区搜索直播 Tab 仍 MySQL `LIKE` 标题；顶栏「正在直播 / 热门话题」写死暂无；耶耶 RAG 只 `type=post`，话题命中不进上下文。
+- **决策：** 索引 `onepage-lives`（字段对齐 `LiveItem`：`sessionId` `title` `category` `status` `owner` 等）。只收 `status=live`；关播删除。live 开/关播后 Feign `POST/DELETE /internal/index/lives`；search 回填 `GET /internal/live/search` 并清掉已结束场次。`GET /search?type=live|all` 出 `lives[]`。顶栏有关键词走 `type=all`；空关键词直播仍 `GET /live/sessions`、话题仍目录（避免空词倒库）。耶耶 `type=all`，笔记或话题任一命中即生成。私信/通知/直播聊天/草稿/运营 CRUD 不进 ES。
+- **替代：** 直播继续 live 列表 LIKE（否决：和笔记/用户/话题分裂）；空词 match_all 填顶栏（否决：会把全库倒给联想）。
+- **影响：** 重启 search、live、ai、gateway；壳直播 Tab 与顶栏联想改 `GET /search`。
+
+## DEC-058 搜索话题进 Elasticsearch
+
+- **日期：** 2026-10-18
+- **状态：** 已采纳
+- **背景：** `GET /search?type=topic` 一直空；社区话题 Tab 用 MySQL `GET /catalog/topics` LIKE，和笔记/用户不在同一套检索。
+- **决策：** 索引 `onepage-topics`（`topicId` `name` `official` `sortOrder`）。只收 `enabled` 话题。content 保存/停用/发帖抽 hashtag 后 Feign `POST/DELETE /internal/index/topics`；search 启动与定时回填 `GET /internal/search/topics`。社区 `GET /search?type=topic` 出 `topics[]`。发帖联想仍走目录。直播仍走 live 列表。
+- **替代：** 继续目录 LIKE（否决：看不见全文检索、和笔记/用户分裂）。
+- **影响：** 重启 search + content；壳话题 Tab 改 `GET /search`。
+
 ## DEC-057 OBS 断流后宽限期自动关播
 
 - **日期：** 2026-10-18

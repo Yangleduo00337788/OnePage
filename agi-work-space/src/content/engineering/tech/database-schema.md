@@ -401,14 +401,16 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 索引 | 主要字段 | 说明 |
 | --- | --- | --- |
-| `onepage_posts` | postId, authorId, title, body, publishedAt | 全文 |
-| `onepage_posts_vector` | postId, embedding dense_vector | kNN |
-| `onepage_users` | userId, pageId, nickname | 用户搜索 |
+| `onepage-posts` | postId, title, body, author, category, counts, publishedAt | 公开笔记全文 |
+| `onepage-users` | userId, pageId, nickname, bio | 用户搜索 |
+| `onepage-topics` | topicId, name, official, sortOrder | 启用话题 |
+| `onepage-lives` | sessionId, title, category, status, owner, viewerCount | 仅 `status=live` |
 
 ## 修订记录
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-18 | ES `onepage-lives`；索引名与代码对齐（连字符） |
 | 2026-10-18 | `live_room.notice` 本场公告 |
 | 2026-10-17 | `live_chat.msg_type`；在场 Redis `live:presence` |
 | 2026-10-17 | `live_chat` 直播间文字聊天 |

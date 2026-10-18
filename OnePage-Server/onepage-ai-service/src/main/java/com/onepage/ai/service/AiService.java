@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 润色走 JSON 改写；问答先检索公开笔记再生成。失败不编造。 */
+/** 润色走 JSON 改写；问答先检索公开笔记与话题再生成。失败不编造。 */
 @Service
 public class AiService {
   private static final Logger log = LoggerFactory.getLogger(AiService.class);
@@ -79,13 +79,13 @@ public class AiService {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_ANSWER, List.of());
     }
     AiSettings.Stored stored = aiSettings.current();
-    List<SearchClient.PostHit> posts = retrieve(question, stored.retrieveLimit());
-    List<AiDtos.Citation> citations = toCitations(posts);
-    if (posts.isEmpty()) {
+    Retrieved found = retrieve(question, stored.retrieveLimit());
+    List<AiDtos.Citation> citations = toCitations(found.posts());
+    if (found.posts().isEmpty() && found.topics().isEmpty()) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_NOTES, List.of());
     }
     String answer = llmClient.complete(
-        stored.chatSystem(), buildChatUser(question, posts, stored.contextBodyMax()));
+        stored.chatSystem(), buildChatUser(question, found.posts(), found.topics(), stored.contextBodyMax()));
     if (!StringUtils.hasText(answer)) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_ANSWER, citations);
     }
@@ -106,16 +106,16 @@ public class AiService {
     }
     AiSettings.Stored stored = aiSettings.current();
     emit(out, "stage", new AiDtos.StreamStage("retrieve", 0));
-    List<SearchClient.PostHit> posts = retrieve(question, stored.retrieveLimit());
-    List<AiDtos.Citation> citations = toCitations(posts);
-    emit(out, "stage", new AiDtos.StreamStage("notes", posts.size()));
-    if (posts.isEmpty()) {
+    Retrieved found = retrieve(question, stored.retrieveLimit());
+    List<AiDtos.Citation> citations = toCitations(found.posts());
+    emit(out, "stage", new AiDtos.StreamStage("notes", found.posts().size()));
+    if (found.posts().isEmpty() && found.topics().isEmpty()) {
       emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_NOTES));
       emit(out, "done", new AiDtos.StreamDone(List.of()));
       return;
     }
-    emit(out, "stage", new AiDtos.StreamStage("write", posts.size()));
-    String user = buildChatUser(question, posts, stored.contextBodyMax());
+    emit(out, "stage", new AiDtos.StreamStage("write", found.posts().size()));
+    String user = buildChatUser(question, found.posts(), found.topics(), stored.contextBodyMax());
     try {
       if (Boolean.TRUE.equals(stored.streamEnabled())) {
         llmClient.completeStream(
@@ -160,18 +160,29 @@ public class AiService {
     return AiConstants.MODE_CONTINUE.equals(value) || "续写".equals(mode.trim());
   }
 
-  private List<SearchClient.PostHit> retrieve(String question, int limit) {
+  private Retrieved retrieve(String question, int limit) {
     try {
-      SearchClient.SearchHit page = searchClient.search(question, "post", limit);
-      if (page == null || page.posts() == null) {
-        return List.of();
+      SearchClient.SearchHit page = searchClient.search(question, "all", limit);
+      List<SearchClient.PostHit> posts = List.of();
+      List<SearchClient.TopicHit> topics = List.of();
+      if (page != null && page.posts() != null) {
+        posts = page.posts().stream()
+            .filter(item -> item != null && StringUtils.hasText(item.postId()))
+            .toList();
       }
-      return page.posts().stream().filter(item -> item != null && StringUtils.hasText(item.postId())).toList();
-    } catch (Exception ex) {
+      if (page != null && page.topics() != null) {
+        topics = page.topics().stream()
+            .filter(item -> item != null && StringUtils.hasText(item.name()))
+            .toList();
+      }
+      return new Retrieved(posts, topics);
+    } catch (RuntimeException ex) {
       log.warn("ai retrieve failed", ex);
-      return List.of();
+      return new Retrieved(List.of(), List.of());
     }
   }
+
+  private record Retrieved(List<SearchClient.PostHit> posts, List<SearchClient.TopicHit> topics) {}
 
   private static List<AiDtos.Citation> toCitations(List<SearchClient.PostHit> posts) {
     List<AiDtos.Citation> out = new ArrayList<>();
@@ -191,7 +202,11 @@ public class AiService {
     return List.copyOf(out);
   }
 
-  private static String buildChatUser(String question, List<SearchClient.PostHit> posts, int bodyMax) {
+  private static String buildChatUser(
+      String question,
+      List<SearchClient.PostHit> posts,
+      List<SearchClient.TopicHit> topics,
+      int bodyMax) {
     StringBuilder sb = new StringBuilder();
     sb.append("问题：").append(question);
     sb.append("\n\n回答要求：归纳成短段落，不要复述全文；引用用 [1][2] 对应下面编号。\n\n站内笔记：\n");
@@ -211,6 +226,12 @@ public class AiService {
           .append('\n')
           .append(body)
           .append("\n\n");
+    }
+    if (topics != null && !topics.isEmpty()) {
+      sb.append("站内话题：\n");
+      for (SearchClient.TopicHit topic : topics) {
+        sb.append("- ").append(nullToEmpty(topic.name())).append('\n');
+      }
     }
     return sb.toString();
   }

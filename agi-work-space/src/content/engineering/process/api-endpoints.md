@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-P3 已实现：搜索笔记/用户（筛选进查询）；话题走目录、直播走 live 列表；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天、分享 `live_card`、本场公告、OBS 断流自动关播。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天、分享 `live_card`、本场公告、OBS 断流自动关播。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -212,6 +212,8 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 **Body**：`mediaId`  
 **Response 200**：`{ "mediaId", "status": "ready", "url" }`。`url` 为 `MEDIA_PUBLIC_BASE` + objectKey，运营活动封面等可直接写入。
 
+浏览器读文件用返回的 `url`（MinIO），不要调 `GET /api/v1/media/{id}`：公网没有这条。归属核验走内网 `GET /internal/media/{id}`。网关也不再转发 `/api/v1/media/**`。
+
 ---
 
 ## Posts（P1）
@@ -246,7 +248,7 @@ Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=p
 
 ### GET `/api/v1/catalog/topics`
 
-公开。Query：`q` 可选。联想启用中的话题名。
+公开。Query：`q` 可选。发帖联想启用中的话题名。搜索页话题 Tab 走 `GET /search?type=topic`。
 
 ### GET `/api/v1/posts/mine`
 
@@ -296,7 +298,7 @@ Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `
 
 **Body**：`{ "question", "sessionId?" }`（`sessionId` 仅前端会话，服务端不落库）  
 **Response 200**：`{ "answer", "citations": [{ "postId", "snippet", "title", "coverUrl", "nickname", "pageId" }] }`  
-先 `GET /search?type=post` 再生成。无命中：`answer` 为「暂时不能根据站内笔记回答」。无密钥：仍 200，「暂时不能回答」，不查 ES。温度 / `max_tokens` 读运营配置；本接口始终整段返回。模型须归纳并标 `[1]`，禁止复述材料全文。
+先 `GET /search?type=all` 再生成（笔记 + 话题进上下文；引用胶囊仍只对笔记）。笔记与话题都无命中：`answer` 为「暂时不能根据站内笔记回答」。无密钥：仍 200，「暂时不能回答」，不查 ES。温度 / `max_tokens` 读运营配置；本接口始终整段返回。模型须归纳并标 `[1]`，禁止复述材料全文。
 
 ### POST `/api/v1/ai/chat/stream`
 
@@ -321,7 +323,11 @@ Header 可选 `Idempotency-Key`
 
 ### POST `/api/v1/reactions/comments/{commentId}/like`
 
-**Response 200** `{ "liked", "likeCount" }`
+社区详情用 POST 切换。**Response 200** `{ "liked", "likeCount" }`
+
+### DELETE `/api/v1/reactions/comments/{commentId}/like`
+
+取消评论赞。未赞过也是 200 `{ "liked": false, "likeCount" }`。
 
 ---
 
@@ -445,8 +451,8 @@ Query：`beforeId?`, `limit`
 ### GET `/api/v1/search`
 
 公开。Query：`q`（空则空结果）、`type`（`post` | `user` | `all` | `topic` | `live`）、`cursor`、`limit`、`postType?`（逗号分隔 `image`/`video`）、`sort?`（`latest`/`hot`/`likes`/`comments`/`favorites`）、`time?`（`week`/`month`/`half`）、`scope?`（`following`/`seen`/`unseen`，须登录，靠 `X-User-Id`）  
-**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio" }], "nextCursor", "hasMore" }`  
-笔记/用户走 ES。筛选只作用于 `type=post`。`scope=following` Feign 关注 id；`seen`/`unseen` Feign 浏览 id。话题 Tab 走 `GET /catalog/topics`；直播 Tab 走 `GET /live/sessions`。MQ 未消费时由 content/user Feign 写入，search 启动回填。
+**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio" }], "topics": [{ "topicId", "name", "official", "sortOrder" }], "lives": LiveItem[], "nextCursor", "hasMore" }`  
+笔记/用户/话题/在播走 ES（话题 `onepage-topics` 只含启用；在播 `onepage-lives` 只含 `status=live`）。筛选只作用于 `type=post`。`scope=following` Feign 关注 id；`seen`/`unseen` Feign 浏览 id。发帖联想仍 `GET /catalog/topics`。顶栏空词直播仍 `GET /live/sessions`。MQ 未消费时由 content/user/live Feign 写入，search 启动回填（含话题与在播）。
 
 ---
 
@@ -509,6 +515,10 @@ Query：`beforeId?`, `limit`
 
 须登录。**Body**：`{ conversationId? , targetUserId? }`（二选一）  
 **Response 201**：`{ "messageId" }`。live 编排快照后 Feign message `POST /internal/im/share-live-card`，写入 `msgType=live_card`，`content`：`sessionId`, `title`, `coverUrl`, `authorNickname`。浏览器不能直接发 `live_card`。不能分享给自己。
+
+### GET `/internal/live/search`
+
+内网。Header `X-Internal-Token`。**Response**：`{ "items": LiveItem[] }`（当前 `status=live`，无关键词过滤）。search 回填 `onepage-lives` 用。
 
 ### POST `/internal/live/hooks/publish` · `/unpublish`
 

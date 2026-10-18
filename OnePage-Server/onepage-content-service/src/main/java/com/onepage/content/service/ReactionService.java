@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/** 赞藏。唯一键防重复；评论点赞走 POST 切换。 */
+/** 赞藏。唯一键防重复；评论点赞 POST 切换，DELETE 取消。 */
 @Service
 public class ReactionService {
   private final PostService postService;
@@ -106,22 +106,28 @@ public class ReactionService {
   }
 
   @Transactional
-  public FeedDtos.LikeResult toggleCommentLike(long userId, long commentId) {
-    Comment comment = commentMapper.selectById(commentId);
-    if (comment == null || comment.getStatus() == null || comment.getStatus() != 0) {
-      throw BusinessException.notFound("评论不存在");
+  public FeedDtos.LikeResult unlikeComment(long userId, long commentId) {
+    Comment comment = requireOpenComment(commentId);
+    int removed = commentLikeMapper.delete(Wrappers.<CommentLike>lambdaQuery()
+        .eq(CommentLike::getUserId, userId)
+        .eq(CommentLike::getCommentId, commentId));
+    int count = n(comment.getLikeCount());
+    if (removed > 0) {
+      count = Math.max(0, count - 1);
+      comment.setLikeCount(count);
+      commentMapper.updateById(comment);
     }
+    return new FeedDtos.LikeResult(false, count);
+  }
+
+  @Transactional
+  public FeedDtos.LikeResult toggleCommentLike(long userId, long commentId) {
+    Comment comment = requireOpenComment(commentId);
     boolean already = commentLikeMapper.selectCount(Wrappers.<CommentLike>lambdaQuery()
         .eq(CommentLike::getUserId, userId)
         .eq(CommentLike::getCommentId, commentId)) > 0;
     if (already) {
-      commentLikeMapper.delete(Wrappers.<CommentLike>lambdaQuery()
-          .eq(CommentLike::getUserId, userId)
-          .eq(CommentLike::getCommentId, commentId));
-      int next = Math.max(0, n(comment.getLikeCount()) - 1);
-      comment.setLikeCount(next);
-      commentMapper.updateById(comment);
-      return new FeedDtos.LikeResult(false, next);
+      return unlikeComment(userId, commentId);
     }
     CommentLike row = new CommentLike();
     row.setUserId(userId);
@@ -162,6 +168,14 @@ public class ReactionService {
 
   private long countFavorites(long postId) {
     return favoriteMapper.selectCount(Wrappers.<PostFavorite>lambdaQuery().eq(PostFavorite::getPostId, postId));
+  }
+
+  private Comment requireOpenComment(long commentId) {
+    Comment comment = commentMapper.selectById(commentId);
+    if (comment == null || comment.getStatus() == null || comment.getStatus() != 0) {
+      throw BusinessException.notFound("评论不存在");
+    }
+    return comment;
   }
 
   private int n(Integer v) {

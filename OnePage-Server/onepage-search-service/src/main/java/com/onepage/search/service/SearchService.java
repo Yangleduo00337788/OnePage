@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-/** 对外搜索与内部索引写入。空关键词不查，避免把全库倒出来。 */
+/** 对外搜索与内部索引写入。空关键词不查，避免把全库倒出来。话题/在播走 ES。 */
 @Service
 public class SearchService {
   private static final Logger log = LoggerFactory.getLogger(SearchService.class);
@@ -50,13 +52,15 @@ public class SearchService {
       Long userId) {
     String keyword = q == null ? "" : q.trim();
     if (!StringUtils.hasText(keyword)) {
-      return new SearchDtos.SearchResult(List.of(), List.of(), null, false);
+      return empty();
     }
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     int from = parseFrom(cursor);
     String kind = type == null || type.isBlank() ? "all" : type.trim().toLowerCase();
     List<SearchDtos.PostBrief> posts = List.of();
     List<SearchDtos.UserDoc> users = List.of();
+    List<SearchDtos.TopicDoc> topics = List.of();
+    List<SearchDtos.LiveDoc> lives = List.of();
     boolean hasMore = false;
     if ("user".equals(kind)) {
       List<SearchDtos.UserDoc> page = searchIndex.searchUsers(keyword, from, size + 1);
@@ -65,22 +69,30 @@ public class SearchService {
     } else if ("post".equals(kind)) {
       SearchDtos.PostFilter filter = postFilter(keyword, postType, sort, time, scope, userId, from, size + 1);
       if (emptyScope(filter)) {
-        return new SearchDtos.SearchResult(List.of(), List.of(), null, false);
+        return empty();
       }
       List<SearchDtos.PostBrief> page = searchIndex.searchPosts(filter);
       hasMore = page.size() > size;
       posts = hasMore ? page.subList(0, size) : page;
-    } else if ("topic".equals(kind) || "live".equals(kind)) {
-      return new SearchDtos.SearchResult(List.of(), List.of(), null, false);
+    } else if ("topic".equals(kind)) {
+      List<SearchDtos.TopicDoc> page = searchIndex.searchTopics(keyword, from, size + 1);
+      hasMore = page.size() > size;
+      topics = hasMore ? page.subList(0, size) : page;
+    } else if ("live".equals(kind)) {
+      List<SearchDtos.LiveDoc> page = searchIndex.searchLives(keyword, from, size + 1);
+      hasMore = page.size() > size;
+      lives = hasMore ? page.subList(0, size) : page;
     } else {
       SearchDtos.PostFilter filter = postFilter(keyword, postType, sort, time, scope, userId, 0, size);
       if (!emptyScope(filter)) {
         posts = searchIndex.searchPosts(filter);
       }
       users = searchIndex.searchUsers(keyword, 0, size);
+      topics = searchIndex.searchTopics(keyword, 0, size);
+      lives = searchIndex.searchLives(keyword, 0, size);
     }
     String next = hasMore ? String.valueOf(from + size) : null;
-    return new SearchDtos.SearchResult(posts, users, next, hasMore);
+    return new SearchDtos.SearchResult(posts, users, topics, lives, next, hasMore);
   }
 
   public void upsertPost(SearchDtos.PostBrief doc) {
@@ -95,6 +107,47 @@ public class SearchService {
   public void upsertUser(SearchDtos.UserDoc doc) {
     searchIndex.ensureIndices();
     searchIndex.upsertUser(doc);
+  }
+
+  public void upsertTopic(SearchDtos.TopicDoc doc) {
+    searchIndex.ensureIndices();
+    searchIndex.upsertTopic(doc);
+  }
+
+  public void deleteTopic(String topicId) {
+    searchIndex.deleteTopic(topicId);
+  }
+
+  public void upsertLive(SearchDtos.LiveDoc doc) {
+    searchIndex.ensureIndices();
+    searchIndex.upsertLive(doc);
+  }
+
+  public void deleteLive(String sessionId) {
+    searchIndex.deleteLive(sessionId);
+  }
+
+  /** 回填当前在播：写入后删掉已关播但仍留在索引里的场次。 */
+  public void replaceLives(List<SearchDtos.LiveDoc> items) {
+    searchIndex.ensureIndices();
+    Set<String> keep = new HashSet<>();
+    if (items != null) {
+      for (SearchDtos.LiveDoc item : items) {
+        if (item != null && StringUtils.hasText(item.sessionId())) {
+          keep.add(item.sessionId());
+          searchIndex.upsertLive(item);
+        }
+      }
+    }
+    for (String id : searchIndex.listLiveIds()) {
+      if (!keep.contains(id)) {
+        searchIndex.deleteLive(id);
+      }
+    }
+  }
+
+  private static SearchDtos.SearchResult empty() {
+    return new SearchDtos.SearchResult(List.of(), List.of(), List.of(), List.of(), null, false);
   }
 
   private SearchDtos.PostFilter postFilter(

@@ -32,6 +32,15 @@ public class InternalCatalogController {
     this.expectedToken = expectedToken;
   }
 
+  @GetMapping("/search/topics")
+  public FeedDtos.TopicIndexPage searchableTopics(
+      HttpServletRequest request,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    assertInternal(request);
+    return catalogService.listSearchableTopics(cursor, limit);
+  }
+
   @GetMapping("/catalog/ops")
   public FeedDtos.OpsCatalog catalog(HttpServletRequest request) {
     assertInternal(request);

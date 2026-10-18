@@ -16,4 +16,10 @@ public interface SearchClient {
 
   @DeleteMapping("/internal/index/posts/{postId}")
   void deletePost(@RequestHeader("X-Internal-Token") String token, @PathVariable("postId") String postId);
+
+  @PostMapping("/internal/index/topics")
+  void upsertTopic(@RequestHeader("X-Internal-Token") String token, @RequestBody FeedDtos.TopicIndexDoc body);
+
+  @DeleteMapping("/internal/index/topics/{topicId}")
+  void deleteTopic(@RequestHeader("X-Internal-Token") String token, @PathVariable("topicId") String topicId);
 }

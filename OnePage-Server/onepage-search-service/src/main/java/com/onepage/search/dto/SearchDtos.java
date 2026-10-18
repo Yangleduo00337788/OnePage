@@ -36,7 +36,32 @@ public final class SearchDtos {
 
   public record UserPage(List<UserDoc> items, String nextCursor, boolean hasMore) {}
 
-  public record SearchResult(List<PostBrief> posts, List<UserDoc> users, String nextCursor, boolean hasMore) {}
+  public record TopicDoc(String topicId, String name, boolean official, int sortOrder) {}
+
+  public record TopicPage(List<TopicDoc> items, String nextCursor, boolean hasMore) {}
+
+  public record LiveDoc(
+      String sessionId,
+      String roomId,
+      String title,
+      String category,
+      String status,
+      String coverUrl,
+      String notice,
+      String playUrlHls,
+      long viewerCount,
+      UserBrief owner,
+      String startedAt) {}
+
+  public record LivePage(List<LiveDoc> items) {}
+
+  public record SearchResult(
+      List<PostBrief> posts,
+      List<UserDoc> users,
+      List<TopicDoc> topics,
+      List<LiveDoc> lives,
+      String nextCursor,
+      boolean hasMore) {}
 
   public record PostFilter(
       String q,

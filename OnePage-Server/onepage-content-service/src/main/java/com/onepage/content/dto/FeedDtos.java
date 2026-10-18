@@ -150,6 +150,10 @@ public final class FeedDtos {
 
   public record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled) {}
 
+  public record TopicIndexDoc(String topicId, String name, boolean official, int sortOrder) {}
+
+  public record TopicIndexPage(List<TopicIndexDoc> items, String nextCursor, boolean hasMore) {}
+
   public record OpsCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
 
   public record PublicCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}

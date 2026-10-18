@@ -254,9 +254,9 @@ sequenceDiagram
 
   B->>G: POST /api/v1/ai/chat Cookie
   G->>AI: X-User-Id + question
-  AI->>Sch: GET /search type=post
+  AI->>Sch: GET /search type=all
   Sch->>ES: keyword
-  ES->>Sch: posts
+  ES->>Sch: posts + topics
   Sch->>AI: passages
   AI->>LLM: POST /chat/completions
   LLM->>AI: answer

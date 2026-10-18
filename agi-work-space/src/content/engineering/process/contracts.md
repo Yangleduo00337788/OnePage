@@ -39,7 +39,7 @@ order: 3
 | --- | --- |
 | `/auth/**` | 登录注册 |
 | `/users/**` | 用户资料、关注、列表 |
-| `/uploads/**`、`/media/**` | 上传与媒体（content，P0） |
+| `/uploads/**` | 上传（content，P0）。文件读 MinIO 公开 URL，**没有**公网 `GET /api/v1/media/**` |
 | `/posts/**`、`/feeds/**` | 笔记（content，P1） |
 | `/comments/**`、`/reactions/**` | 评论、赞藏（P1 合在 content，DEC-023） |
 | `/conversations/**`、`/ws/im` | 私信 |

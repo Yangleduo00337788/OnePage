@@ -15,6 +15,7 @@ import com.onepage.live.mapper.LiveSessionMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -47,6 +48,7 @@ public class LiveService {
   private final ImClient imClient;
   private final StringRedisTemplate redis;
   private final LiveIngestProbe ingestProbe;
+  private final LiveSearchIndexer searchIndexer;
   private final String internalToken;
   private final String pushBase;
   private final String hlsBase;
@@ -63,6 +65,7 @@ public class LiveService {
       ImClient imClient,
       StringRedisTemplate redis,
       LiveIngestProbe ingestProbe,
+      @Lazy LiveSearchIndexer searchIndexer,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.live-push-base}") String pushBase,
       @Value("${onepage.live-hls-base}") String hlsBase,
@@ -77,6 +80,7 @@ public class LiveService {
     this.imClient = imClient;
     this.redis = redis;
     this.ingestProbe = ingestProbe;
+    this.searchIndexer = searchIndexer;
     this.internalToken = internalToken;
     this.pushBase = pushBase;
     this.hlsBase = hlsBase;
@@ -116,6 +120,7 @@ public class LiveService {
       if (!existing.getRoomId().equals(roomId)) {
         throw BusinessException.conflict("已有一场直播进行中");
       }
+      searchIndexer.sync(existing.getSessionId());
       return toStart(existing);
     }
     LiveSession session = new LiveSession();
@@ -126,6 +131,7 @@ public class LiveService {
     session.setStartedAt(LocalDateTime.now());
     sessionMapper.insert(session);
     LiveHit hit = sessionMapper.findHit(session.getId());
+    searchIndexer.sync(session.getId());
     return toStart(hit);
   }
 
@@ -478,6 +484,7 @@ public class LiveService {
     sessionMapper.updateById(session);
     forgetIngest(live.getSessionId());
     redis.delete(presenceKey(live.getSessionId()));
+    searchIndexer.remove(live.getSessionId());
     log.info("live ended sessionId={}", live.getSessionId());
   }
 

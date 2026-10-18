@@ -4,9 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常转 JSON。{@code @RestControllerAdvice}：所有 Controller 抛出的异常都会进这里，不用每个接口 try/catch。
@@ -22,6 +25,20 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
     return ResponseEntity.status(ex.getStatus())
         .body(ApiResponse.error(ex.getCode(), ex.getMessage()));
+  }
+
+  /** 没有对应 Controller。Boot 3 默认当成静态资源缺失，不要进兜底 500。 */
+  @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+  public ResponseEntity<ApiResponse<Void>> handleNotFound(Exception ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(ApiResponse.error(ErrorCodes.NOT_FOUND, "接口不存在"));
+  }
+
+  /** JSON 坏了或 body 对不上 DTO。这是客户端问题，不要进 500。 */
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ApiResponse<Void>> handleUnreadable(HttpMessageNotReadableException ex) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ApiResponse.error(ErrorCodes.VALIDATION_ERROR, "请求体无法解析"));
   }
 
   /** {@code @Valid} 校验失败时 Spring 抛这个，不是 BusinessException。 */

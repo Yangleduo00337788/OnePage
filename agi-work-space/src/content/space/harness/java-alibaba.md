@@ -25,6 +25,7 @@ order: 2
 | 级别 | 约定 |
 | --- | --- |
 | 必须 | 类名 UpperCamelCase；方法/变量 lowerCamelCase；常量全大写下划线；包名全小写，不用下划线 |
+| 必须 | 业务服务 Maven 模块 `onepage-{name}-service`、根包 `com.onepage.{name}`、启动类 `{Name}Application` 三段同一 `{name}`。网关是 `onepage-gateway` / `com.onepage.gateway.GatewayApplication`。禁止再用缩写包（如 `notify`、`im`）对不上模块名 |
 | 必须 | 抽象类 `Abstract` 或 `Base` 前缀；异常以 `Exception` 结尾；测试类 `*Test` |
 | 必须 | 接口 `I` 前缀不要用。实现类可用 `Impl` 后缀。枚举成员全大写下划线 |
 | 必须 | 禁止拼音与英文混用（`DaZhePromotion` 这种）、禁止 `a1`/`tmp` 当业务名 |
@@ -147,7 +148,7 @@ ONEPAGE：Controller 只做参数与鉴权头读取，业务在 `service`。Feig
 | 推荐 | 异常类型具体，不要一律 `Exception`；自定义异常带错误码 |
 | 推荐 | 边界（鉴权失败、Outbox 写入失败）打 warn/error，热路径成功不要 info 刷屏 |
 
-ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约，代码按契约做。
+ONEPAGE：网关登出不要再转发 auth 导致挂起；这类坑写进契约，代码按契约做。`GlobalExceptionHandler` 必须单独处理 `NoResourceFoundException` / `NoHandlerFoundException` 为 404，禁止被 `Exception` 兜底打成 500。公网没有 `GET /api/v1/media/**`，文件走 MinIO URL。
 
 ---
 

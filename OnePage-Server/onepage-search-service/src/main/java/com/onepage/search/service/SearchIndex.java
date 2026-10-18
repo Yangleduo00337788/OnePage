@@ -20,11 +20,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
-/** ES 索引名与读写。公开笔记 {@code onepage-posts}，用户 {@code onepage-users}。 */
+/** ES 索引名与读写。公开笔记 {@code onepage-posts}，用户 {@code onepage-users}，启用话题 {@code onepage-topics}，在播 {@code onepage-lives}。 */
 @Component
 public class SearchIndex {
   static final String POSTS = "onepage-posts";
   static final String USERS = "onepage-users";
+  static final String TOPICS = "onepage-topics";
+  static final String LIVES = "onepage-lives";
   private static final Logger log = LoggerFactory.getLogger(SearchIndex.class);
 
   private final ElasticsearchClient client;
@@ -40,6 +42,12 @@ public class SearchIndex {
       }
       if (!client.indices().exists(ExistsRequest.of(e -> e.index(USERS))).value()) {
         client.indices().create(c -> c.index(USERS));
+      }
+      if (!client.indices().exists(ExistsRequest.of(e -> e.index(TOPICS))).value()) {
+        client.indices().create(c -> c.index(TOPICS));
+      }
+      if (!client.indices().exists(ExistsRequest.of(e -> e.index(LIVES))).value()) {
+        client.indices().create(c -> c.index(LIVES));
       }
     } catch (IOException ex) {
       log.warn("ensure ES indices failed", ex);
@@ -76,6 +84,115 @@ public class SearchIndex {
       client.index(i -> i.index(USERS).id(doc.userId()).document(doc));
     } catch (IOException ex) {
       throw new IllegalStateException("index user failed", ex);
+    }
+  }
+
+  public void upsertTopic(SearchDtos.TopicDoc doc) {
+    if (doc == null || !StringUtils.hasText(doc.topicId())) {
+      return;
+    }
+    try {
+      client.index(i -> i.index(TOPICS).id(doc.topicId()).document(doc));
+    } catch (IOException ex) {
+      throw new IllegalStateException("index topic failed", ex);
+    }
+  }
+
+  public void deleteTopic(String topicId) {
+    if (!StringUtils.hasText(topicId)) {
+      return;
+    }
+    try {
+      client.delete(d -> d.index(TOPICS).id(topicId));
+    } catch (IOException ex) {
+      log.warn("delete topic {} from ES failed", topicId, ex);
+    }
+  }
+
+  public void upsertLive(SearchDtos.LiveDoc doc) {
+    if (doc == null || !StringUtils.hasText(doc.sessionId())) {
+      return;
+    }
+    if (!"live".equals(doc.status())) {
+      deleteLive(doc.sessionId());
+      return;
+    }
+    try {
+      client.index(i -> i.index(LIVES).id(doc.sessionId()).document(doc));
+    } catch (IOException ex) {
+      throw new IllegalStateException("index live failed", ex);
+    }
+  }
+
+  public void deleteLive(String sessionId) {
+    if (!StringUtils.hasText(sessionId)) {
+      return;
+    }
+    try {
+      client.delete(d -> d.index(LIVES).id(sessionId));
+    } catch (IOException ex) {
+      log.warn("delete live {} from ES failed", sessionId, ex);
+    }
+  }
+
+  public List<String> listLiveIds() {
+    try {
+      SearchResponse<SearchDtos.LiveDoc> res = client.search(
+          s -> s.index(LIVES).size(500).query(q -> q.matchAll(m -> m)),
+          SearchDtos.LiveDoc.class);
+      List<String> out = new ArrayList<>();
+      for (Hit<SearchDtos.LiveDoc> hit : res.hits().hits()) {
+        if (StringUtils.hasText(hit.id())) {
+          out.add(hit.id());
+        }
+      }
+      return out;
+    } catch (IOException ex) {
+      log.warn("list live ids from ES failed", ex);
+      return List.of();
+    }
+  }
+
+  public List<SearchDtos.LiveDoc> searchLives(String q, int from, int size) {
+    try {
+      SearchResponse<SearchDtos.LiveDoc> res = client.search(s -> s
+              .index(LIVES)
+              .from(from)
+              .size(size)
+              .query(liveQuery(q))
+              .sort(so -> so.field(f -> f.field("viewerCount").order(SortOrder.Desc).unmappedType(FieldType.Long))),
+          SearchDtos.LiveDoc.class);
+      List<SearchDtos.LiveDoc> out = new ArrayList<>();
+      for (Hit<SearchDtos.LiveDoc> hit : res.hits().hits()) {
+        if (hit.source() != null) {
+          out.add(hit.source());
+        }
+      }
+      return out;
+    } catch (IOException ex) {
+      throw new IllegalStateException("search lives failed", ex);
+    }
+  }
+
+  public List<SearchDtos.TopicDoc> searchTopics(String q, int from, int size) {
+    try {
+      SearchResponse<SearchDtos.TopicDoc> res = client.search(s -> s
+              .index(TOPICS)
+              .from(from)
+              .size(size)
+              .query(topicQuery(q))
+              .sort(so -> so.field(f -> f.field("official").order(SortOrder.Desc).unmappedType(FieldType.Boolean)))
+              .sort(so -> so.field(f -> f.field("sortOrder").order(SortOrder.Asc).unmappedType(FieldType.Integer))),
+          SearchDtos.TopicDoc.class);
+      List<SearchDtos.TopicDoc> out = new ArrayList<>();
+      for (Hit<SearchDtos.TopicDoc> hit : res.hits().hits()) {
+        if (hit.source() != null) {
+          out.add(hit.source());
+        }
+      }
+      return out;
+    } catch (IOException ex) {
+      throw new IllegalStateException("search topics failed", ex);
     }
   }
 
@@ -207,5 +324,18 @@ public class SearchIndex {
     return Query.of(b -> b.multiMatch(m -> m
         .query(q)
         .fields("nickname^3", "pageId^3", "bio")));
+  }
+
+  private static Query topicQuery(String q) {
+    return Query.of(b -> b.match(m -> m.field("name").query(q)));
+  }
+
+  private static Query liveQuery(String q) {
+    Query text = Query.of(b -> b.multiMatch(m -> m
+        .query(q)
+        .fields("title^3", "category", "owner.nickname^2", "owner.pageId^2")));
+    return Query.of(b -> b.bool(bool -> bool
+        .must(text)
+        .filter(f -> f.match(m -> m.field("status").query("live")))));
   }
 }

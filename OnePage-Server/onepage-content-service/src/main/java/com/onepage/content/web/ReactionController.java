@@ -43,4 +43,9 @@ public class ReactionController {
   public FeedDtos.LikeResult likeComment(HttpServletRequest request, @PathVariable("commentId") long commentId) {
     return reactionService.toggleCommentLike(CurrentUser.requireUserId(request), commentId);
   }
+
+  @DeleteMapping("/comments/{commentId}/like")
+  public FeedDtos.LikeResult unlikeComment(HttpServletRequest request, @PathVariable("commentId") long commentId) {
+    return reactionService.unlikeComment(CurrentUser.requireUserId(request), commentId);
+  }
 }

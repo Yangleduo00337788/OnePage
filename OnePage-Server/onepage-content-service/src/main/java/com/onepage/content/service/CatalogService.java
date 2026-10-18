@@ -16,6 +16,7 @@ import com.onepage.content.mapper.PostMapper;
 import com.onepage.content.mapper.TopicMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,18 +43,21 @@ public class CatalogService {
   private final TopicMapper topicMapper;
   private final PostMapper postMapper;
   private final CommentMapper commentMapper;
+  private final SearchIndexer searchIndexer;
 
   public CatalogService(
       PostCategoryMapper categoryMapper,
       CampaignMapper campaignMapper,
       TopicMapper topicMapper,
       PostMapper postMapper,
-      CommentMapper commentMapper) {
+      CommentMapper commentMapper,
+      @Lazy SearchIndexer searchIndexer) {
     this.categoryMapper = categoryMapper;
     this.campaignMapper = campaignMapper;
     this.topicMapper = topicMapper;
     this.postMapper = postMapper;
     this.commentMapper = commentMapper;
+    this.searchIndexer = searchIndexer;
   }
 
   public boolean isEnabledCategory(String name) {
@@ -245,6 +249,7 @@ public class CatalogService {
     } else {
       topicMapper.insert(row);
     }
+    searchIndexer.syncTopic(row.getId());
     return toTopic(row);
   }
 
@@ -256,6 +261,7 @@ public class CatalogService {
     }
     row.setEnabled(enabled ? 1 : 0);
     topicMapper.updateById(row);
+    searchIndexer.syncTopic(id);
   }
 
   @Transactional
@@ -284,6 +290,7 @@ public class CatalogService {
         row.setEnabled(1);
         row.setCreatedAt(LocalDateTime.now());
         topicMapper.insert(row);
+        searchIndexer.syncTopic(row.getId());
       }
     } catch (RuntimeException ex) {
       log.warn("remember hashtags skipped");
@@ -296,6 +303,39 @@ public class CatalogService {
     if (hit != null && (selfId == null || !selfId.equals(hit.getId()))) {
       throw BusinessException.conflict("分类名已存在");
     }
+  }
+
+  public FeedDtos.TopicIndexPage listSearchableTopics(String cursor, Integer limit) {
+    int size = limit == null ? 50 : Math.min(Math.max(limit, 1), 100);
+    long after = 0L;
+    if (StringUtils.hasText(cursor)) {
+      try {
+        after = Long.parseLong(cursor.trim());
+      } catch (NumberFormatException ex) {
+        after = 0L;
+      }
+    }
+    List<Topic> rows = topicMapper.selectList(
+        Wrappers.<Topic>lambdaQuery()
+            .eq(Topic::getEnabled, 1)
+            .gt(after > 0L, Topic::getId, after)
+            .orderByAsc(Topic::getId)
+            .last("LIMIT " + (size + 1)));
+    if (rows == null) {
+      rows = List.of();
+    }
+    boolean more = rows.size() > size;
+    List<Topic> page = more ? rows.subList(0, size) : rows;
+    List<FeedDtos.TopicIndexDoc> items = new ArrayList<>();
+    for (Topic row : page) {
+      items.add(new FeedDtos.TopicIndexDoc(
+          String.valueOf(row.getId()),
+          row.getName() == null ? "" : row.getName(),
+          Integer.valueOf(1).equals(row.getOfficial()),
+          n(row.getSortOrder())));
+    }
+    String next = more && !page.isEmpty() ? String.valueOf(page.getLast().getId()) : null;
+    return new FeedDtos.TopicIndexPage(items, next, more);
   }
 
   private Topic byTopicName(String name) {

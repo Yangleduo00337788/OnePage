@@ -13,12 +13,12 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 | 项目类型 | ONEPAGE 产品开发 |
 | 当前阶段 | P4 直播已接；本机 MediaMTX+mpegts 可在 VLC 出画 |
 | 健康度 | 正常 |
-| 下次节点 | MVP 收口：搜索话题进 ES / Outbox 消费 MQ（可选） |
+| 下次节点 | Outbox 消费 RocketMQ（可选） |
 
 ## 正在做
 
-- P3 搜索已接 ES（筛选进查询；话题/直播 Tab 已接）。耶耶加号可上传图、选收藏/点赞。P4 `onepage-live-service` 开播/列表已接；本机 MediaMTX HLS `mpegts` + VLC 已出画
-- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需 `onepage_notification` 的 `001_init.sql`（8084）；私信需 `onepage_message` 的 `001_init.sql`，已有库另执行 `002_ops_hide.sql`，另起 `ImApplication`（8085）
+- P3 搜索已接 ES（筛选进查询；笔记/用户/话题/在播 Tab 与顶栏联想）。耶耶加号可上传图、选收藏/点赞。P4 `onepage-live-service` 开播/列表已接；本机 MediaMTX HLS `mpegts` + VLC 已出画
+- 后端 P1 主链路已通。P2 关注需 `002_follow.sql`；通知需 `onepage_notification` 的 `001_init.sql`，起 `NotificationApplication`（8084）；私信需 `onepage_message` 的 `001_init.sql`，已有库另执行 `002_ops_hide.sql`，起 `MessageApplication`（8085）
 
 ## 阻塞
 
@@ -26,6 +26,12 @@ POM 维护。保持简短，每周或每个迭代更新一次。
 
 ## 近期变更
 
+- 2026-10-18 — 通知/私信根包与启动类对齐模块名：`com.onepage.notification.NotificationApplication`、`com.onepage.message.MessageApplication`（DEC-060）；IDEA 运行配置用 Maven 模块名
+- 2026-10-18 — 去掉网关 `/api/v1/media/**`；未匹配路径回 404，不再 500（文件走 MinIO URL）
+- 2026-10-18 — 补 `DELETE /reactions/comments/{id}/like`（原先只有 POST 切换，DELETE 500）
+- 2026-10-18 — JSON 请求体解析失败回 400，不再当成 500
+- 2026-10-18 — 在播进 ES（`onepage-lives`）；搜索直播 Tab / 顶栏联想 / 耶耶 `type=all`（DEC-059）
+- 2026-10-18 — 搜索话题进 ES（`onepage-topics`；社区话题 Tab 走 `GET /search?type=topic`，DEC-058）
 - 2026-10-18 — OBS 断流：live 轮询 HLS/MediaMTX API 后宽限 15 秒关播（DEC-057；钩子可选）
 - 2026-10-18 — 分享这场直播：底栏弹层私信 `live_card` + 复制链接
 - 2026-10-18 — 本场公告可改（`live_room.notice`）；空则默认欢迎文案

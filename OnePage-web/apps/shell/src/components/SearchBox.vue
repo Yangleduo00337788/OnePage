@@ -1,11 +1,12 @@
 <!--
   顶栏搜索。首页/搜索页出完整输入条；其它页先出图标，点开再输入。
-  展开面板只展示本机历史；直播/话题无接口时为空。
+  空关键词：正在直播走 /live/sessions，话题走目录；有字走 GET /search?type=all。
   提交后跳 /search?q=，历史存在 localStorage。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { api, type LiveSession, type SearchTopicHit } from '@onepage/api-client'
 import Icon from './Icon.vue'
 
 const props = defineProps<{
@@ -33,6 +34,10 @@ const keyword = ref('')
 const history = ref<string[]>([])
 const root = ref<HTMLElement | null>(null)
 const inputEl = ref<HTMLInputElement | null>(null)
+const liveHits = ref<LiveSession[]>([])
+const topicHits = ref<SearchTopicHit[]>([])
+let suggestTimer = 0
+let suggestSeq = 0
 
 function loadHistory() {
   try {
@@ -77,6 +82,46 @@ function collapse() {
   if (props.compact) expanded.value = false
 }
 
+function goLive(sessionId: string) {
+  open.value = false
+  expanded.value = false
+  router.push(`/live/${encodeURIComponent(sessionId)}`)
+}
+
+async function loadSuggest() {
+  const token = ++suggestSeq
+  const q = keyword.value.trim()
+  try {
+    if (!q) {
+      const [livePage, topics] = await Promise.all([api.liveSessions(), api.suggestTopics()])
+      if (token !== suggestSeq) return
+      liveHits.value = (livePage.items || []).slice(0, 5)
+      topicHits.value = (topics || []).slice(0, 8).map((item) => ({
+        topicId: item.topicId,
+        name: item.name,
+        official: item.official,
+        sortOrder: item.sortOrder,
+      }))
+      return
+    }
+    const page = await api.search(q, 'all', undefined, 8)
+    if (token !== suggestSeq) return
+    liveHits.value = (page.lives || []).slice(0, 5)
+    topicHits.value = (page.topics || []).slice(0, 8)
+  } catch {
+    if (token !== suggestSeq) return
+    liveHits.value = []
+    topicHits.value = []
+  }
+}
+
+function scheduleSuggest() {
+  window.clearTimeout(suggestTimer)
+  suggestTimer = window.setTimeout(() => {
+    void loadSuggest()
+  }, 280)
+}
+
 watch(
   () => route.query.q,
   (q) => {
@@ -92,6 +137,13 @@ watch(
       open.value = false
       expanded.value = false
     }
+  },
+)
+
+watch(
+  () => [keyword.value, open.value] as const,
+  ([, isOpen]) => {
+    if (isOpen) scheduleSuggest()
   },
 )
 
@@ -121,6 +173,7 @@ onMounted(() => {
   document.addEventListener('keydown', onKey)
 })
 onBeforeUnmount(() => {
+  window.clearTimeout(suggestTimer)
   document.removeEventListener('pointerdown', onDocPointer)
   document.removeEventListener('keydown', onKey)
 })
@@ -190,14 +243,42 @@ onBeforeUnmount(() => {
               查看更多 <Icon name="chevron-right" :size="14" />
             </button>
           </div>
-          <p class="text-[13px] text-[#bbb]">暂无直播</p>
+          <ul v-if="liveHits.length" class="space-y-2">
+            <li v-for="item in liveHits" :key="item.sessionId">
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 text-left text-[13px] text-[#333] hover:text-[#ff2442]"
+                @click="goLive(item.sessionId)"
+              >
+                <img
+                  v-if="item.coverUrl"
+                  :src="item.coverUrl"
+                  alt=""
+                  class="h-8 w-8 shrink-0 rounded object-cover"
+                />
+                <span class="truncate">{{ item.title }}</span>
+              </button>
+            </li>
+          </ul>
+          <p v-else class="text-[13px] text-[#bbb]">暂无直播</p>
         </section>
 
         <section class="flex min-h-0 flex-col">
           <div class="mb-3 flex items-center justify-between">
             <h3 class="text-[15px] font-semibold">热门话题</h3>
           </div>
-          <p class="text-[13px] text-[#bbb]">暂无热门话题</p>
+          <ul v-if="topicHits.length" class="flex flex-wrap gap-2">
+            <li v-for="item in topicHits" :key="item.topicId">
+              <button
+                type="button"
+                class="rounded-full bg-[#fafafa] px-2.5 py-1 text-[13px] text-[#333] hover:bg-[#f2f2f2]"
+                @click="search(item.name)"
+              >
+                {{ item.name }}
+              </button>
+            </li>
+          </ul>
+          <p v-else class="text-[13px] text-[#bbb]">暂无热门话题</p>
         </section>
       </div>
     </div>

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** content/user 事务提交后写入或删除索引。 */
+/** content/user/live 事务提交后写入或删除索引。 */
 @RestController
 @RequestMapping("/internal/index")
 public class InternalIndexController {
@@ -38,5 +38,29 @@ public class InternalIndexController {
   public void upsertUser(HttpServletRequest request, @RequestBody SearchDtos.UserDoc body) {
     tokenFilter.assertInternal(request);
     searchService.upsertUser(body);
+  }
+
+  @PostMapping("/topics")
+  public void upsertTopic(HttpServletRequest request, @RequestBody SearchDtos.TopicDoc body) {
+    tokenFilter.assertInternal(request);
+    searchService.upsertTopic(body);
+  }
+
+  @DeleteMapping("/topics/{topicId}")
+  public void deleteTopic(HttpServletRequest request, @PathVariable("topicId") String topicId) {
+    tokenFilter.assertInternal(request);
+    searchService.deleteTopic(topicId);
+  }
+
+  @PostMapping("/lives")
+  public void upsertLive(HttpServletRequest request, @RequestBody SearchDtos.LiveDoc body) {
+    tokenFilter.assertInternal(request);
+    searchService.upsertLive(body);
+  }
+
+  @DeleteMapping("/lives/{sessionId}")
+  public void deleteLive(HttpServletRequest request, @PathVariable("sessionId") String sessionId) {
+    tokenFilter.assertInternal(request);
+    searchService.deleteLive(sessionId);
   }
 }
