@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-057 OBS 断流后宽限期自动关播
+
+- **日期：** 2026-10-18
+- **状态：** 已采纳
+- **背景：** 房主只点「结束直播」才关场；OBS 停推后列表仍显示直播中，观众要等手动关播。产品改为断流后自动关播。
+- **决策：** live-service 每 2s 查推流是否还在：优先 `LIVE_MTX_API_BASE`（MediaMTX `/v3/paths/get` 的 `ready`），否则 GET HLS `index.m3u8`。见过推流后再断，才写入 Redis ZSET `live:unpublish`，`LIVE_UNPUBLISH_GRACE_SECONDS`（默认 15）后关场；期内再推取消。未推过流不关。MediaMTX `runOnNotReady` 钩子可选（更快），不是必配。观众仍靠 `peek` / 心跳看到 `ended`。
+- **替代：** 只靠手贴 MediaMTX curl 钩子（否决：和业界「接入层探测、业务轮询/订阅」不一致，本机漏配就不关）；立刻关播（否决：OBS 闪断会误关）。
+- **影响：** `.env` 加 `LIVE_UNPUBLISH_GRACE_SECONDS`，可选 `LIVE_MTX_API_BASE`；重启 live-service。创作者开播台约 5s 拉 `GET /live/mine`。
+
 ## DEC-056 分享这场直播走 `live_card`；本场公告落房间；直播中不可改资料
 
 - **日期：** 2026-10-18

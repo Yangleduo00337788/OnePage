@@ -8,7 +8,7 @@ REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engine
 
 P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-P3 已实现：搜索笔记/用户（筛选进查询）；话题走目录、直播走 live 列表；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天、分享 `live_card`、本场公告。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P3 已实现：搜索笔记/用户（筛选进查询）；话题走目录、直播走 live 列表；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天、分享 `live_card`、本场公告、OBS 断流自动关播。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -465,7 +465,7 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms/{roomId}/end`
 
-须登录且是房主。**Response 204**。关播后场次 `status=ended`，立刻从列表消失。OBS 停推**不会**自动关播（对齐小红书：先结束直播再停推流；断流可再推同一密钥）。
+须登录且是房主。**Response 204**。关播后场次 `status=ended`，立刻从列表消失。OBS 停推：live 轮询 MediaMTX API 或 HLS，见过推流后再断，宽限 `LIVE_UNPUBLISH_GRACE_SECONDS`（默认 15）关播；期内再推取消。未推过流不关。内网 hooks 可选。
 
 ### GET `/api/v1/live/mine`
 
@@ -509,6 +509,10 @@ Query：`beforeId?`, `limit`
 
 须登录。**Body**：`{ conversationId? , targetUserId? }`（二选一）  
 **Response 201**：`{ "messageId" }`。live 编排快照后 Feign message `POST /internal/im/share-live-card`，写入 `msgType=live_card`，`content`：`sessionId`, `title`, `coverUrl`, `authorNickname`。浏览器不能直接发 `live_card`。不能分享给自己。
+
+### POST `/internal/live/hooks/publish` · `/unpublish`
+
+内网、**可选**。Header `X-Internal-Token`。主路径是 live 每 2s 轮询推流；钩子只是更快。MediaMTX 可直连 `:8089`。Query 或 JSON：`path`（取最后一段当 `stream_key`）或 `streamKey`。**Response 204**。
 
 ---
 

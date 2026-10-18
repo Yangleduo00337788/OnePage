@@ -1,0 +1,10 @@
+# 可选。live-service 会轮询 HLS / MediaMTX API，不必配钩子也能断流关播。
+# 配了只是关得更快。直连 8089，不要走网关。把 INTERNAL_TOKEN 换成 .env 里的值。
+
+pathDefaults:
+  runOnReady: >
+    curl -sS -X POST "http://127.0.0.1:8089/internal/live/hooks/publish?path=$MTX_PATH"
+    -H "X-Internal-Token: INTERNAL_TOKEN"
+  runOnNotReady: >
+    curl -sS -X POST "http://127.0.0.1:8089/internal/live/hooks/unpublish?path=$MTX_PATH"
+    -H "X-Internal-Token: INTERNAL_TOKEN"

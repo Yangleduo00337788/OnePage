@@ -57,4 +57,6 @@ public final class LiveDtos {
   public record ShareImResult(String messageId) {}
 
   public record ShareLinkResult(String shareUrl) {}
+
+  public record HookSpec(String path, String streamKey) {}
 }

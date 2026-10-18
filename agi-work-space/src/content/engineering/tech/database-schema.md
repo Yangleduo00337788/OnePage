@@ -359,7 +359,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | --- | --- | --- |
 | id | BIGINT PK | |
 | room_id | BIGINT | |
-| stream_key | VARCHAR(64) | SRS |
+| stream_key | VARCHAR(64) | 推流 key；MediaMTX 断流钩子按它关场 |
 | status | VARCHAR(16) | `idle` / `live` / `ended` |
 | started_at | DATETIME(3) 可空 | |
 | ended_at | DATETIME(3) 可空 | |

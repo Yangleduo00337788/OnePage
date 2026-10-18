@@ -30,8 +30,8 @@ const GUIDE = [
     img: '/live-guide-4.jpg',
   },
   {
-    title: '先关播，再停推',
-    body: '结束时先点「结束直播」并确认，再在 OBS 点「停止推流」。不要先停 OBS。',
+    title: '停推会自动关播',
+    body: 'OBS 停止推流后约 15 秒自动关播，观众看到「已结束」。也可先点「结束直播」再停推。',
     img: '/live-guide-5.jpg',
   },
 ]
@@ -196,11 +196,17 @@ async function copyText(label: string, text: string) {
   }
 }
 
+let mineTimer = 0
+
 onMounted(() => {
   void loadMine()
+  mineTimer = window.setInterval(() => {
+    void loadMine()
+  }, 5000)
 })
 
 onUnmounted(() => {
+  window.clearInterval(mineTimer)
   stopCrop()
   setCoverPreview('')
 })

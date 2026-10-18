@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** 房间与场次。同一主播同时只能一场 live。 */
@@ -36,6 +37,8 @@ public class LiveService {
   private static final long PRESENCE_TTL_MS = 25_000L;
   private static final Duration PRESENCE_EXPIRE = Duration.ofMinutes(2);
   private static final int NOTICE_MAX = 200;
+  private static final String UNPUBLISH_ZSET = "live:unpublish";
+  private static final Duration INGEST_EXPIRE = Duration.ofDays(2);
   private final LiveRoomMapper roomMapper;
   private final LiveSessionMapper sessionMapper;
   private final LiveChatService chatService;
@@ -43,11 +46,13 @@ public class LiveService {
   private final ContentClient contentClient;
   private final ImClient imClient;
   private final StringRedisTemplate redis;
+  private final LiveIngestProbe ingestProbe;
   private final String internalToken;
   private final String pushBase;
   private final String hlsBase;
   private final String mediaPublicBase;
   private final String frontendUrl;
+  private final long unpublishGraceMs;
 
   public LiveService(
       LiveRoomMapper roomMapper,
@@ -57,11 +62,13 @@ public class LiveService {
       ContentClient contentClient,
       ImClient imClient,
       StringRedisTemplate redis,
+      LiveIngestProbe ingestProbe,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.live-push-base}") String pushBase,
       @Value("${onepage.live-hls-base}") String hlsBase,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
-      @Value("${onepage.frontend-url}") String frontendUrl) {
+      @Value("${onepage.frontend-url}") String frontendUrl,
+      @Value("${onepage.unpublish-grace-seconds}") long unpublishGraceSeconds) {
     this.roomMapper = roomMapper;
     this.sessionMapper = sessionMapper;
     this.chatService = chatService;
@@ -69,11 +76,13 @@ public class LiveService {
     this.contentClient = contentClient;
     this.imClient = imClient;
     this.redis = redis;
+    this.ingestProbe = ingestProbe;
     this.internalToken = internalToken;
     this.pushBase = pushBase;
     this.hlsBase = hlsBase;
     this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
     this.frontendUrl = frontendUrl == null ? "" : frontendUrl.replaceAll("/+$", "");
+    this.unpublishGraceMs = Math.max(0L, unpublishGraceSeconds) * 1000L;
   }
 
   public LiveDtos.RoomCreated createRoom(long ownerId, LiveDtos.RoomSpec spec) {
@@ -140,14 +149,66 @@ public class LiveService {
     if (live == null || !live.getRoomId().equals(roomId)) {
       return;
     }
-    LiveSession session = sessionMapper.selectById(live.getSessionId());
-    if (session == null) {
+    closeLive(live);
+  }
+
+  public void onPublish(String path, String streamKey) {
+    LiveHit live = findLiveByHook(path, streamKey);
+    if (live == null) {
       return;
     }
-    session.setStatus("ended");
-    session.setEndedAt(LocalDateTime.now());
-    sessionMapper.updateById(session);
-    redis.delete(presenceKey(live.getSessionId()));
+    rememberIngest(live.getSessionId());
+    redis.opsForZSet().remove(UNPUBLISH_ZSET, String.valueOf(live.getSessionId()));
+  }
+
+  public void onUnpublish(String path, String streamKey) {
+    LiveHit live = findLiveByHook(path, streamKey);
+    if (live == null) {
+      return;
+    }
+    rememberIngest(live.getSessionId());
+    scheduleUnpublish(live);
+  }
+
+  public void watchIngest() {
+    for (LiveHit live : sessionMapper.listLive("", "")) {
+      if (live == null || live.getSessionId() == null) {
+        continue;
+      }
+      Boolean publishing = ingestProbe.publishing(live.getStreamKey());
+      if (publishing == null) {
+        continue;
+      }
+      if (Boolean.TRUE.equals(publishing)) {
+        rememberIngest(live.getSessionId());
+        redis.opsForZSet().remove(UNPUBLISH_ZSET, String.valueOf(live.getSessionId()));
+      } else if (Boolean.TRUE.equals(redis.hasKey(ingestKey(live.getSessionId())))) {
+        scheduleUnpublish(live);
+      }
+    }
+  }
+
+  public void flushUnpublished() {
+    long now = System.currentTimeMillis();
+    Set<String> due = redis.opsForZSet().rangeByScore(UNPUBLISH_ZSET, 0, now);
+    if (due == null || due.isEmpty()) {
+      return;
+    }
+    for (String raw : due) {
+      long sessionId;
+      try {
+        sessionId = Long.parseLong(raw);
+      } catch (NumberFormatException ex) {
+        redis.opsForZSet().remove(UNPUBLISH_ZSET, raw);
+        continue;
+      }
+      LiveHit live = sessionMapper.findHit(sessionId);
+      if (live == null || !"live".equals(live.getStatus())) {
+        redis.opsForZSet().remove(UNPUBLISH_ZSET, raw);
+        continue;
+      }
+      closeLive(live);
+    }
   }
 
   public boolean hasLive(long ownerId) {
@@ -404,6 +465,72 @@ public class LiveService {
       throw BusinessException.notFound("场次不存在");
     }
     return hit;
+  }
+
+  private void closeLive(LiveHit live) {
+    LiveSession session = sessionMapper.selectById(live.getSessionId());
+    if (session == null || !"live".equals(session.getStatus())) {
+      forgetIngest(live.getSessionId());
+      return;
+    }
+    session.setStatus("ended");
+    session.setEndedAt(LocalDateTime.now());
+    sessionMapper.updateById(session);
+    forgetIngest(live.getSessionId());
+    redis.delete(presenceKey(live.getSessionId()));
+    log.info("live ended sessionId={}", live.getSessionId());
+  }
+
+  private void rememberIngest(long sessionId) {
+    redis.opsForValue().set(ingestKey(sessionId), "1", INGEST_EXPIRE);
+  }
+
+  private void scheduleUnpublish(LiveHit live) {
+    if (unpublishGraceMs <= 0L) {
+      closeLive(live);
+      return;
+    }
+    String member = String.valueOf(live.getSessionId());
+    if (redis.opsForZSet().score(UNPUBLISH_ZSET, member) != null) {
+      return;
+    }
+    redis.opsForZSet().add(UNPUBLISH_ZSET, member, System.currentTimeMillis() + unpublishGraceMs);
+  }
+
+  private void forgetIngest(long sessionId) {
+    redis.delete(ingestKey(sessionId));
+    redis.opsForZSet().remove(UNPUBLISH_ZSET, String.valueOf(sessionId));
+  }
+
+  private static String ingestKey(long sessionId) {
+    return "live:ingest:" + sessionId;
+  }
+
+  private LiveHit findLiveByHook(String path, String streamKey) {
+    String key = streamKeyFrom(path, streamKey);
+    if (!StringUtils.hasText(key)) {
+      return null;
+    }
+    return sessionMapper.findLiveByStreamKey(key);
+  }
+
+  private static String streamKeyFrom(String path, String streamKey) {
+    if (StringUtils.hasText(streamKey)) {
+      return streamKey.trim();
+    }
+    if (!StringUtils.hasText(path)) {
+      return "";
+    }
+    String raw = path.trim();
+    int query = raw.indexOf('?');
+    if (query >= 0) {
+      raw = raw.substring(0, query);
+    }
+    while (raw.endsWith("/")) {
+      raw = raw.substring(0, raw.length() - 1);
+    }
+    int slash = raw.lastIndexOf('/');
+    return slash >= 0 ? raw.substring(slash + 1) : raw;
   }
 
   private static String normalizeNotice(String raw) {

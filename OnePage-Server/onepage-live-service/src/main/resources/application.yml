@@ -40,6 +40,8 @@ onepage:
   live-hls-base: ${LIVE_HLS_BASE}
   media-public-base: ${MEDIA_PUBLIC_BASE}
   frontend-url: ${FRONTEND_URL}
+  unpublish-grace-seconds: ${LIVE_UNPUBLISH_GRACE_SECONDS:15}
+  live-mtx-api-base: ${LIVE_MTX_API_BASE:}
 
 mybatis-plus:
   configuration:

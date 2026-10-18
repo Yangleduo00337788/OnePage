@@ -340,14 +340,19 @@ sequenceDiagram
   G->>L: create session status=live
   L->>Host: pushUrl streamKey
   Host->>MTX: OBS RTMP push
+  L->>MTX: 轮询 API 或 HLS 是否还在推
   View->>G: GET /live/sessions
   View->>MTX: HLS play
   View->>G: POST /sessions/{id}/heartbeat
   L->>L: ZSET live:presence 计人数；首次登录观众写 join
   View->>G: GET /sessions/{id}/messages
   View->>G: POST /sessions/{id}/messages
-  Host->>G: POST /rooms/{id}/end 确认后
-  L->>L: status=ended
+  alt 房主确认关播
+    Host->>G: POST /rooms/{id}/end
+  else OBS 停推
+    L->>MTX: 轮询发现不再推
+    L->>L: 宽限后 status=ended
+  end
   View->>G: GET session peek=true
   G-->>View: status ended
 ```

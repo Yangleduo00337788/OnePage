@@ -58,4 +58,16 @@ public interface LiveSessionMapper extends BaseMapper<LiveSession> {
       LIMIT 1
       """)
   LiveHit findLiveByOwner(@Param("ownerId") long ownerId);
+
+  @Select("""
+      SELECT s.id AS sessionId, s.room_id AS roomId, r.owner_id AS ownerId,
+             r.title AS title, r.category AS category, r.cover_object_key AS coverObjectKey,
+             r.notice AS notice,
+             s.stream_key AS streamKey, s.status AS status, s.started_at AS startedAt
+      FROM live_session s
+      INNER JOIN live_room r ON r.id = s.room_id
+      WHERE s.stream_key = #{streamKey} AND s.status = 'live'
+      LIMIT 1
+      """)
+  LiveHit findLiveByStreamKey(@Param("streamKey") String streamKey);
 }

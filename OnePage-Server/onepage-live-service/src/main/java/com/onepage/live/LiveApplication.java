@@ -5,11 +5,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 直播服务（默认 8089）。公网只认网关 {@code X-User-Id}，不解析 Cookie。
  * 推流/HLS 地址来自环境变量，本服务不内嵌 SRS。
  */
+@EnableScheduling
 @EnableDiscoveryClient
 @EnableFeignClients
 @MapperScan("com.onepage.live.mapper")
