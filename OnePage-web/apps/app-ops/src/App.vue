@@ -14,6 +14,8 @@ import OpsCategories from './OpsCategories.vue'
 import OpsCampaigns from './OpsCampaigns.vue'
 import OpsTopics from './OpsTopics.vue'
 import OpsNotices from './OpsNotices.vue'
+import OpsFaqs from './OpsFaqs.vue'
+import OpsSupport from './OpsSupport.vue'
 import OpsMessages from './OpsMessages.vue'
 import OpsMedia from './OpsMedia.vue'
 import OpsAi from './OpsAi.vue'
@@ -30,6 +32,8 @@ export type PageId =
   | 'campaigns'
   | 'topics'
   | 'notices'
+  | 'faqs'
+  | 'support'
   | 'ai-model'
   | 'ai-yeh'
   | 'ai-polish'
@@ -44,6 +48,7 @@ const groups: NavGroup[] = [
     icon: 'flag',
     children: [
       { id: 'reports', label: '工单', icon: 'flag' },
+      { id: 'support', label: '帮助申请', icon: 'message-square' },
       { id: 'users', label: '用户', icon: 'users' },
       { id: 'im', label: '私信', icon: 'message-square' },
     ],
@@ -60,6 +65,7 @@ const groups: NavGroup[] = [
       { id: 'campaigns', label: '活动', icon: 'calendar' },
       { id: 'topics', label: '话题', icon: 'hash' },
       { id: 'notices', label: '公告', icon: 'flag' },
+      { id: 'faqs', label: '创作字典', icon: 'hash' },
     ],
   },
   {
@@ -227,6 +233,7 @@ function onLoggedIn(profile: UserProfile) {
       </header>
       <OpsHome v-if="page === 'home'" @open="openPage($event as PageId)" />
       <OpsReports v-else-if="page === 'reports'" />
+      <OpsSupport v-else-if="page === 'support'" />
       <OpsUsers v-else-if="page === 'users'" />
       <OpsMessages v-else-if="page === 'im'" />
       <OpsPosts v-else-if="page === 'posts'" />
@@ -236,6 +243,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsCampaigns v-else-if="page === 'campaigns'" />
       <OpsTopics v-else-if="page === 'topics'" />
       <OpsNotices v-else-if="page === 'notices'" />
+      <OpsFaqs v-else-if="page === 'faqs'" />
       <OpsAi v-else-if="page === 'ai-model'" kind="model" />
       <OpsAi v-else-if="page === 'ai-yeh'" kind="yeh" />
       <OpsAi v-else-if="page === 'ai-polish'" kind="polish" />

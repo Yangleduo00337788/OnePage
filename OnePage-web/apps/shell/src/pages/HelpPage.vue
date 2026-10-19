@@ -1,7 +1,8 @@
-<!-- 帮助反馈 P0 写入 localStorage，不调后端。 -->
+<!-- 帮助反馈 POST /api/v1/support，附图走 purpose=feedback。 -->
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { api, ApiError } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
@@ -15,6 +16,8 @@ const contact = ref('')
 const images = ref<{ file: File; url: string }[]>([])
 const hint = ref('')
 const sending = ref(false)
+const IMAGE_MAX = 10 * 1024 * 1024
+const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
 function pickImages(e: Event) {
   const input = e.target as HTMLInputElement
@@ -44,20 +47,34 @@ async function submit() {
   }
   sending.value = true
   try {
-    const payload = {
-      content: content.value.trim(),
-      contact: contact.value.trim(),
-      imageCount: images.value.length,
-      at: Date.now(),
+    const mediaUrls: string[] = []
+    for (const item of images.value) {
+      if (!IMAGE_MIMES.has(item.file.type)) {
+        hint.value = '只支持 jpg / png / webp / gif'
+        return
+      }
+      if (item.file.size > IMAGE_MAX) {
+        hint.value = '图片不能超过 10MB'
+        return
+      }
+      const ticket = await api.presign(item.file.type, item.file.size, 'feedback')
+      await api.putObject(ticket.uploadUrl, item.file, item.file.type)
+      const done = await api.completeUpload(ticket.mediaId)
+      if (done.url) mediaUrls.push(done.url)
     }
-    const prev = JSON.parse(localStorage.getItem('onepage-feedback') || '[]') as unknown[]
-    prev.unshift(payload)
-    localStorage.setItem('onepage-feedback', JSON.stringify(prev.slice(0, 20)))
+    await api.createSupport({
+      kind: 'feedback',
+      body: content.value.trim(),
+      contact: contact.value.trim(),
+      mediaUrls,
+    })
     content.value = ''
     contact.value = ''
     images.value.forEach((item) => URL.revokeObjectURL(item.url))
     images.value = []
     hint.value = '已提交，我们会尽快查看'
+  } catch (e) {
+    hint.value = e instanceof ApiError ? e.message : e instanceof Error ? e.message : '提交失败'
   } finally {
     sending.value = false
   }

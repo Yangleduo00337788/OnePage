@@ -8,6 +8,8 @@ export type UserSummary = {
   pageId: string
   nickname: string
   avatarUrl: string
+  liveHost?: boolean
+  verified?: boolean
 }
 
 export type UserBrief = {
@@ -16,6 +18,8 @@ export type UserBrief = {
   nickname: string
   avatarUrl: string
   followedByMe?: boolean
+  liveHost?: boolean
+  verified?: boolean
 }
 
 export const FEED_CATEGORIES = ['旅行', '美食', '时尚', '摄影', '生活', '运动', '游戏', '音乐'] as const
@@ -127,6 +131,8 @@ export type SearchUserHit = {
   nickname: string
   avatarUrl: string
   bio?: string
+  liveHost?: boolean
+  verified?: boolean
 }
 
 export type SearchTopicHit = {
@@ -243,6 +249,7 @@ export type NotificationItem = {
   preview?: string | null
   read: boolean
   createdAt: string
+  coverUrl?: string | null
 }
 
 export type ConversationItem = {
@@ -377,6 +384,8 @@ export type OpsUser = {
   pageId: string
   nickname: string
   avatarUrl: string
+  liveHost?: boolean
+  verified?: boolean
   frozen: boolean
 }
 
@@ -433,6 +442,33 @@ export type OpsNotice = {
   body: string
   sortOrder: number
   enabled: boolean
+}
+
+export type OpsFaq = {
+  faqId: string
+  groupId: string
+  groupTitle: string
+  question: string
+  answer: string
+  sortOrder: number
+  enabled: boolean
+}
+
+export type SupportKind = 'feedback' | 'live' | 'verify'
+
+export type OpsSupport = {
+  ticketId: string
+  kind: SupportKind
+  title: string
+  contact: string
+  body: string
+  mediaUrls: string[]
+  status: 'pending' | 'done'
+  user?: UserBrief
+  handler?: UserBrief
+  handleNote?: string | null
+  createdAt: string
+  handledAt?: string | null
 }
 
 export type OpsImPeer = {
@@ -1047,6 +1083,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  createSupport: (body: {
+    kind: SupportKind
+    title?: string
+    contact?: string
+    body?: string
+    mediaUrls?: string[]
+  }) =>
+    request<{ ticketId: string }>('/api/v1/support', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  catalogFaq: () => request<OpsFaq[]>('/api/v1/catalog/faq'),
   opsMe: () => request<UserSummary>('/api/v1/ops/me'),
   opsReports: (status?: 'pending' | 'done', cursor?: string, limit?: number) => {
     const q = new URLSearchParams()
@@ -1178,6 +1226,40 @@ export const api = {
     request<void>(`/api/v1/ops/notices/${encodeURIComponent(id)}/enabled?value=${value}`, {
       method: 'POST',
     }),
+  opsSupport: (opts?: { kind?: SupportKind; status?: 'pending' | 'done'; cursor?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.kind) q.set('kind', opts.kind)
+    if (opts?.status) q.set('status', opts.status)
+    if (opts?.cursor) q.set('cursor', opts.cursor)
+    if (opts?.limit) q.set('limit', String(opts.limit))
+    const suffix = q.toString() ? `?${q}` : ''
+    return request<CursorPage<OpsSupport>>(`/api/v1/ops/support${suffix}`)
+  },
+  opsResolveSupport: (ticketId: string, body: { action: 'reply' | 'approve' | 'reject'; note: string }) =>
+    request<{ reportId: string; status: string }>(
+      `/api/v1/ops/support/${encodeURIComponent(ticketId)}`,
+      { method: 'PATCH', body: JSON.stringify(body || {}) },
+    ),
+  opsFaqs: () => request<OpsFaq[]>('/api/v1/ops/faqs'),
+  opsCreateFaq: (body: {
+    groupId: string
+    question: string
+    answer: string
+    sortOrder?: number
+    enabled?: boolean
+  }) => request<OpsFaq>('/api/v1/ops/faqs', { method: 'POST', body: JSON.stringify(body) }),
+  opsPatchFaq: (
+    id: string,
+    body: { groupId?: string; question?: string; answer?: string; sortOrder?: number; enabled?: boolean },
+  ) =>
+    request<OpsFaq>(`/api/v1/ops/faqs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  opsFaqEnabled: (id: string, value: boolean) =>
+    request<void>(`/api/v1/ops/faqs/${encodeURIComponent(id)}/enabled?value=${value}`, {
+      method: 'POST',
+    }),
   opsUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}`),
   opsUsers: (opts?: { q?: string; cursor?: string; limit?: number }) => {
@@ -1192,6 +1274,11 @@ export const api = {
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
   opsUnfreezeUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/unfreeze`, { method: 'POST' }),
+  opsSetUserBadges: (userId: string, body: { liveHost?: boolean; verified?: boolean }) =>
+    request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/badges`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   opsUserFollowing: (userId: string, opts?: { cursor?: string; limit?: number }) => {
     const q = new URLSearchParams()
     if (opts?.cursor) q.set('cursor', opts.cursor)

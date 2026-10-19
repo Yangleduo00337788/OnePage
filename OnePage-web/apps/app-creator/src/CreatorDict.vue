@@ -1,24 +1,58 @@
 <!-- 创作字典：分类 Tab + 问答。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { api, type OpsFaq } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import { DICT } from './dict'
 
+type Block = { id: string; title: string; items: { q: string; a: string }[] }
+
+const groups = ref<Block[]>(DICT)
 const tab = ref(DICT[0].id)
 const query = ref('')
+const failed = ref('')
 
-const tabs = DICT.map((block) => ({ id: block.id, label: block.title }))
+const tabs = computed(() => groups.value.map((block) => ({ id: block.id, label: block.title })))
 
 const items = computed(() => {
   const q = query.value.trim().toLowerCase()
-  const source = DICT.find((b) => b.id === tab.value)?.items ?? []
+  const source = groups.value.find((b) => b.id === tab.value)?.items ?? []
   if (!q) return source
   return source.filter((item) => item.q.toLowerCase().includes(q) || item.a.toLowerCase().includes(q))
+})
+
+function fromFaqs(rows: OpsFaq[]): Block[] {
+  const order = ['account', 'create', 'data', 'faq']
+  const map = new Map<string, Block>()
+  for (const row of rows) {
+    const id = row.groupId
+    if (!map.has(id)) {
+      map.set(id, { id, title: row.groupTitle || id, items: [] })
+    }
+    map.get(id)!.items.push({ q: row.question, a: row.answer })
+  }
+  return order.map((id) => map.get(id)).filter((item): item is Block => Boolean(item))
+}
+
+onMounted(async () => {
+  try {
+    const rows = await api.catalogFaq()
+    if (rows.length) {
+      const next = fromFaqs(rows)
+      if (next.length) {
+        groups.value = next
+        if (!next.some((item) => item.id === tab.value)) tab.value = next[0].id
+      }
+    }
+  } catch {
+    failed.value = '目录加载失败，显示内置说明'
+  }
 })
 </script>
 
 <template>
   <div class="page">
+    <p v-if="failed" class="empty">{{ failed }}</p>
     <div class="bar">
       <div class="tabs">
         <button

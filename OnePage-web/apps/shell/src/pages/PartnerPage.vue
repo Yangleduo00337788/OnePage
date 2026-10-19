@@ -1,24 +1,51 @@
-<!-- 主播入驻 / 大 V：同一组件看路径区分，提交仅前端提示。 -->
+<!-- 主播入驻 / 大 V：POST /api/v1/support kind=live|verify。 -->
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { api, ApiError } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import { useAuthModal } from '../stores/authModal'
+import { useSession } from '../stores/session'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSession()
+const auth = useAuthModal()
 const isLive = computed(() => route.path.includes('live'))
 const title = computed(() => (isLive.value ? '主播入驻' : '大 V 认证'))
 const name = ref('')
 const contact = ref('')
 const intro = ref('')
 const hint = ref('')
+const sending = ref(false)
 
-function submit() {
+async function submit() {
+  hint.value = ''
   if (!name.value.trim() || !contact.value.trim()) {
     hint.value = '请填写名称和联系方式'
     return
   }
-  hint.value = '已提交申请，我们会尽快联系你'
+  if (!session.me) {
+    auth.show('login', route.path)
+    return
+  }
+  sending.value = true
+  try {
+    await api.createSupport({
+      kind: isLive.value ? 'live' : 'verify',
+      title: name.value.trim(),
+      contact: contact.value.trim(),
+      body: intro.value.trim(),
+    })
+    name.value = ''
+    contact.value = ''
+    intro.value = ''
+    hint.value = '已提交申请，我们会尽快联系你'
+  } catch (e) {
+    hint.value = e instanceof ApiError ? e.message : '提交失败'
+  } finally {
+    sending.value = false
+  }
 }
 </script>
 
@@ -39,7 +66,9 @@ function submit() {
     <input v-model="contact" class="field mt-2" placeholder="手机号或邮箱" />
     <label class="mt-4 block text-[14px] font-medium">补充说明</label>
     <textarea v-model="intro" rows="4" class="field mt-2 resize-y" placeholder="过往作品、粉丝量或合作意向" />
-    <p v-if="hint" class="mt-3 text-[13px]">{{ hint }}</p>
-    <button type="button" class="btn-auth mt-5 w-full max-w-[200px]" @click="submit">提交申请</button>
+    <p v-if="hint" class="mt-3 text-[13px]" :class="hint.startsWith('已') ? '' : 'text-[#ff2442]'">{{ hint }}</p>
+    <button type="button" class="btn-auth mt-5 w-full max-w-[200px]" :disabled="sending" @click="submit">
+      {{ sending ? '提交中…' : '提交申请' }}
+    </button>
   </section>
 </template>

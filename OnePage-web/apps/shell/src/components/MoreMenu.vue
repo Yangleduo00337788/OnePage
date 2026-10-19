@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
 import { openCreatorSite } from '../creatorSite'
+import { api, ApiError } from '@onepage/api-client'
 
 type View = 'menu' | 'privacy' | 'terms' | 'help' | 'biz' | 'live' | 'verify' | 'shortcuts'
 
@@ -55,6 +56,9 @@ const applyName = ref('')
 const applyContact = ref('')
 const applyIntro = ref('')
 const applyHint = ref('')
+const applySending = ref(false)
+const IMAGE_MAX = 10 * 1024 * 1024
+const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
 const shortcuts = [
   { keys: '/', action: '聚焦顶栏搜索' },
@@ -128,32 +132,74 @@ async function submitHelp() {
     hint.value = '请填写反馈和意见'
     return
   }
+  if (!session.me) {
+    more.hide()
+    auth.show('login', '/help')
+    return
+  }
   sending.value = true
   try {
-    const prev = JSON.parse(localStorage.getItem('onepage-feedback') || '[]') as unknown[]
-    prev.unshift({
-      content: content.value.trim(),
+    const mediaUrls: string[] = []
+    for (const item of images.value) {
+      if (!IMAGE_MIMES.has(item.file.type)) {
+        hint.value = '只支持 jpg / png / webp / gif'
+        return
+      }
+      if (item.file.size > IMAGE_MAX) {
+        hint.value = '图片不能超过 10MB'
+        return
+      }
+      const ticket = await api.presign(item.file.type, item.file.size, 'feedback')
+      await api.putObject(ticket.uploadUrl, item.file, item.file.type)
+      const done = await api.completeUpload(ticket.mediaId)
+      if (done.url) mediaUrls.push(done.url)
+    }
+    await api.createSupport({
+      kind: 'feedback',
+      body: content.value.trim(),
       contact: contact.value.trim(),
-      imageCount: images.value.length,
-      at: Date.now(),
+      mediaUrls,
     })
-    localStorage.setItem('onepage-feedback', JSON.stringify(prev.slice(0, 20)))
     content.value = ''
     contact.value = ''
     images.value.forEach((item) => URL.revokeObjectURL(item.url))
     images.value = []
     hint.value = '已提交，我们会尽快查看'
+  } catch (e) {
+    hint.value = e instanceof ApiError ? e.message : e instanceof Error ? e.message : '提交失败'
   } finally {
     sending.value = false
   }
 }
 
-function submitApply() {
+async function submitApply() {
+  applyHint.value = ''
   if (!applyName.value.trim() || !applyContact.value.trim()) {
     applyHint.value = '请填写名称和联系方式'
     return
   }
-  applyHint.value = '已提交申请，我们会尽快联系你'
+  if (!session.me) {
+    more.hide()
+    auth.show('login')
+    return
+  }
+  applySending.value = true
+  try {
+    await api.createSupport({
+      kind: view.value === 'live' ? 'live' : 'verify',
+      title: applyName.value.trim(),
+      contact: applyContact.value.trim(),
+      body: applyIntro.value.trim(),
+    })
+    applyName.value = ''
+    applyContact.value = ''
+    applyIntro.value = ''
+    applyHint.value = '已提交申请，我们会尽快联系你'
+  } catch (e) {
+    applyHint.value = e instanceof ApiError ? e.message : '提交失败'
+  } finally {
+    applySending.value = false
+  }
 }
 
 function onDocDown(e: MouseEvent) {
@@ -317,7 +363,9 @@ onUnmounted(() => {
             <input v-model="applyContact" class="field mt-2 text-[12px]" placeholder="联系方式" />
             <textarea v-model="applyIntro" rows="3" class="field mt-2 text-[12px]" placeholder="补充说明" />
             <p v-if="applyHint" class="mt-2 text-[12px]">{{ applyHint }}</p>
-            <button type="button" class="btn-auth mt-3 h-9 text-[13px]" @click="submitApply">提交申请</button>
+            <button type="button" class="btn-auth mt-3 h-9 text-[13px]" :disabled="applySending" @click="submitApply">
+              {{ applySending ? '提交中…' : '提交申请' }}
+            </button>
           </template>
 
           <template v-else-if="view === 'shortcuts'">
