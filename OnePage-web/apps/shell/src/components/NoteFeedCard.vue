@@ -68,7 +68,7 @@ const isText = computed(() => !props.note.video && !props.note.image)
             class="h-7 w-7 rounded-full object-cover"
           />
           <span v-else class="block h-7 w-7 rounded-full bg-[#d9d9d9]" />
-          <IdentityBadges size="sm" :live-host="note.liveHost" :verified="note.verified" />
+          <IdentityBadges size="sm" :live-host="note.liveHost" :verified="note.verified" :official="note.official" />
         </span>
         <span class="truncate">{{ note.author }}</span>
       </span>

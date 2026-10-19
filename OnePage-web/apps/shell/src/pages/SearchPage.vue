@@ -343,7 +343,7 @@ onUnmounted(() => {
                 class="h-12 w-12 rounded-full object-cover"
               />
               <span v-else class="block h-12 w-12 rounded-full bg-[var(--fill)]" />
-              <IdentityBadges size="md" :live-host="user.liveHost" :verified="user.verified" />
+              <IdentityBadges size="md" :live-host="user.liveHost" :verified="user.verified" :official="user.official" />
             </span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ user.nickname }}</span>

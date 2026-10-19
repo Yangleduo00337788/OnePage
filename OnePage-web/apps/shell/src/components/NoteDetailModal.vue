@@ -22,6 +22,8 @@ type Comment = {
   avatarUrl?: string
   liveHost?: boolean
   verified?: boolean
+  official?: boolean
+  official?: boolean
   likeCount: number
   likedByMe: boolean
   replyCount: number
@@ -36,6 +38,7 @@ function mapComment(c: CommentView): Comment {
     avatarUrl: c.author.avatarUrl,
     liveHost: Boolean(c.author.liveHost),
     verified: Boolean(c.author.verified),
+    official: Boolean(c.author.official),
     text: c.content,
     time: relativeTime(c.createdAt),
     likeCount: c.likeCount,
@@ -1269,6 +1272,7 @@ watch(moreOpen, async (on) => {
                   size="sm"
                   :live-host="authorProfile?.liveHost"
                   :verified="authorProfile?.verified"
+                  :official="authorProfile?.official"
                 />
               </span>
               <span class="flex min-w-0 items-center gap-1 text-[15px] font-medium">
@@ -1276,6 +1280,7 @@ watch(moreOpen, async (on) => {
                 <IdentityCaption
                   :live-host="authorProfile?.liveHost"
                   :verified="authorProfile?.verified"
+                  :official="authorProfile?.official"
                 />
                 <Icon
                   v-if="authorGender === 1"
@@ -1306,6 +1311,7 @@ watch(moreOpen, async (on) => {
                       size="md"
                       :live-host="authorProfile?.liveHost"
                       :verified="authorProfile?.verified"
+                      :official="authorProfile?.official"
                     />
                   </button>
                   <button
@@ -1317,6 +1323,7 @@ watch(moreOpen, async (on) => {
                     <IdentityCaption
                       :live-host="authorProfile?.liveHost"
                       :verified="authorProfile?.verified"
+                      :official="authorProfile?.official"
                     />
                     <Icon
                       v-if="authorGender === 1"
@@ -1423,7 +1430,7 @@ watch(moreOpen, async (on) => {
                   >
                     {{ item.name.slice(0, 1) }}
                   </span>
-                  <IdentityBadges size="sm" :live-host="item.liveHost" :verified="item.verified" />
+                  <IdentityBadges size="sm" :live-host="item.liveHost" :verified="item.verified" :official="item.official" />
                 </span>
                 <div class="min-w-0 flex-1">
                   <p class="text-[13px]">
@@ -1466,7 +1473,7 @@ watch(moreOpen, async (on) => {
                         >
                           {{ reply.name.slice(0, 1) }}
                         </span>
-                        <IdentityBadges size="sm" :live-host="reply.liveHost" :verified="reply.verified" />
+                        <IdentityBadges size="sm" :live-host="reply.liveHost" :verified="reply.verified" :official="reply.official" />
                       </span>
                       <div class="min-w-0 flex-1">
                         <p class="text-[13px]">
@@ -1528,7 +1535,7 @@ watch(moreOpen, async (on) => {
                         >
                           {{ (user.nickname || user.pageId).slice(0, 1) }}
                         </span>
-                        <IdentityBadges size="sm" :live-host="user.liveHost" :verified="user.verified" />
+                        <IdentityBadges size="sm" :live-host="user.liveHost" :verified="user.verified" :official="user.official" />
                       </span>
                       <span class="min-w-0 flex-1 text-left">
                         <span class="block truncate text-[13px] text-[var(--ink)]">{{ user.nickname }}</span>

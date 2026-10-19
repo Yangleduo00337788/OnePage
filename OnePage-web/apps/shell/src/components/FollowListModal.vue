@@ -166,7 +166,7 @@ watch(
               <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]">
                 {{ (user.nickname || '一').slice(0, 1) }}
               </span>
-              <IdentityBadges size="md" :live-host="user.liveHost" :verified="user.verified" />
+              <IdentityBadges size="md" :live-host="user.liveHost" :verified="user.verified" :official="user.official" />
             </span>
             <span class="min-w-0 flex-1">
               <span class="flex min-w-0 items-center gap-1">

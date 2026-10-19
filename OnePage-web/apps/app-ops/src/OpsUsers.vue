@@ -74,12 +74,12 @@ function applyUser(next: OpsUser) {
   items.value = items.value.map((item) => (item.userId === next.userId ? next : item))
 }
 
-async function dropBadge(row: OpsUser, field: 'liveHost' | 'verified') {
+async function dropBadge(row: OpsUser, field: 'liveHost' | 'verified' | 'official') {
   busyId.value = row.userId + field
   try {
     const next = await api.opsSetUserBadges(row.userId, { [field]: false })
     applyUser(next)
-    flash(field === 'verified' ? '已取消大 V' : '已取消主播')
+    flash(field === 'official' ? '已取消官方号' : field === 'verified' ? '已取消大 V' : '已取消主播')
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
   } finally {
@@ -144,8 +144,17 @@ onMounted(() => load(1, true))
             </td>
             <td>{{ row.pageId || row.userId }}</td>
             <td>{{ row.frozen ? '已冻结' : '正常' }}</td>
-            <td>{{ [row.verified ? '大 V' : '', row.liveHost ? '主播' : ''].filter(Boolean).join(' · ') || '—' }}</td>
+            <td>{{ [row.official ? '官方号' : '', row.verified ? '大 V' : '', row.liveHost ? '主播' : ''].filter(Boolean).join(' · ') || '—' }}</td>
             <td class="acts">
+              <button
+                v-if="row.official"
+                type="button"
+                class="danger"
+                :disabled="busyId === row.userId + 'official'"
+                @click="dropBadge(row, 'official')"
+              >
+                取消官方号
+              </button>
               <button
                 v-if="row.verified"
                 type="button"

@@ -175,7 +175,7 @@ watch([items, loading], async () => {
                 <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]">
                   {{ (item.actor.nickname || '一').slice(0, 1) }}
                 </span>
-                <IdentityBadges size="md" :live-host="item.actor.liveHost" :verified="item.actor.verified" />
+                <IdentityBadges size="md" :live-host="item.actor.liveHost" :verified="item.actor.verified" :official="item.actor.official" />
               </span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ item.actor.nickname }}</span>

@@ -236,7 +236,7 @@ watch([items, loading], async () => {
           >
             {{ (row.actor?.nickname || '一').slice(0, 1) }}
           </span>
-          <IdentityBadges size="md" :live-host="row.actor?.liveHost" :verified="row.actor?.verified" />
+          <IdentityBadges size="md" :live-host="row.actor?.liveHost" :verified="row.actor?.verified" :official="row.actor?.official" />
           <span v-if="!row.read" class="absolute top-0 right-0 h-2 w-2 rounded-full bg-[#ff2442]" />
         </span>
         <span class="min-w-0 flex-1">

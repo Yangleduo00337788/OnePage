@@ -317,6 +317,7 @@ async function logout() {
               light
               :live-host="session.me.liveHost"
               :verified="session.me.verified"
+              :official="session.me.official"
             />
             <Icon
               v-if="session.me.gender === 1"

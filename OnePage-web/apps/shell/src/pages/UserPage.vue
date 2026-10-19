@@ -238,7 +238,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         <div class="mx-auto mt-4 max-w-[560px] text-center text-white">
           <h1 class="mx-auto flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[22px] font-semibold tracking-tight">
             <span class="truncate">{{ profile.nickname }}</span>
-            <IdentityCaption light :live-host="profile.liveHost" :verified="profile.verified" />
+            <IdentityCaption light :live-host="profile.liveHost" :verified="profile.verified" :official="profile.official" />
             <Icon
               v-if="profile.gender === 1"
               name="mars"

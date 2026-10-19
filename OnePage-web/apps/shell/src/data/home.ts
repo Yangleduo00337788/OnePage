@@ -11,6 +11,7 @@ export type NoteCard = {
   avatarUrl?: string
   liveHost?: boolean
   verified?: boolean
+  official?: boolean
   body?: string
   postType?: string
   original?: boolean
@@ -29,7 +30,7 @@ export function noteFromPost(p: {
   postType: string
   likeCount: number
   original?: boolean
-  author: { nickname: string; pageId: string; avatarUrl: string; liveHost?: boolean; verified?: boolean }
+  author: { nickname: string; pageId: string; avatarUrl: string; liveHost?: boolean; verified?: boolean; official?: boolean }
 }): NoteCard {
   return {
     id: p.postId,
@@ -42,6 +43,7 @@ export function noteFromPost(p: {
     avatarUrl: p.author.avatarUrl,
     liveHost: Boolean(p.author.liveHost),
     verified: Boolean(p.author.verified),
+    official: Boolean(p.author.official),
     body: p.body || '',
     postType: p.postType,
     original: Boolean(p.original),

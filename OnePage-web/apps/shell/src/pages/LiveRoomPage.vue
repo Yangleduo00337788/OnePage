@@ -622,6 +622,7 @@ onUnmounted(() => {
                   size="sm"
                   :live-host="watching.owner?.liveHost ?? host?.liveHost"
                   :verified="watching.owner?.verified ?? host?.verified"
+                  :official="watching.owner?.official ?? host?.official"
                 />
               </span>
               <span class="live-chip-meta">
@@ -643,6 +644,7 @@ onUnmounted(() => {
                     size="md"
                     :live-host="watching.owner?.liveHost ?? host?.liveHost"
                     :verified="watching.owner?.verified ?? host?.verified"
+                    :official="watching.owner?.official ?? host?.official"
                   />
                 </button>
                 <button type="button" class="host-go host-card-name" @click="goAuthor">

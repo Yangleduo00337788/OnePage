@@ -10,6 +10,7 @@ export type UserSummary = {
   avatarUrl: string
   liveHost?: boolean
   verified?: boolean
+  official?: boolean
 }
 
 export type UserBrief = {
@@ -20,6 +21,7 @@ export type UserBrief = {
   followedByMe?: boolean
   liveHost?: boolean
   verified?: boolean
+  official?: boolean
 }
 
 export const FEED_CATEGORIES = ['旅行', '美食', '时尚', '摄影', '生活', '运动', '游戏', '音乐'] as const
@@ -133,6 +135,7 @@ export type SearchUserHit = {
   bio?: string
   liveHost?: boolean
   verified?: boolean
+  official?: boolean
 }
 
 export type SearchTopicHit = {
@@ -386,6 +389,7 @@ export type OpsUser = {
   avatarUrl: string
   liveHost?: boolean
   verified?: boolean
+  official?: boolean
   frozen: boolean
 }
 
@@ -1274,7 +1278,7 @@ export const api = {
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/freeze`, { method: 'POST' }),
   opsUnfreezeUser: (userId: string) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/unfreeze`, { method: 'POST' }),
-  opsSetUserBadges: (userId: string, body: { liveHost?: boolean; verified?: boolean }) =>
+  opsSetUserBadges: (userId: string, body: { liveHost?: boolean; verified?: boolean; official?: boolean }) =>
     request<OpsUser>(`/api/v1/ops/users/${encodeURIComponent(userId)}/badges`, {
       method: 'POST',
       body: JSON.stringify(body),

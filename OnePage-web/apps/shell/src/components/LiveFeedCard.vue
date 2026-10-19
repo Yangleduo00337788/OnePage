@@ -51,6 +51,7 @@ const emit = defineEmits<{ click: [] }>()
             size="sm"
             :live-host="item.owner?.liveHost"
             :verified="item.owner?.verified"
+            :official="item.owner?.official"
           />
         </span>
         <span class="truncate">{{ item.owner?.nickname || '主播' }}</span>
