@@ -57,6 +57,70 @@ export type CursorPage<T> = {
   hasMore: boolean
 }
 
+export type StatsRange = '1' | '7' | '30'
+
+export type StatsMetric = { value: number; delta: number | null }
+
+export type StatsDayPoint = { date: string; value: number }
+
+export type CreatorStats = {
+  range: string
+  from: string
+  to: string
+  account: {
+    impressions: StatsMetric
+    views: StatsMetric
+    likes: StatsMetric
+    comments: StatsMetric
+    favorites: StatsMetric
+    shares: StatsMetric
+    followerNet: StatsMetric
+    followerNew: StatsMetric
+    coverCtr: StatsMetric
+    videoCompleteRate: StatsMetric
+    mix: { image: number; video: number; article: number }
+    viewTrend: StatsDayPoint[]
+  }
+  pending: { draft: number; review: number }
+  content: {
+    avgViews: number
+    avgLikes: number
+    avgComments: number
+    postCount: number
+    posts: {
+      postId: string
+      title: string
+      postType: string
+      views: number
+      likes: number
+      comments: number
+      favorites: number
+    }[]
+  }
+  fans: {
+    followerTotal: StatsMetric
+    followerNet: StatsMetric
+    followerNew: StatsMetric
+    unfollow: number | null
+    activeRate: number | null
+    reciprocalRate: number | null
+    viewerFans: number
+    engagedFans: number
+    retention7d: number | null
+    change: { followNew: number; unfollow: number | null; net: number }
+    trend: StatsDayPoint[]
+  }
+}
+
+export type LiveCreatorStats = {
+  range: string
+  sessions: StatsMetric
+  viewers: StatsMetric
+  peakOnline: StatsMetric
+  followerNew: StatsMetric
+  gifters: StatsMetric
+}
+
 export type SearchUserHit = {
   userId: string
   pageId: string
@@ -737,6 +801,10 @@ export const api = {
       body: JSON.stringify(body),
     }),
   deletePost: (postId: string) => request<void>(`/api/v1/posts/${postId}`, { method: 'DELETE' }),
+  creatorStats: (range: StatsRange = '7') =>
+    request<CreatorStats>(`/api/v1/creator/stats?range=${encodeURIComponent(range)}`),
+  liveStats: (range: StatsRange = '7') =>
+    request<LiveCreatorStats>(`/api/v1/live/stats?range=${encodeURIComponent(range)}`),
   myPosts: (cursor?: string, limit?: number) => {
     const q = new URLSearchParams()
     if (cursor) q.set('cursor', cursor)
@@ -750,6 +818,8 @@ export const api = {
       body: JSON.stringify({ visibility }),
     }),
   viewPost: (postId: string) => request<void>(`/api/v1/posts/${postId}/view`, { method: 'POST' }),
+  playComplete: (postId: string) =>
+    request<void>(`/api/v1/posts/${postId}/play-complete`, { method: 'POST' }),
   shareLink: (postId: string) =>
     request<{ shareUrl: string }>(`/api/v1/posts/${postId}/share/link`, { method: 'POST' }),
   shareIm: (postId: string, body: { conversationId?: string; targetUserId?: string }) =>

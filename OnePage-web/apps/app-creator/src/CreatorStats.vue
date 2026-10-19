@@ -1,16 +1,18 @@
-<!-- 数据报表：账号概览 / 内容分析 / 粉丝数据。P0 占位。 -->
+<!-- 数据报表：账号概览 / 内容分析 / 粉丝数据。接 GET /creator/stats。 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { api, type CreatorStats, type StatsMetric, type StatsRange } from '@onepage/api-client'
 import Icon from './Icon.vue'
 import type { PublishKind } from './PublishComposer.vue'
 
 const props = defineProps<{ kind: 'account' | 'content' | 'fans' }>()
 const emit = defineEmits<{ publish: [PublishKind] }>()
 
-const range = ref<'1' | '7' | '30'>('7')
+const range = ref<StatsRange>('7')
 const query = ref('')
 const sort = ref<'views' | 'likes' | 'comments'>('views')
 const kindFilter = ref<'all' | 'image' | 'video'>('all')
+const data = ref<CreatorStats | null>(null)
 
 const ranges = [
   { id: '1' as const, label: '昨日' },
@@ -25,58 +27,155 @@ const titles = {
 }
 
 const subs = {
-  account: '看账号整体热度，不拆到单篇。',
-  content: '按每一篇笔记看观看和互动，用来找写得好的内容。',
-  fans: '看涨粉、取关和活跃，判断账号有没有留住人。',
+  account: '看账号整体热度，不拆到单篇。曝光与观看同为详情打开次数（无独立曝光日志）。分享暂无落库。',
+  content: '按每一篇已发布笔记看周期内观看和互动，用来找写得好的内容。',
+  fans: '涨粉按关注时间统计。取关会删边，没有历史所以取关和 7 日留存暂空。',
 }
 
-const accountCells = [
-  { label: '曝光数', value: '0' },
-  { label: '观看数', value: '0' },
-  { label: '点赞数', value: '0' },
-  { label: '评论数', value: '0' },
-  { label: '收藏数', value: '0' },
-  { label: '分享数', value: '0' },
-  { label: '净涨粉', value: '0' },
-  { label: '新增关注', value: '0' },
-]
+function textOf(n: number | null | undefined) {
+  if (n == null) return '—'
+  return String(n)
+}
 
-const mix = [
-  { label: '图文', value: '0' },
-  { label: '视频', value: '0' },
-  { label: '长文', value: '0' },
-]
+function rateOf(n: number | null | undefined) {
+  if (n == null) return '—'
+  return `${Math.round(n * 1000) / 10}%`
+}
 
-const fanCells = [
-  { label: '粉丝总数', value: '0' },
-  { label: '净增粉丝', value: '0' },
-  { label: '活跃粉丝', value: '0%' },
-  { label: '取关数', value: '0' },
-  { label: '回关率', value: '0%' },
-  { label: '观看粉丝', value: '0' },
-]
+function deltaOf(metric: StatsMetric | undefined, empty = '环比 -') {
+  if (!metric || metric.delta == null) return empty
+  const pct = Math.round(metric.delta * 1000) / 10
+  const sign = pct > 0 ? '+' : ''
+  return `环比 ${sign}${pct}%`
+}
 
-const fanMix = [
-  { label: '新增关注', value: '0' },
-  { label: '取消关注', value: '0' },
-  { label: '净增', value: '0' },
-]
+function cell(label: string, metric: StatsMetric | undefined, asRate = false) {
+  return {
+    label,
+    value: asRate ? rateOf(metric?.value) : textOf(metric?.value ?? 0),
+    delta: deltaOf(metric),
+  }
+}
 
-const fanLive = [
-  { label: '看过你的粉丝', value: '0' },
-  { label: '互动过的粉丝', value: '0' },
-  { label: '7 日留存', value: '0%' },
-]
+const account = computed(() => data.value?.account)
+const fans = computed(() => data.value?.fans)
+const content = computed(() => data.value?.content)
 
-type Row = { id: string; title: string; kind: 'image' | 'video'; views: string; likes: string; comments: string; fav: string }
+const accountCells = computed(() => {
+  const a = account.value
+  return [
+    cell('曝光数', a?.impressions),
+    cell('观看数', a?.views),
+    cell('点赞数', a?.likes),
+    cell('评论数', a?.comments),
+    cell('收藏数', a?.favorites),
+    cell('分享数', a?.shares),
+    cell('净涨粉', a?.followerNet),
+    cell('新增关注', a?.followerNew),
+  ]
+})
 
-/** P0 无内容接口。 */
-const rows = ref<Row[]>([])
+const mix = computed(() => {
+  const m = account.value?.mix
+  const items = [
+    { label: '图文', value: m?.image ?? 0 },
+    { label: '视频', value: m?.video ?? 0 },
+    { label: '长文', value: m?.article ?? 0 },
+  ]
+  const max = Math.max(1, ...items.map((item) => item.value))
+  return items.map((item) => ({ ...item, width: Math.round((item.value / max) * 100) }))
+})
+
+const interactMix = computed(() => {
+  const a = account.value
+  const items = [
+    { label: '点赞数', value: a?.likes.value ?? 0 },
+    { label: '评论数', value: a?.comments.value ?? 0 },
+    { label: '收藏数', value: a?.favorites.value ?? 0 },
+    { label: '分享数', value: a?.shares.value ?? 0 },
+  ]
+  const max = Math.max(1, ...items.map((item) => item.value))
+  return items.map((item) => ({ ...item, width: Math.round((item.value / max) * 100) }))
+})
+
+const fanCells = computed(() => {
+  const f = fans.value
+  return [
+    cell('粉丝总数', f?.followerTotal),
+    cell('净增粉丝', f?.followerNet),
+    {
+      label: '活跃粉丝',
+      value: rateOf(f?.activeRate),
+      delta: '周期内互动粉丝 / 当前粉丝',
+    },
+    { label: '取关数', value: '—', delta: '取关不留历史' },
+    {
+      label: '回关率',
+      value: rateOf(f?.reciprocalRate),
+      delta: '你也关注了对方的粉丝占比',
+    },
+    {
+      label: '观看粉丝',
+      value: textOf(f?.viewerFans ?? 0),
+      delta: '周期内打开过你笔记的粉丝',
+    },
+  ]
+})
+
+const fanMix = computed(() => {
+  const c = fans.value?.change
+  const items = [
+    { label: '新增关注', value: c?.followNew ?? 0 },
+    { label: '取消关注', value: c?.unfollow },
+    { label: '净增', value: c?.net ?? 0 },
+  ]
+  const nums = items.map((item) => item.value).filter((n): n is number => n != null)
+  const max = Math.max(1, ...nums, 0)
+  return items.map((item) => ({
+    label: item.label,
+    value: item.value == null ? '—' : String(item.value),
+    width: item.value == null ? 0 : Math.round((item.value / max) * 100),
+  }))
+})
+
+const fanLive = computed(() => {
+  const f = fans.value
+  return [
+    { label: '看过你的粉丝', value: textOf(f?.viewerFans ?? 0) },
+    { label: '互动过的粉丝', value: textOf(f?.engagedFans ?? 0) },
+    { label: '7 日留存', value: '—' },
+  ]
+})
+
+type Row = {
+  id: string
+  title: string
+  kind: string
+  views: number
+  likes: number
+  comments: number
+  fav: number
+}
+
+const rows = computed<Row[]>(() => {
+  const list = content.value?.posts ?? []
+  const sorted = [...list].sort((a, b) => b[sort.value] - a[sort.value])
+  return sorted.map((item) => ({
+    id: item.postId,
+    title: item.title || '未命名笔记',
+    kind: item.postType,
+    views: item.views,
+    likes: item.likes,
+    comments: item.comments,
+    fav: item.favorites,
+  }))
+})
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   return rows.value.filter((item) => {
-    if (kindFilter.value !== 'all' && item.kind !== kindFilter.value) return false
+    if (kindFilter.value === 'video' && item.kind !== 'video') return false
+    if (kindFilter.value === 'image' && item.kind === 'video') return false
     if (q && !item.title.toLowerCase().includes(q)) return false
     return true
   })
@@ -84,10 +183,32 @@ const filtered = computed(() => {
 
 const period = computed(() => ranges.find((item) => item.id === range.value)?.label ?? '')
 
-const days = computed(() => {
-  if (range.value === '1') return [{ label: '昨日', h: 6 }]
-  const n = range.value === '7' ? 7 : 10
-  return Array.from({ length: n }, (_, i) => ({ label: String(i + 1), h: 6 }))
+function chartOf(points: { date: string; value: number }[] | undefined, rangeId: StatsRange) {
+  const list = points ?? []
+  const max = Math.max(1, ...list.map((item) => item.value), 0)
+  return list.map((item, i) => ({
+    label: rangeId === '1' ? '昨日' : String(i + 1),
+    h: item.value <= 0 ? 6 : Math.max(8, Math.round((item.value / max) * 100)),
+  }))
+}
+
+const days = computed(() => chartOf(account.value?.viewTrend, range.value))
+const fanDays = computed(() => chartOf(fans.value?.trend, range.value))
+
+async function load() {
+  try {
+    data.value = await api.creatorStats(range.value)
+  } catch {
+    data.value = null
+  }
+}
+
+onMounted(() => {
+  void load()
+})
+
+watch(range, () => {
+  void load()
 })
 </script>
 
@@ -117,7 +238,7 @@ const days = computed(() => {
         <div v-for="item in accountCells" :key="item.label" class="cell">
           <p class="cell-label">{{ item.label }}</p>
           <p class="cell-value">{{ item.value }}</p>
-          <p class="cell-delta">环比 -</p>
+          <p class="cell-delta">{{ item.delta }}</p>
         </div>
       </div>
 
@@ -138,17 +259,17 @@ const days = computed(() => {
             <li v-for="item in mix" :key="item.label">
               <span>{{ item.label }}</span>
               <b>{{ item.value }}</b>
-              <i />
+              <i :style="{ width: item.width + '%' }" />
             </li>
           </ul>
         </section>
         <section class="panel">
           <h2>互动构成</h2>
           <ul class="mix">
-            <li v-for="item in accountCells.slice(2, 6)" :key="item.label">
+            <li v-for="item in interactMix" :key="item.label">
               <span>{{ item.label }}</span>
               <b>{{ item.value }}</b>
-              <i />
+              <i :style="{ width: item.width + '%' }" />
             </li>
           </ul>
         </section>
@@ -161,14 +282,14 @@ const days = computed(() => {
         <div v-for="item in fanCells" :key="item.label" class="cell">
           <p class="cell-label">{{ item.label }}</p>
           <p class="cell-value">{{ item.value }}</p>
-          <p class="cell-delta">环比 -</p>
+          <p class="cell-delta">{{ item.delta }}</p>
         </div>
       </div>
 
       <section class="panel">
         <h2>粉丝趋势</h2>
         <div class="chart">
-          <div v-for="d in days" :key="d.label" class="col">
+          <div v-for="d in fanDays" :key="d.label" class="col">
             <span class="chart-bar" :style="{ height: d.h + '%' }" />
             <em>{{ d.label }}</em>
           </div>
@@ -182,7 +303,7 @@ const days = computed(() => {
             <li v-for="item in fanMix" :key="item.label">
               <span>{{ item.label }}</span>
               <b>{{ item.value }}</b>
-              <i />
+              <i :style="{ width: item.width + '%' }" />
             </li>
           </ul>
         </section>
@@ -220,22 +341,22 @@ const days = computed(() => {
       <div class="grid">
         <div class="cell">
           <p class="cell-label">平均观看</p>
-          <p class="cell-value">0</p>
+          <p class="cell-value">{{ content?.avgViews ?? 0 }}</p>
           <p class="cell-delta">{{ period }}</p>
         </div>
         <div class="cell">
           <p class="cell-label">平均点赞</p>
-          <p class="cell-value">0</p>
+          <p class="cell-value">{{ content?.avgLikes ?? 0 }}</p>
           <p class="cell-delta">{{ period }}</p>
         </div>
         <div class="cell">
           <p class="cell-label">平均评论</p>
-          <p class="cell-value">0</p>
+          <p class="cell-value">{{ content?.avgComments ?? 0 }}</p>
           <p class="cell-delta">{{ period }}</p>
         </div>
         <div class="cell">
           <p class="cell-label">已分析笔记</p>
-          <p class="cell-value">0</p>
+          <p class="cell-value">{{ content?.postCount ?? 0 }}</p>
           <p class="cell-delta">{{ period }}</p>
         </div>
       </div>
@@ -506,6 +627,7 @@ h1 {
 .mix i {
   display: block;
   height: 6px;
+  max-width: 100%;
   border-radius: 3px;
   background: #e8e8e8;
 }

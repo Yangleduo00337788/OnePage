@@ -87,6 +87,12 @@ public class PostController {
     return ResponseEntity.noContent().build();
   }
 
+  @PostMapping("/{postId}/play-complete")
+  public ResponseEntity<Void> playComplete(HttpServletRequest request, @PathVariable("postId") long postId) {
+    postService.recordPlayComplete(CurrentUser.requireUserId(request), postId);
+    return ResponseEntity.noContent().build();
+  }
+
   @PostMapping("/{postId}/share/link")
   public ShareLinkResult shareLink(HttpServletRequest request, @PathVariable("postId") long postId) {
     CurrentUser.requireUserId(request);

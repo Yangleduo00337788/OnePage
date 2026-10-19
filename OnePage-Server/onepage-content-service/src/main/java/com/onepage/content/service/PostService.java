@@ -26,7 +26,9 @@ import com.onepage.content.mapper.PostFavoriteMapper;
 import com.onepage.content.mapper.PostLikeMapper;
 import com.onepage.content.mapper.PostMapper;
 import com.onepage.content.mapper.PostMediaMapper;
+import com.onepage.content.mapper.PostPlayCompleteMapper;
 import com.onepage.content.mapper.PostViewMapper;
+import com.onepage.content.mapper.ShareLogMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,6 +74,8 @@ public class PostService {
   private final PostFavoriteMapper favoriteMapper;
   private final CommentMapper commentMapper;
   private final PostViewMapper postViewMapper;
+  private final ShareLogMapper shareLogMapper;
+  private final PostPlayCompleteMapper playCompleteMapper;
   private final AuthorLookup authorLookup;
   private final CatalogService catalogService;
   private final UserClient userClient;
@@ -92,6 +96,8 @@ public class PostService {
       PostFavoriteMapper favoriteMapper,
       CommentMapper commentMapper,
       PostViewMapper postViewMapper,
+      ShareLogMapper shareLogMapper,
+      PostPlayCompleteMapper playCompleteMapper,
       AuthorLookup authorLookup,
       CatalogService catalogService,
       UserClient userClient,
@@ -110,6 +116,8 @@ public class PostService {
     this.favoriteMapper = favoriteMapper;
     this.commentMapper = commentMapper;
     this.postViewMapper = postViewMapper;
+    this.shareLogMapper = shareLogMapper;
+    this.playCompleteMapper = playCompleteMapper;
     this.authorLookup = authorLookup;
     this.catalogService = catalogService;
     this.userClient = userClient;
@@ -636,8 +644,23 @@ public class PostService {
     postViewMapper.upsert(userId, postId, LocalDateTime.now());
   }
 
+  public void recordPlayComplete(long userId, long postId) {
+    Post post = requireVisible(postId, userId);
+    if (post.getPostType() == null || !"video".equals(post.getPostType())) {
+      return;
+    }
+    playCompleteMapper.insertIgnore(userId, postId, LocalDateTime.now());
+  }
+
+  private void recordShare(long userId, long postId, String channel) {
+    shareLogMapper.insert(IdGenerator.nextId(), userId, postId, channel, LocalDateTime.now());
+  }
+
   public String shareLink(long postId, Long viewerId) {
     requireVisible(postId, viewerId);
+    if (viewerId != null) {
+      recordShare(viewerId, postId, "link");
+    }
     return frontendUrl + "/?post=" + postId;
   }
 
@@ -658,6 +681,7 @@ public class PostService {
       if (result == null || !StringUtils.hasText(result.messageId())) {
         throw BusinessException.validation("私信发送失败");
       }
+      recordShare(userId, postId, "im");
       return result.messageId();
     } catch (BusinessException ex) {
       throw ex;

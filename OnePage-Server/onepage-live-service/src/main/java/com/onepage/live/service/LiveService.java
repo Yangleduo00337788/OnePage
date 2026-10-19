@@ -21,8 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -317,6 +321,11 @@ public class LiveService {
     redis.opsForZSet().add(key, member, now);
     redis.expire(key, PRESENCE_EXPIRE);
     long count = viewers(sessionId);
+    try {
+      sessionMapper.bumpPeak(sessionId, count);
+    } catch (RuntimeException ex) {
+      log.warn("bump peak failed sessionId={}", sessionId, ex);
+    }
     LiveDtos.ChatLine join = null;
     boolean first = existed == null;
     boolean guestOrOther = userId != null && !ownerIdEquals(hit.getOwnerId(), userId);
@@ -537,6 +546,92 @@ public class LiveService {
   private static String ingestKey(long sessionId) {
     return "live:ingest:" + sessionId;
   }
+
+  public LiveDtos.CreatorStats creatorStats(long ownerId, String rangeRaw) {
+    Window win = windowOf(rangeRaw);
+    long sessions = sessionMapper.countSessions(ownerId, win.fromAt, win.toAt);
+    long sessionsPrev = sessionMapper.countSessions(ownerId, win.prevFrom, win.prevTo);
+    long viewers = sessionMapper.countJoiners(ownerId, win.fromAt, win.toAt);
+    long viewersPrev = sessionMapper.countJoiners(ownerId, win.prevFrom, win.prevTo);
+    long peak = sessionMapper.maxPeak(ownerId, win.fromAt, win.toAt);
+    long peakPrev = sessionMapper.maxPeak(ownerId, win.prevFrom, win.prevTo);
+    long follows = followsDuring(ownerId, win.fromAt, win.toAt);
+    long followsPrev = followsDuring(ownerId, win.prevFrom, win.prevTo);
+    return new LiveDtos.CreatorStats(
+        win.range,
+        new LiveDtos.Metric(sessions, delta(sessions, sessionsPrev)),
+        new LiveDtos.Metric(viewers, delta(viewers, viewersPrev)),
+        new LiveDtos.Metric(peak, delta(peak, peakPrev)),
+        new LiveDtos.Metric(follows, delta(follows, followsPrev)),
+        new LiveDtos.Metric(0L, null));
+  }
+
+  private long followsDuring(long ownerId, LocalDateTime fromAt, LocalDateTime toAt) {
+    List<LiveSessionMapper.SessionWindow> rows = sessionMapper.listWindows(ownerId, fromAt, toAt);
+    if (rows == null || rows.isEmpty()) {
+      return 0L;
+    }
+    DateTimeFormatter ts = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    long sum = 0L;
+    for (LiveSessionMapper.SessionWindow row : rows) {
+      if (row == null || row.startedAt() == null) {
+        continue;
+      }
+      LocalDateTime start = row.startedAt().isBefore(fromAt) ? fromAt : row.startedAt();
+      LocalDateTime end = row.endedAt() == null || row.endedAt().isAfter(toAt) ? toAt : row.endedAt();
+      if (!start.isBefore(end)) {
+        continue;
+      }
+      try {
+        UserClient.CountView view = userClient.countNewFollowers(internalToken, ownerId, ts.format(start), ts.format(end));
+        sum += view == null ? 0L : view.count();
+      } catch (RuntimeException ex) {
+        log.warn("live follow count failed ownerId={}", ownerId, ex);
+      }
+    }
+    return sum;
+  }
+
+  private static Window windowOf(String rangeRaw) {
+    String range = rangeRaw == null ? "7" : rangeRaw.trim().toLowerCase(Locale.ROOT);
+    int days;
+    if ("1".equals(range)) {
+      days = 1;
+    } else if ("30".equals(range)) {
+      days = 30;
+    } else if ("7".equals(range)) {
+      days = 7;
+    } else {
+      throw BusinessException.validation("range 只支持 1、7、30");
+    }
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+    LocalDate start;
+    LocalDate endExclusive;
+    if (days == 1) {
+      start = today.minusDays(1);
+      endExclusive = today;
+    } else {
+      start = today.minusDays(days - 1L);
+      endExclusive = today.plusDays(1);
+    }
+    LocalDateTime fromAt = start.atStartOfDay();
+    LocalDateTime toAt = endExclusive.atStartOfDay();
+    return new Window(range, fromAt, toAt, fromAt.minusDays(days), fromAt);
+  }
+
+  private static Double delta(long current, long previous) {
+    if (previous == 0L) {
+      return current == 0L ? null : 1.0d;
+    }
+    return (current - previous) / (double) previous;
+  }
+
+  private record Window(
+      String range,
+      LocalDateTime fromAt,
+      LocalDateTime toAt,
+      LocalDateTime prevFrom,
+      LocalDateTime prevTo) {}
 
   private LiveHit findLiveByHook(String path, String streamKey) {
     String key = streamKeyFrom(path, streamKey);

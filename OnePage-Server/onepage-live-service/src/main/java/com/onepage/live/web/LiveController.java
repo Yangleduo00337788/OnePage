@@ -72,6 +72,12 @@ public class LiveController {
     return ResponseEntity.status(HttpStatus.CREATED).body(new LiveDtos.ShareImResult(messageId));
   }
 
+  @GetMapping("/stats")
+  public LiveDtos.CreatorStats stats(
+      HttpServletRequest request, @RequestParam(value = "range", required = false) String range) {
+    return liveService.creatorStats(CurrentUser.requireUserId(request), range);
+  }
+
   @GetMapping("/mine")
   public ResponseEntity<LiveDtos.LiveStart> mine(HttpServletRequest request) {
     LiveDtos.LiveStart start = liveService.mine(CurrentUser.requireUserId(request));

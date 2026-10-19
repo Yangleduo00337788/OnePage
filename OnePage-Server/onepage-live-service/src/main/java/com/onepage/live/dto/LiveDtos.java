@@ -59,4 +59,15 @@ public final class LiveDtos {
   public record ShareLinkResult(String shareUrl) {}
 
   public record HookSpec(String path, String streamKey) {}
+
+  public record Metric(long value, Double delta) {}
+
+  /** 送礼未做，gifters 恒 0。峰值来自心跳在场人数。 */
+  public record CreatorStats(
+      String range,
+      Metric sessions,
+      Metric viewers,
+      Metric peakOnline,
+      Metric followerNew,
+      Metric gifters) {}
 }

@@ -6,6 +6,8 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.content.client.UserClient;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.Post;
+import com.onepage.common.id.IdGenerator;
+import com.onepage.content.mapper.PostCoverShowMapper;
 import com.onepage.content.mapper.PostMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,16 +29,19 @@ public class FeedService {
   private static final Logger log = LoggerFactory.getLogger(FeedService.class);
   private final PostMapper postMapper;
   private final PostService postService;
+  private final PostCoverShowMapper coverShowMapper;
   private final UserClient userClient;
   private final String internalToken;
 
   public FeedService(
       PostMapper postMapper,
       PostService postService,
+      PostCoverShowMapper coverShowMapper,
       UserClient userClient,
       @Value("${onepage.internal-token}") String internalToken) {
     this.postMapper = postMapper;
     this.postService = postService;
+    this.coverShowMapper = coverShowMapper;
     this.userClient = userClient;
     this.internalToken = internalToken;
   }
@@ -55,14 +60,15 @@ public class FeedService {
     if (authorIds == null || authorIds.isEmpty()) {
       return new FeedDtos.CursorPage(List.of(), null, false);
     }
-    return page(cursor, limit, null, authorIds);
+    return page(viewerId, cursor, limit, null, authorIds);
   }
 
-  public FeedDtos.CursorPage page(String cursor, Integer limit, String category) {
-    return page(cursor, limit, category, null);
+  public FeedDtos.CursorPage page(Long viewerId, String cursor, Integer limit, String category) {
+    return page(viewerId, cursor, limit, category, null);
   }
 
-  private FeedDtos.CursorPage page(String cursor, Integer limit, String category, List<Long> authorIds) {
+  private FeedDtos.CursorPage page(
+      Long viewerId, String cursor, Integer limit, String category, List<Long> authorIds) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
         .eq(Post::getStatus, "published")
@@ -87,9 +93,13 @@ public class FeedService {
       rows = rows.subList(0, size);
     }
     List<FeedDtos.PostBrief> items = new ArrayList<>();
+    List<PostCoverShowMapper.ShowRow> shows = new ArrayList<>();
+    LocalDateTime now = LocalDateTime.now();
     for (Post post : rows) {
       items.add(postService.toBrief(post));
+      shows.add(new PostCoverShowMapper.ShowRow(IdGenerator.nextId(), viewerId, post.getId(), now));
     }
+    recordShows(shows);
     String next = null;
     if (hasMore && !rows.isEmpty()) {
       Post last = rows.getLast();
@@ -117,5 +127,16 @@ public class FeedService {
     LocalDateTime at = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
     query.and(w -> w.lt(Post::getPublishedAt, at)
         .or(inner -> inner.eq(Post::getPublishedAt, at).lt(Post::getId, id)));
+  }
+
+  private void recordShows(List<PostCoverShowMapper.ShowRow> shows) {
+    if (shows.isEmpty()) {
+      return;
+    }
+    try {
+      coverShowMapper.insertBatch(shows);
+    } catch (RuntimeException ex) {
+      log.warn("cover show insert failed size={}", shows.size(), ex);
+    }
   }
 }

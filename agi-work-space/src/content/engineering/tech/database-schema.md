@@ -197,7 +197,7 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | --- | --- | --- |
 | user_id | BIGINT | PK 之一 |
 | post_id | BIGINT | PK 之一 |
-| viewed_at | DATETIME(3) | 最近浏览 |
+| viewed_at | DATETIME(3) | 最近浏览；创作者报表按此落在周期内计一次（用户×笔记，不是每次打开） |
 
 ## onepage_social
 
@@ -247,12 +247,35 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 
 ### share_log
 
+P1 已建。脚本 [008_creator_metrics.sql](/engineering/tech/sql/onepage-content-service/008_creator_metrics)。复制链接或私信分享各写一行。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | BIGINT PK | |
 | user_id | BIGINT | 分享人 |
 | post_id | BIGINT | |
 | channel | VARCHAR(16) | `link` / `im` |
+| created_at | DATETIME(3) | |
+
+### post_cover_show
+
+Feed 出卡一次一行。脚本同 008。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| viewer_id | BIGINT 可空 | 未登录空 |
+| post_id | BIGINT | |
+| created_at | DATETIME(3) | |
+
+### post_play_complete
+
+登录用户视频播到约 90%。脚本同 008。同一人同一篇只一行。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| user_id | BIGINT | PK 之一 |
+| post_id | BIGINT | PK 之一 |
 | created_at | DATETIME(3) | |
 
 ## onepage_message
@@ -363,6 +386,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | status | VARCHAR(16) | `idle` / `live` / `ended` |
 | started_at | DATETIME(3) 可空 | |
 | ended_at | DATETIME(3) 可空 | |
+| peak_viewer_count | INT | 心跳在场人数峰值；脚本 [005_peak.sql](/engineering/tech/sql/onepage-live-service/005_peak) |
 
 ### live_chat
 

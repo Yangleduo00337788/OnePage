@@ -9,6 +9,7 @@ import com.onepage.user.client.ContentClient;
 import com.onepage.user.client.LiveClient;
 import com.onepage.user.client.NotificationClient;
 import com.onepage.user.client.SearchClient;
+import com.onepage.user.dto.CreatorFanStats;
 import com.onepage.user.dto.FollowHit;
 import com.onepage.user.dto.PostCursorPage;
 import com.onepage.user.dto.ReceivedCursorPage;
@@ -354,6 +355,42 @@ public class UserService {
   public List<Long> listFolloweeIds(long userId) {
     List<Long> ids = followMapper.listFolloweeIds(userId);
     return ids == null ? List.of() : ids;
+  }
+
+  public CreatorFanStats creatorFanStats(
+      long userId, LocalDateTime fromAt, LocalDateTime toAt, LocalDateTime prevFrom, LocalDateTime prevTo) {
+    long total = followMapper.countFollowers(userId);
+    long neu = followMapper.countNewFollowers(userId, fromAt, toAt);
+    long prev = followMapper.countNewFollowers(userId, prevFrom, prevTo);
+    long reciprocal = followMapper.countReciprocal(userId);
+    List<UserFollowMapper.DayCount> rows = followMapper.countNewByDay(userId, fromAt, toAt);
+    List<CreatorFanStats.DayCount> trend = new ArrayList<>();
+    if (rows != null) {
+      for (UserFollowMapper.DayCount row : rows) {
+        if (row == null || row.statDay() == null) {
+          continue;
+        }
+        trend.add(new CreatorFanStats.DayCount(row.statDay(), row.cnt()));
+      }
+    }
+    return new CreatorFanStats(total, neu, prev, reciprocal, trend);
+  }
+
+  public long countNewFollowers(long userId, LocalDateTime fromAt, LocalDateTime toAt) {
+    return followMapper.countNewFollowers(userId, fromAt, toAt);
+  }
+
+  public long countFollowersIn(long ownerId, List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return 0L;
+    }
+    long sum = 0L;
+    int size = ids.size();
+    for (int i = 0; i < size; i += 400) {
+      List<Long> chunk = ids.subList(i, Math.min(i + 400, size));
+      sum += followMapper.countFollowersIn(ownerId, chunk);
+    }
+    return sum;
   }
 
   public long countProfiles() {

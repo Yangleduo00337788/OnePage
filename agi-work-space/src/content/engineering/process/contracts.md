@@ -16,7 +16,7 @@ order: 3
 | --- | --- |
 | 地址前缀 | `/api/v1` |
 | 格式 | JSON；生产走 HTTPS |
-| 登录 | **Session + Cookie**，C 端名 **`ONEPAGE_SESSION`**，运营名 **`ONEPAGE_OPS_SESSION`**（同一 Redis，DEC-046）。Redis 空闲超时 **`SESSION_TIMEOUT`（默认 7d，滑动）**。写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /search`、`GET /live/sessions`、`GET /live/sessions/{id}`、`GET /live/sessions/{id}/messages`、`POST /live/sessions/{id}/heartbeat`、`GET /ai/bootstrap`、`GET /catalog`、`GET /catalog/topics`、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有**对应** Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /users/me`、`GET /users/me/suggest`、`GET /users/me/favorites` `/likes` `/history` `/likes-received` `/favorites-received`、`DELETE /users/me/history`、`DELETE /users/me/history/{postId}`、`GET/POST /notifications/**`、`GET/POST /conversations/**`、`WS /ws/im`、`POST /posts/{id}/share/im`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}`、`POST /ai/posts/polish`、`POST /ai/chat`、`POST /ai/chat/stream`、`POST /live/rooms`、`POST /live/rooms/{roomId}/start` `/end` `/notice`、`GET /live/mine`、`POST /live/sessions/{id}/messages`、`POST /live/sessions/{id}/share/link` `/share/im`、**`/ops/**`（员工，`OPS_STAFF_USER_IDS`，空则 403）** 必须登录。运营登录须 `audience=ops`；运营站后续请求带头 `X-OnePage-Audience: ops` |
+| 登录 | **Session + Cookie**，C 端名 **`ONEPAGE_SESSION`**，运营名 **`ONEPAGE_OPS_SESSION`**（同一 Redis，DEC-046）。Redis 空闲超时 **`SESSION_TIMEOUT`（默认 7d，滑动）**。写接口未登录 401。GET Feed/笔记详情/评论列表、`GET /search`、`GET /live/sessions`、`GET /live/sessions/{id}`、`GET /live/sessions/{id}/messages`、`POST /live/sessions/{id}/heartbeat`、`GET /ai/bootstrap`、`GET /catalog`、`GET /catalog/topics`、`GET /users/{pageId}`、`GET /users/{pageId}/posts`、`GET /users/{pageId}/following` `/followers` 公开，有**对应** Cookie 时仍注入 `X-User-Id`。`GET /posts/mine`、`GET /creator/stats`、`GET /live/stats`、`POST /posts/{id}/play-complete`、`GET /users/me`、`GET /users/me/suggest`、`GET /users/me/favorites` `/likes` `/history` `/likes-received` `/favorites-received`、`DELETE /users/me/history`、`DELETE /users/me/history/{postId}`、`GET/POST /notifications/**`、`GET/POST /conversations/**`、`WS /ws/im`、`POST /posts/{id}/share/im`、`POST/DELETE /users/{pageId}/follow`、`PATCH /posts/{id}`、`POST /ai/posts/polish`、`POST /ai/chat`、`POST /ai/chat/stream`、`POST /live/rooms`、`POST /live/rooms/{roomId}/start` `/end` `/notice`、`GET /live/mine`、`POST /live/sessions/{id}/messages`、`POST /live/sessions/{id}/share/link` `/share/im`、**`/ops/**`（员工，`OPS_STAFF_USER_IDS`，空则 403）** 必须登录。运营登录须 `audience=ops`；运营站后续请求带头 `X-OnePage-Audience: ops` |
 | 密码 | 注册 8～32 位，须同时包含字母和数字；BCrypt 存储 |
 | 登出 | `POST /api/v1/auth/logout` 由**网关** invalidate **当前请求选中的** WebSession，返回 200。运营须 `?audience=ops`，只清运营 Cookie |
 | 设密 | 已登录 `POST /auth/password`；未登录找回 `POST /auth/password/reset` + `sms scene=reset` |
@@ -41,7 +41,7 @@ order: 3
 | `/auth/**` | 登录注册 |
 | `/users/**` | 用户资料、关注、列表 |
 | `/uploads/**` | 上传（content，P0）。文件读 MinIO 公开 URL，**没有**公网 `GET /api/v1/media/**` |
-| `/posts/**`、`/feeds/**` | 笔记（content，P1） |
+| `/posts/**`、`/feeds/**`、`/creator/**` | 笔记与创作者报表（content，P1） |
 | `/comments/**`、`/reactions/**` | 评论、赞藏（P1 合在 content，DEC-023） |
 | `/conversations/**`、`/ws/im` | 私信 |
 | `/notifications/**` | 通知 |

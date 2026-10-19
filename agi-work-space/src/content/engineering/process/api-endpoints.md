@@ -6,9 +6,9 @@ order: 5
 
 REST 路径与请求/响应字段一览。共性规则见 [接口契约](/engineering/process/contracts)；落库见 [数据库设计](/engineering/tech/database-schema)、[数据库脚本](/engineering/tech/sql)。**改接口先改本页。**
 
-P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
+P0 已实现：Auth（短信 mock 码 `888888`）、设密/找回密码、`GET/PATCH /users/me`、`GET /users/{pageId}`、Uploads presign/complete。P1 已实现：发帖（含草稿/好友可见/定时）、Feed、详情、软删、浏览、赞/藏、评论树与评赞、分享链接、本人笔记列表 `GET /posts/mine`、主页笔记 `GET /users/{pageId}/posts`、本人收藏/点赞/浏览 `GET /users/me/favorites` `/likes` `/history`（可删/清空）、改可见 `PATCH /posts/{id}/visibility`、作者改内容 `PATCH /posts/{id}`；评论点赞 POST 切换；收藏另有 DELETE 取消。创作者报表 `GET /creator/stats`（content 聚合观看/赞评藏，Feign user 涨粉）。P2 已实现：关注/取关、关注与粉丝列表、关注流按关注图筛选、通知收件箱、单聊文本/图片私信、分享笔记卡片到私信、获赞/被收藏列表、私信 `WS /ws/im`、评论 @。OAuth 未配 client 时返回配置缺失。
 
-P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天、分享 `live_card`、本场公告、OBS 断流自动关播。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
+P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 润色 `POST /ai/posts/polish`、耶耶 `POST /ai/chat` 与 `POST /ai/chat/stream`（`onepage-ai-service`，HTTP Chat Completions）。P4 已实现：`onepage-live-service` 开播/列表/HLS 地址、直播间文字聊天、分享 `live_card`、本场公告、OBS 断流自动关播、创作者 `GET /live/stats`。P5 治理：社区举报、运营工单/用户/笔记审稿/评论/目录 CRUD、私信巡查、媒体库、用户关注粉丝与收件箱已落 moderation-service（隐藏走 Feign message；媒体与审稿走 Feign content；关注走 Feign user；通知走 Feign notification）。登录注册图见 [登录注册流程](/engineering/tech/auth-flows)。
 
 ## 按模块查（用编辑器搜索标题）
 
@@ -18,6 +18,7 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 | 用户与关注 | P0–P2 | `## Users` |
 | 上传 | P0 | `## Uploads` |
 | 笔记 | P1 | `## Posts` |
+| 创作者报表 | P1 | `## Creator` |
 | 赞藏 / 评论 | P1 | `## Reactions` · `## Comments` |
 | 通知 / 私信 | P2 | `## Notifications` · `## Conversations` |
 | 搜索 / AI | P3 | `## Search` · `## AI` |
@@ -278,6 +279,36 @@ Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `
 
 记录浏览历史 **204**（登录用户）
 
+### POST `/api/v1/posts/{postId}/play-complete`
+
+须登录。视频播到约 90% 记一次完播（`post_play_complete`，同一人同一篇只一行）。非视频 **204** 不写。**Response 204**。
+
+---
+
+## Creator（创作者报表）
+
+### GET `/api/v1/creator/stats`
+
+须登录。Query：`range` = `1`（昨日）/ `7`（近 7 日，含今天）/ `30`（近 30 日，含今天）。日历按 `Asia/Shanghai`。环比对照等长前一段。`onepage-content-service`；粉丝段 Feign user。
+
+**Response 200**：`{ "range", "from", "to", "account", "content", "fans", "pending" }`
+
+`account`：`impressions` / `views` / `likes` / `comments` / `favorites` / `shares` / `followerNet` / `followerNew` / `coverCtr` / `videoCompleteRate` 均为 `{ value, delta }`（`delta` 为小数，无对照为 `null`）。`coverCtr` / `videoCompleteRate` 的 `value` 是百分数 0–100。`mix` `{ image, video, article }`（周期内观看按体裁）；`viewTrend` `[{ date, value }]`。口径：曝光 = Feed 出卡 `post_cover_show`；观看 = `post_view` 周期内更新过的 (用户,笔记)；封面点击率 = 观看/曝光；完播率 = 完播/视频观看；赞/评/藏/分享按事件时间；净涨粉 = 周期内新增关注（取关删边，无法回放）。
+
+`pending`：`{ draft, review }` 当前草稿数、审核中数（全表，不限周期）。
+
+`content`：`avgViews` `avgLikes` `avgComments` `postCount`；`posts` 最多 200 篇已发布 `{ postId, title, postType, views, likes, comments, favorites }`（周期内计数）。
+
+`fans`：`followerTotal` / `followerNet` / `followerNew` 同上 Metric；`unfollow` `null`；`activeRate` 周期内互动粉丝 / 当前粉丝；`reciprocalRate` 互关占当前粉丝；`viewerFans` `engagedFans`；`retention7d` `null`；`change` `{ followNew, unfollow, net }`；`trend` 每日新增关注。
+
+内网：`GET /internal/users/{userId}/creator-fan-stats?from&to&prevFrom&prevTo`；`POST /internal/users/{userId}/count-in-followers` body 为 userId 数组。
+
+### GET `/api/v1/live/stats`
+
+须登录。Query 同 `range`。`onepage-live-service`。
+
+**Response 200**：`{ "range", "sessions", "viewers", "peakOnline", "followerNew", "gifters" }` 均为 Metric（`gifters` 恒 0，礼物未做）。场次按 `started_at` 且 `live|ended`；观看人次 = 这些场次 `live_chat` 里 `join` 的去重用户。`peakOnline` 为场次 `peak_viewer_count` 的最大值（心跳在场人数）。`followerNew` 为开播时段内新增关注。
+
 ---
 
 ## AI（P1 美化 / P3 问答）
@@ -476,6 +507,8 @@ Query：`beforeId?`, `limit`
 ### GET `/api/v1/live/mine`
 
 须登录。本人若有 `status=live` 场次，**Response 200** 同 start（含 `title`、`coverUrl`、`notice`、`pushUrl`、`streamKey`）；没有则 **204**。创作者开播台刷新后恢复 OBS 说明。
+
+创作者直播总览见 [GET `/api/v1/live/stats`](#get-apiv1livestats)（写在 Creator 节）。
 
 ### POST `/api/v1/live/rooms/{roomId}/notice`
 

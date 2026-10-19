@@ -21,10 +21,11 @@ public class FeedController {
 
   @GetMapping("/explore")
   public FeedDtos.CursorPage explore(
+      HttpServletRequest request,
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit,
       @RequestParam(value = "category", required = false) String category) {
-    return feedService.page(cursor, limit, category);
+    return feedService.page(CurrentUser.tryUserId(request), cursor, limit, category);
   }
 
   @GetMapping("/following")

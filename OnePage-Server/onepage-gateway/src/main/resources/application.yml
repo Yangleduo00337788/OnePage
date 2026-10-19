@@ -92,6 +92,12 @@ spring:
             - Path=/api/v1/posts/**
           metadata:
             sensitiveHeaders: ""
+        - id: creator
+          uri: lb://onepage-content-service
+          predicates:
+            - Path=/api/v1/creator,/api/v1/creator/**
+          metadata:
+            sensitiveHeaders: ""
         - id: feeds
           uri: lb://onepage-content-service
           predicates:

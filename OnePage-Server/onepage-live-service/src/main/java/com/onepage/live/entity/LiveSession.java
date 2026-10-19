@@ -15,6 +15,7 @@ public class LiveSession {
   private String status;
   private LocalDateTime startedAt;
   private LocalDateTime endedAt;
+  private Integer peakViewerCount;
 
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
@@ -28,4 +29,6 @@ public class LiveSession {
   public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
   public LocalDateTime getEndedAt() { return endedAt; }
   public void setEndedAt(LocalDateTime endedAt) { this.endedAt = endedAt; }
+  public Integer getPeakViewerCount() { return peakViewerCount; }
+  public void setPeakViewerCount(Integer peakViewerCount) { this.peakViewerCount = peakViewerCount; }
 }

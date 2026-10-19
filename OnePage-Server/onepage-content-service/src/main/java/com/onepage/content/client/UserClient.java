@@ -5,6 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -22,6 +23,32 @@ public interface UserClient {
   List<Long> followeeIds(
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("userId") long userId);
+
+  @GetMapping("/internal/users/{userId}/creator-fan-stats")
+  FanStats fanStats(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId,
+      @RequestParam("from") String from,
+      @RequestParam("to") String to,
+      @RequestParam("prevFrom") String prevFrom,
+      @RequestParam("prevTo") String prevTo);
+
+  @PostMapping("/internal/users/{userId}/count-in-followers")
+  CountView countInFollowers(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId,
+      @RequestBody List<Long> ids);
+
+  record FanStats(
+      long followerTotal,
+      long followerNew,
+      long followerNewPrev,
+      long reciprocalCount,
+      List<DayCount> trend) {}
+
+  record DayCount(String date, long count) {}
+
+  record CountView(long count) {}
 
   @GetMapping("/internal/users/by-keys")
   List<UserSummary> byKeys(

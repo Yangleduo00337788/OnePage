@@ -1,10 +1,13 @@
 package com.onepage.user.web;
 
 import com.onepage.common.dto.UserSummary;
+import com.onepage.user.dto.CountView;
+import com.onepage.user.dto.CreatorFanStats;
 import com.onepage.user.dto.UserCursorPage;
 import com.onepage.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -45,6 +49,37 @@ public class InternalUserController {
   public List<Long> followeeIds(HttpServletRequest request, @PathVariable("userId") long userId) {
     tokenFilter.assertInternal(request);
     return userService.listFolloweeIds(userId);
+  }
+
+  @GetMapping("/users/{userId}/creator-fan-stats")
+  public CreatorFanStats creatorFanStats(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime from,
+      @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime to,
+      @RequestParam("prevFrom") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime prevFrom,
+      @RequestParam("prevTo") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime prevTo) {
+    tokenFilter.assertInternal(request);
+    return userService.creatorFanStats(userId, from, to, prevFrom, prevTo);
+  }
+
+  @GetMapping("/users/{userId}/count-new-followers")
+  public CountView countNewFollowers(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime from,
+      @RequestParam("to") @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime to) {
+    tokenFilter.assertInternal(request);
+    return new CountView(userService.countNewFollowers(userId, from, to));
+  }
+
+  @PostMapping("/users/{userId}/count-in-followers")
+  public CountView countInFollowers(
+      HttpServletRequest request,
+      @PathVariable("userId") long userId,
+      @RequestBody List<Long> ids) {
+    tokenFilter.assertInternal(request);
+    return new CountView(userService.countFollowersIn(userId, ids));
   }
 
   @GetMapping("/users/briefs")

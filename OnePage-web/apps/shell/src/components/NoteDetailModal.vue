@@ -66,6 +66,7 @@ const likeCount = ref(0)
 const favCount = ref(0)
 const commentTotal = ref(0)
 let loadSeq = 0
+let playCompleteSent = false
 const idx = ref(0)
 const liked = ref(false)
 const saved = ref(false)
@@ -456,7 +457,15 @@ function onMeta() {
 }
 
 function onTime() {
-  current.value = player.value?.currentTime || 0
+  const el = player.value
+  current.value = el?.currentTime || 0
+  if (playCompleteSent || !isVideo.value || !session.me) return
+  const dur = el?.duration || durationSec.value
+  const id = full.value?.postId || detail.note?.id
+  if (!el || !dur || !id) return
+  if (current.value / dur < 0.9) return
+  playCompleteSent = true
+  void api.playComplete(id).catch(() => undefined)
 }
 
 function seek(e: MouseEvent) {
@@ -646,6 +655,7 @@ async function loadLive(id: string) {
     likeCount.value = post.likeCount
     favCount.value = post.favoriteCount
     commentTotal.value = post.commentCount
+    playCompleteSent = false
     void api.viewPost(id).catch(() => undefined)
     const page = await api.comments(id, undefined, 0, 50)
     if (token !== loadSeq) return

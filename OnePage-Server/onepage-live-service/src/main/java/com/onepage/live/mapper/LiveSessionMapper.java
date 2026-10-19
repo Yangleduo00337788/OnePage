@@ -7,8 +7,10 @@ import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.scripting.xmltags.XMLLanguageDriver;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -70,4 +72,70 @@ public interface LiveSessionMapper extends BaseMapper<LiveSession> {
       LIMIT 1
       """)
   LiveHit findLiveByStreamKey(@Param("streamKey") String streamKey);
+
+  @Select("""
+      SELECT COUNT(*) FROM live_session s
+      INNER JOIN live_room r ON r.id = s.room_id
+      WHERE r.owner_id = #{ownerId}
+        AND s.started_at IS NOT NULL
+        AND s.started_at >= #{fromAt} AND s.started_at < #{toAt}
+        AND s.status IN ('live', 'ended')
+      """)
+  long countSessions(
+      @Param("ownerId") long ownerId,
+      @Param("fromAt") LocalDateTime fromAt,
+      @Param("toAt") LocalDateTime toAt);
+
+  @Select("""
+      SELECT COUNT(DISTINCT c.user_id) FROM live_chat c
+      INNER JOIN live_session s ON s.id = c.session_id
+      INNER JOIN live_room r ON r.id = s.room_id
+      WHERE r.owner_id = #{ownerId}
+        AND c.msg_type = 'join'
+        AND s.started_at IS NOT NULL
+        AND s.started_at >= #{fromAt} AND s.started_at < #{toAt}
+      """)
+  long countJoiners(
+      @Param("ownerId") long ownerId,
+      @Param("fromAt") LocalDateTime fromAt,
+      @Param("toAt") LocalDateTime toAt);
+
+  @Select("""
+      SELECT IFNULL(MAX(s.peak_viewer_count), 0) FROM live_session s
+      INNER JOIN live_room r ON r.id = s.room_id
+      WHERE r.owner_id = #{ownerId}
+        AND s.started_at IS NOT NULL
+        AND s.started_at >= #{fromAt} AND s.started_at < #{toAt}
+        AND s.status IN ('live', 'ended')
+      """)
+  long maxPeak(
+      @Param("ownerId") long ownerId,
+      @Param("fromAt") LocalDateTime fromAt,
+      @Param("toAt") LocalDateTime toAt);
+
+  @Select("""
+      SELECT s.started_at AS startedAt, IFNULL(s.ended_at, NOW(3)) AS endedAt
+      FROM live_session s
+      INNER JOIN live_room r ON r.id = s.room_id
+      WHERE r.owner_id = #{ownerId}
+        AND s.started_at IS NOT NULL
+        AND s.started_at < #{toAt}
+        AND (s.ended_at IS NULL OR s.ended_at >= #{fromAt})
+        AND s.status IN ('live', 'ended')
+      ORDER BY s.started_at ASC
+      LIMIT 60
+      """)
+  List<SessionWindow> listWindows(
+      @Param("ownerId") long ownerId,
+      @Param("fromAt") LocalDateTime fromAt,
+      @Param("toAt") LocalDateTime toAt);
+
+  @Update("""
+      UPDATE live_session
+      SET peak_viewer_count = GREATEST(IFNULL(peak_viewer_count, 0), #{count})
+      WHERE id = #{sessionId}
+      """)
+  void bumpPeak(@Param("sessionId") long sessionId, @Param("count") long count);
+
+  record SessionWindow(LocalDateTime startedAt, LocalDateTime endedAt) {}
 }

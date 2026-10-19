@@ -71,4 +71,52 @@ public interface UserFollowMapper {
       @Param("cursorAt") LocalDateTime cursorAt,
       @Param("cursorUserId") Long cursorUserId,
       @Param("limit") int limit);
+
+  @Select("SELECT COUNT(*) FROM user_follow WHERE followee_id = #{ownerId}")
+  long countFollowers(@Param("ownerId") long ownerId);
+
+  @Select("""
+      SELECT COUNT(*) FROM user_follow
+      WHERE followee_id = #{ownerId}
+        AND created_at >= #{fromAt} AND created_at < #{toAt}
+      """)
+  long countNewFollowers(
+      @Param("ownerId") long ownerId,
+      @Param("fromAt") LocalDateTime fromAt,
+      @Param("toAt") LocalDateTime toAt);
+
+  @Select("""
+      SELECT COUNT(*) FROM user_follow a
+      INNER JOIN user_follow b
+        ON b.follower_id = #{ownerId} AND b.followee_id = a.follower_id
+      WHERE a.followee_id = #{ownerId}
+      """)
+  long countReciprocal(@Param("ownerId") long ownerId);
+
+  @Select("""
+      SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS statDay, COUNT(*) AS cnt
+      FROM user_follow
+      WHERE followee_id = #{ownerId}
+        AND created_at >= #{fromAt} AND created_at < #{toAt}
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+      """)
+  List<DayCount> countNewByDay(
+      @Param("ownerId") long ownerId,
+      @Param("fromAt") LocalDateTime fromAt,
+      @Param("toAt") LocalDateTime toAt);
+
+  @Lang(XMLLanguageDriver.class)
+  @Select("""
+      <script>
+      SELECT COUNT(*) FROM user_follow
+      WHERE followee_id = #{ownerId}
+        AND follower_id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+      </script>
+      """)
+  long countFollowersIn(
+      @Param("ownerId") long ownerId,
+      @Param("ids") List<Long> ids);
+
+  record DayCount(String statDay, long cnt) {}
 }

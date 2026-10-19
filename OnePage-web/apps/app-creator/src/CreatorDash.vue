@@ -1,11 +1,17 @@
-<!-- 创作者首页：20px 白卡片工作台，P0 数据占位。 -->
+<!-- 创作者首页：20px 白卡片工作台；总览接 /creator/stats 与 /live/stats。 -->
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { api, type UserProfile } from '@onepage/api-client'
+import {
+  api,
+  type CreatorStats,
+  type LiveCreatorStats,
+  type StatsMetric,
+  type StatsRange,
+  type UserProfile,
+} from '@onepage/api-client'
 import TextNoteCover from './TextNoteCover.vue'
 import { coverVideoSrc, isTextNote, isVideoNote, noteFromMine, type Note } from './notes'
 import type { PublishKind } from './PublishComposer.vue'
-import { EVENTS } from './events'
 import Icon from './Icon.vue'
 
 const props = defineProps<{ me: UserProfile | null }>()
@@ -18,7 +24,21 @@ const emit = defineEmits<{
 }>()
 
 const dataTab = ref<'notes' | 'live'>('notes')
-const range = ref<'1' | '30'>('1')
+const range = ref<Extract<StatsRange, '1' | '30'>>('1')
+const noteData = ref<CreatorStats | null>(null)
+const liveData = ref<LiveCreatorStats | null>(null)
+
+function textOf(n: number | null | undefined) {
+  if (n == null) return '—'
+  return String(n)
+}
+
+function deltaOf(metric: StatsMetric | undefined, fallback = '环比 -') {
+  if (!metric || metric.delta == null) return fallback
+  const pct = Math.round(metric.delta * 1000) / 10
+  const sign = pct > 0 ? '+' : ''
+  return `环比 ${sign}${pct}%`
+}
 
 const name = computed(() => props.me?.nickname || '未登录')
 const initial = computed(() => name.value.slice(0, 1))
@@ -32,28 +52,34 @@ const likes = computed(() => {
 const pageId = computed(() => props.me?.pageId || '—')
 const bio = computed(() => props.me?.bio || '还没有简介')
 
-const noteStats = [
-  { label: '曝光数', value: '0' },
-  { label: '观看数', value: '0' },
-  { label: '点赞数', value: '0' },
-  { label: '评论数', value: '0' },
-  { label: '净涨粉', value: '0' },
-  { label: '封面点击率', value: '0%' },
-  { label: '视频完播率', value: '0%' },
-  { label: '收藏数', value: '0' },
-  { label: '分享数', value: '0' },
-  { label: '新增关注', value: '0' },
-]
+const noteStats = computed(() => {
+  const a = noteData.value?.account
+  return [
+    { label: '曝光数', value: textOf(a?.impressions.value ?? 0), delta: deltaOf(a?.impressions) },
+    { label: '观看数', value: textOf(a?.views.value ?? 0), delta: deltaOf(a?.views) },
+    { label: '点赞数', value: textOf(a?.likes.value ?? 0), delta: deltaOf(a?.likes) },
+    { label: '评论数', value: textOf(a?.comments.value ?? 0), delta: deltaOf(a?.comments) },
+    { label: '净涨粉', value: textOf(a?.followerNet.value ?? 0), delta: deltaOf(a?.followerNet) },
+    { label: '封面点击率', value: `${a?.coverCtr.value ?? 0}%`, delta: deltaOf(a?.coverCtr) },
+    { label: '视频完播率', value: `${a?.videoCompleteRate.value ?? 0}%`, delta: deltaOf(a?.videoCompleteRate) },
+    { label: '收藏数', value: textOf(a?.favorites.value ?? 0), delta: deltaOf(a?.favorites) },
+    { label: '分享数', value: textOf(a?.shares.value ?? 0), delta: deltaOf(a?.shares) },
+    { label: '新增关注', value: textOf(a?.followerNew.value ?? 0), delta: deltaOf(a?.followerNew) },
+  ]
+})
 
-const liveStats = [
-  { label: '开播场次', value: '0' },
-  { label: '观看人次', value: '0' },
-  { label: '峰值在线', value: '0' },
-  { label: '新增关注', value: '0' },
-  { label: '送礼人数', value: '0' },
-]
+const liveStats = computed(() => {
+  const l = liveData.value
+  return [
+    { label: '开播场次', value: textOf(l?.sessions.value ?? 0), delta: deltaOf(l?.sessions) },
+    { label: '观看人次', value: textOf(l?.viewers.value ?? 0), delta: deltaOf(l?.viewers) },
+    { label: '峰值在线', value: textOf(l?.peakOnline.value ?? 0), delta: deltaOf(l?.peakOnline) },
+    { label: '新增关注', value: textOf(l?.followerNew.value ?? 0), delta: deltaOf(l?.followerNew) },
+    { label: '送礼人数', value: textOf(l?.gifters.value ?? 0), delta: '礼物未做' },
+  ]
+})
 
-const stats = computed(() => (dataTab.value === 'notes' ? noteStats : liveStats))
+const stats = computed(() => (dataTab.value === 'notes' ? noteStats.value : liveStats.value))
 
 const starters = [
   { id: 'image' as PublishKind, title: '发布图文笔记', hint: '支持常见图片格式 jpg、png、webp', tone: 'peach', icon: 'image' },
@@ -73,39 +99,84 @@ const notices = [
 ]
 
 const recent = ref<Note[]>([])
-const pendingCount = ref(0)
-const draftCount = ref(0)
+const campaigns = ref<{ id: string; title: string; time: string; cover: string }[]>([])
+const pendingCount = computed(() => noteData.value?.pending.review ?? 0)
+const draftCount = computed(() => noteData.value?.pending.draft ?? 0)
+
+function campaignStatus(status: string) {
+  if (status === 'live') return '进行中'
+  if (status === 'upcoming') return '预告'
+  if (status === 'ended') return '结束'
+  return status
+}
 
 async function loadRecent() {
   if (!props.me) {
     recent.value = []
-    pendingCount.value = 0
-    draftCount.value = 0
     return
   }
   try {
-    const page = await api.myPosts(undefined, 50)
-    const notes = page.items.map(noteFromMine)
-    recent.value = notes.slice(0, 5)
-    pendingCount.value = notes.filter((item) => item.status === '审核中').length
-    draftCount.value = notes.filter((item) => item.status === '草稿').length
+    const page = await api.myPosts(undefined, 5)
+    recent.value = page.items.map(noteFromMine)
   } catch {
     recent.value = []
-    pendingCount.value = 0
-    draftCount.value = 0
+  }
+}
+
+async function loadCampaigns() {
+  try {
+    const data = await api.catalog()
+    const rows = (data.campaigns || []).filter((row) => row.enabled && row.status !== 'ended')
+    rows.sort((a, b) => {
+      const rank = (s: string) => (s === 'live' ? 0 : s === 'upcoming' ? 1 : 2)
+      return rank(a.status) - rank(b.status) || a.sortOrder - b.sortOrder
+    })
+    campaigns.value = rows.slice(0, 3).map((row) => ({
+      id: row.eventId,
+      title: row.title,
+      time: campaignStatus(row.status),
+      cover: row.coverUrl || '',
+    }))
+  } catch {
+    campaigns.value = []
+  }
+}
+
+async function loadOverview() {
+  if (!props.me) {
+    noteData.value = null
+    liveData.value = null
+    return
+  }
+  try {
+    noteData.value = await api.creatorStats(range.value)
+  } catch {
+    noteData.value = null
+  }
+  try {
+    liveData.value = await api.liveStats(range.value)
+  } catch {
+    liveData.value = null
   }
 }
 
 onMounted(() => {
   void loadRecent()
+  void loadOverview()
+  void loadCampaigns()
 })
 
 watch(
   () => props.me?.userId,
   () => {
     void loadRecent()
+    void loadOverview()
   },
 )
+
+watch(range, () => {
+  void loadOverview()
+})
 
 const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
 </script>
@@ -165,7 +236,7 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
           <div v-for="item in stats" :key="item.label" class="cell">
             <p class="cell-label">{{ item.label }}</p>
             <p class="cell-value">{{ item.value }}</p>
-            <p class="cell-delta">环比 -</p>
+            <p class="cell-delta">{{ item.delta }}</p>
           </div>
         </div>
       </article>
@@ -221,7 +292,7 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
         </ul>
         <div v-else class="empty-recent">
           <img class="empty-art" src="/empty-me.png" alt="" width="120" height="120" />
-          <p>还没有已发布的笔记</p>
+          <p>还没有笔记</p>
         </div>
       </article>
       <article class="card">
@@ -236,10 +307,10 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
           <h3>热门活动</h3>
           <button type="button" class="link" @click="emit('open-events')">全部</button>
         </div>
-        <ul class="acts">
-          <li v-for="item in EVENTS" :key="item.id">
+        <ul v-if="campaigns.length" class="acts">
+          <li v-for="item in campaigns" :key="item.id">
             <button type="button" class="act" @click="emit('open-events')">
-              <span class="thumb"><img :src="item.cover" alt="" /></span>
+              <span class="thumb"><img v-if="item.cover" :src="item.cover" alt="" /></span>
               <span>
                 <strong>{{ item.title }}</strong>
                 <small>{{ item.time }}</small>
@@ -247,6 +318,7 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
             </button>
           </li>
         </ul>
+        <p v-else class="empty-hint">还没有进行中的活动</p>
       </article>
     </aside>
   </div>
@@ -605,6 +677,12 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
   color: #8a8a8a;
   font-size: 13px;
   text-align: center;
+}
+
+.empty-hint {
+  margin: 8px 0 0;
+  color: #8a8a8a;
+  font-size: 13px;
 }
 
 .empty-art {
