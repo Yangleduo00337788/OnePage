@@ -10,5 +10,10 @@ CREATE TABLE IF NOT EXISTS platform_notice (
   KEY idx_enabled_sort (enabled, sort_order, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='创作者平台公告';
 
-INSERT IGNORE INTO platform_notice (id, title, body, sort_order, enabled, created_at) VALUES
-  (1, '一页公约', '真诚分享，友好互动', 1, 1, NOW(3));
+INSERT INTO platform_notice (id, title, body, sort_order, enabled, created_at) VALUES
+  (1, '一页公约', '真诚分享，友好互动', 1, 1, NOW(3))
+ON DUPLICATE KEY UPDATE
+  title = VALUES(title),
+  body = VALUES(body),
+  sort_order = VALUES(sort_order),
+  enabled = VALUES(enabled);
