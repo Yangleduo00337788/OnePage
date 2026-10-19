@@ -44,6 +44,9 @@ public interface UserClient {
       long followerNew,
       long followerNewPrev,
       long reciprocalCount,
+      long unfollow,
+      long unfollowPrev,
+      Double retention7d,
       List<DayCount> trend) {}
 
   record DayCount(String date, long count) {}

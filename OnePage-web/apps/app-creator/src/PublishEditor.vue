@@ -3,7 +3,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, FEED_CATEGORIES } from '@onepage/api-client'
 import Icon from './Icon.vue'
-import { EVENTS } from './events'
 import type { LocalFile, PublishKind, PublishSeed } from './publishTypes'
 
 const props = defineProps<{
@@ -39,7 +38,7 @@ const topicFocus = ref(false)
 
 const contentTypes = ['不声明', '虚构创作', '个人观点', '专业内容']
 const categories = ref<string[]>([...FEED_CATEGORIES])
-const events = ref(EVENTS.filter((item) => item.status === '进行中').slice(0, 2))
+const events = ref<{ id: string; title: string; time: string; cover: string; status: string }[]>([])
 const topicHints = ref<string[]>([])
 const visOpts = [
   { id: 'public' as const, label: '公开' },
@@ -85,10 +84,10 @@ onMounted(() => {
           cover: row.coverUrl || '',
           status: '进行中' as const,
         }))
-      if (live.length) events.value = live.slice(0, 4)
+      events.value = live.slice(0, 4)
     })
     .catch(() => {
-      /* 目录失败时沿用内置分类和活动 */
+      events.value = []
     })
 })
 

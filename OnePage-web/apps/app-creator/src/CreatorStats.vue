@@ -27,9 +27,9 @@ const titles = {
 }
 
 const subs = {
-  account: '看账号整体热度，不拆到单篇。曝光与观看同为详情打开次数（无独立曝光日志）。分享暂无落库。',
+  account: '看账号整体热度，不拆到单篇。曝光是 Feed 出卡，观看是打开详情。',
   content: '按每一篇已发布笔记看周期内观看和互动，用来找写得好的内容。',
-  fans: '涨粉按关注时间统计。取关会删边，没有历史所以取关和 7 日留存暂空。',
+  fans: '涨粉按关注时间。取关写入日志。7 日留存是 14–7 天前关注的人里现在还在粉的比例。',
 }
 
 function textOf(n: number | null | undefined) {
@@ -108,7 +108,7 @@ const fanCells = computed(() => {
       value: rateOf(f?.activeRate),
       delta: '周期内互动粉丝 / 当前粉丝',
     },
-    { label: '取关数', value: '—', delta: '取关不留历史' },
+    { label: '取关数', value: textOf(f?.unfollow ?? 0), delta: '周期内取关' },
     {
       label: '回关率',
       value: rateOf(f?.reciprocalRate),
@@ -143,7 +143,7 @@ const fanLive = computed(() => {
   return [
     { label: '看过你的粉丝', value: textOf(f?.viewerFans ?? 0) },
     { label: '互动过的粉丝', value: textOf(f?.engagedFans ?? 0) },
-    { label: '7 日留存', value: '—' },
+    { label: '7 日留存', value: rateOf(f?.retention7d) },
   ]
 })
 
@@ -183,17 +183,22 @@ const filtered = computed(() => {
 
 const period = computed(() => ranges.find((item) => item.id === range.value)?.label ?? '')
 
-function chartOf(points: { date: string; value: number }[] | undefined, rangeId: StatsRange) {
+function chartOf(
+  points: { date: string; value: number }[] | undefined,
+  rangeId: StatsRange,
+  metric: string,
+) {
   const list = points ?? []
   const max = Math.max(1, ...list.map((item) => item.value), 0)
   return list.map((item, i) => ({
     label: rangeId === '1' ? '昨日' : String(i + 1),
+    tip: `${item.date} · ${metric} ${item.value}`,
     h: item.value <= 0 ? 6 : Math.max(8, Math.round((item.value / max) * 100)),
   }))
 }
 
-const days = computed(() => chartOf(account.value?.viewTrend, range.value))
-const fanDays = computed(() => chartOf(fans.value?.trend, range.value))
+const days = computed(() => chartOf(account.value?.viewTrend, range.value, '观看'))
+const fanDays = computed(() => chartOf(fans.value?.trend, range.value, '新增关注'))
 
 async function load() {
   try {
@@ -246,7 +251,9 @@ watch(range, () => {
         <h2>观看趋势</h2>
         <div class="chart">
           <div v-for="d in days" :key="d.label" class="col">
-            <span class="chart-bar" :style="{ height: d.h + '%' }" />
+            <span class="chart-bar" :style="{ height: d.h + '%' }">
+              <span class="chart-tip">{{ d.tip }}</span>
+            </span>
             <em>{{ d.label }}</em>
           </div>
         </div>
@@ -259,7 +266,7 @@ watch(range, () => {
             <li v-for="item in mix" :key="item.label">
               <span>{{ item.label }}</span>
               <b>{{ item.value }}</b>
-              <i :style="{ width: item.width + '%' }" />
+              <i :style="{ width: item.width + '%' }" :title="`${item.label} ${item.value}`" />
             </li>
           </ul>
         </section>
@@ -269,7 +276,7 @@ watch(range, () => {
             <li v-for="item in interactMix" :key="item.label">
               <span>{{ item.label }}</span>
               <b>{{ item.value }}</b>
-              <i :style="{ width: item.width + '%' }" />
+              <i :style="{ width: item.width + '%' }" :title="`${item.label} ${item.value}`" />
             </li>
           </ul>
         </section>
@@ -290,7 +297,9 @@ watch(range, () => {
         <h2>粉丝趋势</h2>
         <div class="chart">
           <div v-for="d in fanDays" :key="d.label" class="col">
-            <span class="chart-bar" :style="{ height: d.h + '%' }" />
+            <span class="chart-bar" :style="{ height: d.h + '%' }">
+              <span class="chart-tip">{{ d.tip }}</span>
+            </span>
             <em>{{ d.label }}</em>
           </div>
         </div>
@@ -303,7 +312,7 @@ watch(range, () => {
             <li v-for="item in fanMix" :key="item.label">
               <span>{{ item.label }}</span>
               <b>{{ item.value }}</b>
-              <i :style="{ width: item.width + '%' }" />
+              <i :style="{ width: item.width + '%' }" :title="`${item.label} ${item.value}`" />
             </li>
           </ul>
         </section>
@@ -322,12 +331,13 @@ watch(range, () => {
 
     <template v-else>
       <div class="toolbar">
-        <div class="tabs">
+        <div class="tabs" role="group" aria-label="体裁">
           <button type="button" class="tab" :class="{ 'is-on': kindFilter === 'all' }" @click="kindFilter = 'all'">全部</button>
           <button type="button" class="tab" :class="{ 'is-on': kindFilter === 'image' }" @click="kindFilter = 'image'">图文</button>
           <button type="button" class="tab" :class="{ 'is-on': kindFilter === 'video' }" @click="kindFilter = 'video'">视频</button>
         </div>
-        <div class="tabs">
+        <span class="toolbar-split" aria-hidden="true" />
+        <div class="tabs" role="group" aria-label="排序">
           <button type="button" class="tab" :class="{ 'is-on': sort === 'views' }" @click="sort = 'views'">按观看</button>
           <button type="button" class="tab" :class="{ 'is-on': sort === 'likes' }" @click="sort = 'likes'">按点赞</button>
           <button type="button" class="tab" :class="{ 'is-on': sort === 'comments' }" @click="sort = 'comments'">按评论</button>
@@ -469,6 +479,13 @@ h1 {
   margin-top: 16px;
 }
 
+.toolbar-split {
+  width: 1px;
+  height: 16px;
+  background: #e0e0e0;
+  flex-shrink: 0;
+}
+
 .tabs {
   display: flex;
   gap: 6px;
@@ -552,6 +569,7 @@ h1 {
 .panel {
   margin-top: 20px;
   padding: 16px 18px 18px;
+  overflow: visible;
   border-radius: 16px;
   background: rgb(248, 248, 248);
 }
@@ -566,8 +584,9 @@ h1 {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  height: 140px;
-  padding-top: 8px;
+  height: 168px;
+  padding-top: 36px;
+  overflow: visible;
 }
 
 .col {
@@ -581,12 +600,37 @@ h1 {
 }
 
 .chart-bar {
+  position: relative;
   display: block;
   width: 100%;
   max-width: 28px;
   min-height: 8px;
   border-radius: 6px 6px 2px 2px;
-  background: #e4e4e4;
+  background: #ff2442;
+}
+
+.chart-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  transform: translateX(-50%);
+  display: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #1f1f1f;
+  color: #fff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.col:hover .chart-tip,
+.col:focus-within .chart-tip {
+  display: block;
 }
 
 .col em {
@@ -629,7 +673,7 @@ h1 {
   height: 6px;
   max-width: 100%;
   border-radius: 3px;
-  background: #e8e8e8;
+  background: #ff2442;
 }
 
 .table-wrap {

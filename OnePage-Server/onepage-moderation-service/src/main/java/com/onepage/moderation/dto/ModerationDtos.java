@@ -107,9 +107,16 @@ public final class ModerationDtos {
 
   public record OpsCategory(String categoryId, String name, int sortOrder, boolean enabled) {}
 
-  public record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled) {}
+  public record OpsTopic(
+      String topicId, String name, boolean official, int sortOrder, boolean enabled, long postCount) {}
 
-  public record OpsCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
+  public record OpsNotice(String noticeId, String title, String body, int sortOrder, boolean enabled) {}
+
+  public record OpsCatalog(
+      List<OpsCategory> categories,
+      List<OpsCampaign> campaigns,
+      List<OpsTopic> topics,
+      List<OpsNotice> notices) {}
 
   public record OpsOverview(
       long communityUsers,
@@ -130,6 +137,8 @@ public final class ModerationDtos {
       String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
 
   public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
+
+  public record NoticeSpec(String title, String body, Integer sortOrder, Boolean enabled) {}
 
   public record OpsImPeer(String userId, String pageId, String nickname, String avatarUrl) {}
 

@@ -94,6 +94,18 @@ P2 已建。脚本 [002_follow.sql](/engineering/tech/sql/onepage-user-service/0
 | followee_id | BIGINT | 被关注人；PK 之一 |
 | created_at | DATETIME(3) | 关注时间 |
 
+### user_unfollow_log
+
+脚本 [003_unfollow_log.sql](/engineering/tech/sql/onepage-user-service/003_unfollow_log)。取关时插入，不改 `user_follow` 删边。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| follower_id | BIGINT | 取关人 |
+| followee_id | BIGINT | 被取关人 |
+| followed_at | DATETIME(3) | 当时关注边的创建时间 |
+| unfollowed_at | DATETIME(3) | 取关时间 |
+
 ### browse_history
 
 P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段如下，拆库时再迁。
@@ -135,7 +147,14 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | status | VARCHAR(16) | `draft` / `pending` / `published` / `rejected` / `deleted`；Feed 只出 published |
 | reject_reason | VARCHAR(200) 可空 | 未通过原因 |
 | visibility | TINYINT | 0 公开（发现流）；1 仅自己；2 好友可见（关注流） |
+| original | TINYINT | 1 声明原创 |
+| content_kind | VARCHAR(16) | 空=不声明；虚构创作 / 个人观点 / 专业内容 |
+| event_id | VARCHAR(32) | 关联活动 id，可空串 |
+| event_title | VARCHAR(64) | 关联活动标题快照 |
 | published_at | DATETIME(3) | 定时发布：未到点不进 Feed |
+| created_at | DATETIME(3) | |
+| updated_at | DATETIME(3) | |
+| deleted_at | DATETIME(3) 可空 | |
 
 ### post_category
 
@@ -170,16 +189,19 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | sort_order | INT | |
 | enabled | TINYINT | |
 | created_at | DATETIME(3) | |
-| original | TINYINT | 1 声明原创 |
-| content_kind | VARCHAR(16) | 空=不声明；虚构创作 / 个人观点 / 专业内容 |
-| event_id | VARCHAR(32) | 关联活动 id，可空串 |
-| event_title | VARCHAR(64) | 关联活动标题快照 |
-| status | VARCHAR(16) | `draft` / `published` / `deleted` |
-| visibility | TINYINT | 0 公开（发现流）；1 仅自己；2 好友可见（关注流，互关作者可见） |
-| published_at | DATETIME(3) 可空 | |
+
+### platform_notice
+
+脚本 [009_platform_notice.sql](/engineering/tech/sql/onepage-content-service/009_platform_notice)。创作者首页公告。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| title | VARCHAR(64) | |
+| body | VARCHAR(500) | |
+| sort_order | INT | |
+| enabled | TINYINT | 1 展示 |
 | created_at | DATETIME(3) | |
-| updated_at | DATETIME(3) | |
-| deleted_at | DATETIME(3) 可空 | |
 
 ### post_media
 
@@ -434,6 +456,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-19 | `platform_notice`；`user_unfollow_log` |
 | 2026-10-18 | ES `onepage-lives`；索引名与代码对齐（连字符） |
 | 2026-10-18 | `live_room.notice` 本场公告 |
 | 2026-10-17 | `live_chat.msg_type`；在场 Redis `live:presence` |

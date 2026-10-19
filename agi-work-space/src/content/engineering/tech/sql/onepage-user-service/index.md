@@ -8,3 +8,4 @@ order: 2
 
 - [001_init.sql](/engineering/tech/sql/onepage-user-service/001_init) — 资料与计数
 - [002_follow.sql](/engineering/tech/sql/onepage-user-service/002_follow) — 关注边（已有库必须执行）
+- [003_unfollow_log.sql](/engineering/tech/sql/onepage-user-service/003_unfollow_log) — 取关日志（已有库必须执行）

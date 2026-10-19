@@ -22,6 +22,7 @@ import com.onepage.user.entity.UserStat;
 import com.onepage.user.mapper.UserFollowMapper;
 import com.onepage.user.mapper.UserProfileMapper;
 import com.onepage.user.mapper.UserStatMapper;
+import com.onepage.user.mapper.UserUnfollowLogMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +55,7 @@ public class UserService {
   private final UserProfileMapper profileMapper;
   private final UserStatMapper statMapper;
   private final UserFollowMapper followMapper;
+  private final UserUnfollowLogMapper unfollowLogMapper;
   private final ContentClient contentClient;
   private final NotificationClient notificationClient;
   private final LiveClient liveClient;
@@ -65,6 +67,7 @@ public class UserService {
       UserProfileMapper profileMapper,
       UserStatMapper statMapper,
       UserFollowMapper followMapper,
+      UserUnfollowLogMapper unfollowLogMapper,
       ContentClient contentClient,
       NotificationClient notificationClient,
       LiveClient liveClient,
@@ -74,6 +77,7 @@ public class UserService {
     this.profileMapper = profileMapper;
     this.statMapper = statMapper;
     this.followMapper = followMapper;
+    this.unfollowLogMapper = unfollowLogMapper;
     this.contentClient = contentClient;
     this.notificationClient = notificationClient;
     this.liveClient = liveClient;
@@ -343,11 +347,19 @@ public class UserService {
   public void unfollow(long followerId, String pageId) {
     UserProfile target = requireProfileByPageId(pageId);
     long followeeId = target.getUserId();
+    LocalDateTime followedAt = followMapper.selectCreatedAt(followerId, followeeId);
     int deleted = followMapper.deletePair(followerId, followeeId);
     if (deleted <= 0) {
       return;
     }
     LocalDateTime now = LocalDateTime.now();
+    if (followedAt != null) {
+      try {
+        unfollowLogMapper.insert(IdGenerator.nextId(), followerId, followeeId, followedAt, now);
+      } catch (RuntimeException ex) {
+        log.warn("unfollow log insert failed for {} -> {}", followerId, followeeId, ex);
+      }
+    }
     statMapper.bumpFollowing(followerId, -1, now);
     statMapper.bumpFollower(followeeId, -1, now);
   }
@@ -363,6 +375,23 @@ public class UserService {
     long neu = followMapper.countNewFollowers(userId, fromAt, toAt);
     long prev = followMapper.countNewFollowers(userId, prevFrom, prevTo);
     long reciprocal = followMapper.countReciprocal(userId);
+    long unfollow = 0L;
+    long unfollowPrev = 0L;
+    Double retention7d = null;
+    try {
+      unfollow = unfollowLogMapper.countInRange(userId, fromAt, toAt);
+      unfollowPrev = unfollowLogMapper.countInRange(userId, prevFrom, prevTo);
+      LocalDateTime cohortTo = toAt.minusDays(7);
+      LocalDateTime cohortFrom = toAt.minusDays(14);
+      long still = followMapper.countNewFollowers(userId, cohortFrom, cohortTo);
+      long left = unfollowLogMapper.countLeftCohort(userId, cohortFrom, cohortTo, toAt);
+      long cohort = still + left;
+      if (cohort > 0L) {
+        retention7d = (double) still / (double) cohort;
+      }
+    } catch (RuntimeException ex) {
+      log.warn("unfollow stats unavailable: {}", ex.toString());
+    }
     List<UserFollowMapper.DayCount> rows = followMapper.countNewByDay(userId, fromAt, toAt);
     List<CreatorFanStats.DayCount> trend = new ArrayList<>();
     if (rows != null) {
@@ -373,7 +402,7 @@ public class UserService {
         trend.add(new CreatorFanStats.DayCount(row.statDay(), row.cnt()));
       }
     }
-    return new CreatorFanStats(total, neu, prev, reciprocal, trend);
+    return new CreatorFanStats(total, neu, prev, reciprocal, unfollow, unfollowPrev, retention7d, trend);
   }
 
   public long countNewFollowers(long userId, LocalDateTime fromAt, LocalDateTime toAt) {

@@ -29,6 +29,9 @@ public interface UserFollowMapper {
   @Select("SELECT COUNT(*) FROM user_follow WHERE follower_id = #{followerId} AND followee_id = #{followeeId}")
   int existsPair(@Param("followerId") long followerId, @Param("followeeId") long followeeId);
 
+  @Select("SELECT created_at FROM user_follow WHERE follower_id = #{followerId} AND followee_id = #{followeeId}")
+  LocalDateTime selectCreatedAt(@Param("followerId") long followerId, @Param("followeeId") long followeeId);
+
   @Select("SELECT followee_id FROM user_follow WHERE follower_id = #{userId}")
   List<Long> listFolloweeIds(@Param("userId") long userId);
 

@@ -15,3 +15,4 @@ order: 3
 - [006_ops_media_block.sql](/engineering/tech/sql/onepage-content-service/006_ops_media_block)
 - [007_post_review.sql](/engineering/tech/sql/onepage-content-service/007_post_review)
 - [008_creator_metrics.sql](/engineering/tech/sql/onepage-content-service/008_creator_metrics) — 分享 / Feed 曝光 / 视频完播（已有库另执行）
+- [009_platform_notice.sql](/engineering/tech/sql/onepage-content-service/009_platform_notice) — 创作者平台公告（已有库另执行）

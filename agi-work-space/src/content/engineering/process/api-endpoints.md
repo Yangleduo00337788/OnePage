@@ -245,7 +245,7 @@ Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=p
 
 公开。社区首页 Tab、发帖分类/活动、创作者活动中心同源。
 
-**Response**：`{ categories: OpsCategory[], campaigns: OpsCampaign[], topics: OpsTopic[] }`（仅 `enabled=true`）。活动 `status`：`live` / `upcoming` / `ended`。
+**Response**：`{ categories: OpsCategory[], campaigns: OpsCampaign[], topics: OpsTopic[], notices: OpsNotice[] }`（仅 `enabled=true`）。活动 `status`：`live` / `upcoming` / `ended`。话题含 `postCount`（已发布笔记正文含 `#话题名` 的篇数）。公告 `{ noticeId, title, body, sortOrder, enabled }`。
 
 ### GET `/api/v1/catalog/topics`
 
@@ -293,13 +293,13 @@ Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `
 
 **Response 200**：`{ "range", "from", "to", "account", "content", "fans", "pending" }`
 
-`account`：`impressions` / `views` / `likes` / `comments` / `favorites` / `shares` / `followerNet` / `followerNew` / `coverCtr` / `videoCompleteRate` 均为 `{ value, delta }`（`delta` 为小数，无对照为 `null`）。`coverCtr` / `videoCompleteRate` 的 `value` 是百分数 0–100。`mix` `{ image, video, article }`（周期内观看按体裁）；`viewTrend` `[{ date, value }]`。口径：曝光 = Feed 出卡 `post_cover_show`；观看 = `post_view` 周期内更新过的 (用户,笔记)；封面点击率 = 观看/曝光；完播率 = 完播/视频观看；赞/评/藏/分享按事件时间；净涨粉 = 周期内新增关注（取关删边，无法回放）。
+`account`：`impressions` / `views` / `likes` / `comments` / `favorites` / `shares` / `followerNet` / `followerNew` / `coverCtr` / `videoCompleteRate` 均为 `{ value, delta }`（`delta` 为小数，无对照为 `null`）。`coverCtr` / `videoCompleteRate` 的 `value` 是百分数 0–100。`mix` `{ image, video, article }`（周期内观看按体裁）；`viewTrend` `[{ date, value }]`。口径：曝光 = Feed 出卡 `post_cover_show`；观看 = `post_view` 周期内更新过的 (用户,笔记)；封面点击率 = 观看/曝光；完播率 = 完播/视频观看；赞/评/藏/分享按事件时间；净涨粉 = 周期内新增关注 − 取关。
 
 `pending`：`{ draft, review }` 当前草稿数、审核中数（全表，不限周期）。
 
 `content`：`avgViews` `avgLikes` `avgComments` `postCount`；`posts` 最多 200 篇已发布 `{ postId, title, postType, views, likes, comments, favorites }`（周期内计数）。
 
-`fans`：`followerTotal` / `followerNet` / `followerNew` 同上 Metric；`unfollow` `null`；`activeRate` 周期内互动粉丝 / 当前粉丝；`reciprocalRate` 互关占当前粉丝；`viewerFans` `engagedFans`；`retention7d` `null`；`change` `{ followNew, unfollow, net }`；`trend` 每日新增关注。
+`fans`：`followerTotal` / `followerNet` / `followerNew` 同上 Metric；`unfollow` 周期内取关条数；`activeRate` 周期内互动粉丝 / 当前粉丝；`reciprocalRate` 互关占当前粉丝；`viewerFans` `engagedFans`；`retention7d` 为 0–1（周期截止日前 14–7 天关注且仍在粉 / 该队列人数，无队列则 `null`）；`change` `{ followNew, unfollow, net }`；`trend` 每日新增关注。
 
 内网：`GET /internal/users/{userId}/creator-fan-stats?from&to&prevFrom&prevTo`；`POST /internal/users/{userId}/count-in-followers` body 为 userId 数组。
 
@@ -659,7 +659,7 @@ Query：`beforeId?`, `limit`
 
 ### GET `/api/v1/ops/catalog`
 
-含停用项。**Response**：`{ categories, campaigns, topics }`（完整字段，非只读目录名）。
+含停用项。**Response**：`{ categories, campaigns, topics, notices }`（完整字段，非只读目录名）。
 
 ### POST `/api/v1/ops/categories` · PATCH `/api/v1/ops/categories/{id}` · POST `.../enabled?value=`
 
@@ -669,7 +669,11 @@ Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
 
 ### POST `/api/v1/ops/topics` · PATCH `/api/v1/ops/topics/{id}` · POST `.../enabled?value=`
 
-`official` 官方话题。用户发帖 `#标签` 也会写入 topic 表。
+`official` 官方话题。用户发帖 `#标签` 也会写入 topic 表。话题 JSON 含 `postCount`。
+
+### POST `/api/v1/ops/notices` · PATCH `/api/v1/ops/notices/{id}` · POST `.../enabled?value=`
+
+Body：`title` `body` `sortOrder`。写入 `platform_notice`。创作者首页只出 `enabled=true`。治理调 content 内网用 **POST** `/internal/notices`（Feign 不能 PATCH）。
 
 ### GET `/api/v1/ops/users/{userId}`
 

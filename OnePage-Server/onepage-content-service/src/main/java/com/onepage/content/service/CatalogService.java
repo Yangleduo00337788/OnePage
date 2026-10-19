@@ -8,9 +8,11 @@ import com.onepage.content.entity.Campaign;
 import com.onepage.content.entity.Comment;
 import com.onepage.content.entity.Post;
 import com.onepage.content.entity.PostCategory;
+import com.onepage.content.entity.PlatformNotice;
 import com.onepage.content.entity.Topic;
 import com.onepage.content.mapper.CampaignMapper;
 import com.onepage.content.mapper.CommentMapper;
+import com.onepage.content.mapper.PlatformNoticeMapper;
 import com.onepage.content.mapper.PostCategoryMapper;
 import com.onepage.content.mapper.PostMapper;
 import com.onepage.content.mapper.TopicMapper;
@@ -23,8 +25,10 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,6 +45,7 @@ public class CatalogService {
   private final PostCategoryMapper categoryMapper;
   private final CampaignMapper campaignMapper;
   private final TopicMapper topicMapper;
+  private final PlatformNoticeMapper noticeMapper;
   private final PostMapper postMapper;
   private final CommentMapper commentMapper;
   private final SearchIndexer searchIndexer;
@@ -49,12 +54,14 @@ public class CatalogService {
       PostCategoryMapper categoryMapper,
       CampaignMapper campaignMapper,
       TopicMapper topicMapper,
+      PlatformNoticeMapper noticeMapper,
       PostMapper postMapper,
       CommentMapper commentMapper,
       @Lazy SearchIndexer searchIndexer) {
     this.categoryMapper = categoryMapper;
     this.campaignMapper = campaignMapper;
     this.topicMapper = topicMapper;
+    this.noticeMapper = noticeMapper;
     this.postMapper = postMapper;
     this.commentMapper = commentMapper;
     this.searchIndexer = searchIndexer;
@@ -103,14 +110,16 @@ public class CatalogService {
     return new FeedDtos.PublicCatalog(
         categories,
         toCampaigns(listCampaigns(), true),
-        toTopics(listTopics(null), true));
+        toTopics(listTopics(null), true),
+        toNotices(listNotices(), true));
   }
 
   public FeedDtos.OpsCatalog opsCatalog() {
     return new FeedDtos.OpsCatalog(
         toCategories(listCategories(), false),
         toCampaigns(listCampaigns(), false),
-        toTopics(listTopics(null), false));
+        toTopics(listTopics(null), false),
+        toNotices(listNotices(), false));
   }
 
   public FeedDtos.ContentStats stats() {
@@ -254,6 +263,52 @@ public class CatalogService {
   }
 
   @Transactional
+  public FeedDtos.OpsNotice saveNotice(String id, FeedDtos.NoticeSpec spec) {
+    if (spec == null || !StringUtils.hasText(spec.title())) {
+      throw BusinessException.validation("公告标题必填");
+    }
+    String title = spec.title().trim();
+    if (title.length() > 64) {
+      throw BusinessException.validation("公告标题过长");
+    }
+    String body = spec.body() == null ? "" : spec.body().trim();
+    if (body.length() > 500) {
+      throw BusinessException.validation("公告正文过长");
+    }
+    PlatformNotice row;
+    if (StringUtils.hasText(id)) {
+      row = noticeMapper.selectById(Long.parseLong(id));
+      if (row == null) {
+        throw BusinessException.notFound("公告不存在");
+      }
+    } else {
+      row = new PlatformNotice();
+      row.setId(IdGenerator.nextId());
+      row.setCreatedAt(LocalDateTime.now());
+    }
+    row.setTitle(title);
+    row.setBody(body);
+    row.setSortOrder(spec.sortOrder() == null ? 0 : spec.sortOrder());
+    row.setEnabled(bool(spec.enabled(), true));
+    if (StringUtils.hasText(id)) {
+      noticeMapper.updateById(row);
+    } else {
+      noticeMapper.insert(row);
+    }
+    return toNotice(row);
+  }
+
+  @Transactional
+  public void setNoticeEnabled(long id, boolean enabled) {
+    PlatformNotice row = noticeMapper.selectById(id);
+    if (row == null) {
+      throw BusinessException.notFound("公告不存在");
+    }
+    row.setEnabled(enabled ? 1 : 0);
+    noticeMapper.updateById(row);
+  }
+
+  @Transactional
   public void setTopicEnabled(long id, boolean enabled) {
     Topic row = topicMapper.selectById(id);
     if (row == null) {
@@ -364,6 +419,19 @@ public class CatalogService {
     }
   }
 
+  private List<PlatformNotice> listNotices() {
+    try {
+      List<PlatformNotice> rows = noticeMapper.selectList(
+          Wrappers.<PlatformNotice>lambdaQuery()
+              .orderByAsc(PlatformNotice::getSortOrder)
+              .orderByAsc(PlatformNotice::getId));
+      return rows == null ? List.of() : rows;
+    } catch (RuntimeException ex) {
+      log.warn("platform_notice missing");
+      return List.of();
+    }
+  }
+
   private List<Topic> listTopics(String q) {
     try {
       var query = Wrappers.<Topic>lambdaQuery().orderByDesc(Topic::getOfficial)
@@ -420,22 +488,69 @@ public class CatalogService {
         enabled(row.getEnabled()));
   }
 
-  private static List<FeedDtos.OpsTopic> toTopics(List<Topic> rows, boolean enabledOnly) {
+  private List<FeedDtos.OpsTopic> toTopics(List<Topic> rows, boolean enabledOnly) {
+    Map<Long, Long> counts = topicCounts();
     List<FeedDtos.OpsTopic> out = new ArrayList<>();
     for (Topic row : rows) {
       if (enabledOnly && !enabled(row.getEnabled())) {
         continue;
       }
-      out.add(toTopic(row));
+      out.add(toTopic(row, counts.getOrDefault(row.getId(), 0L)));
     }
     return out;
   }
 
-  private static FeedDtos.OpsTopic toTopic(Topic row) {
+  private FeedDtos.OpsTopic toTopic(Topic row) {
+    long count = 0L;
+    if (row.getId() != null) {
+      count = topicCounts().getOrDefault(row.getId(), 0L);
+    }
+    return toTopic(row, count);
+  }
+
+  private static FeedDtos.OpsTopic toTopic(Topic row, long postCount) {
     return new FeedDtos.OpsTopic(
         String.valueOf(row.getId()),
         row.getName(),
         Integer.valueOf(1).equals(row.getOfficial()),
+        n(row.getSortOrder()),
+        enabled(row.getEnabled()),
+        postCount);
+  }
+
+  private Map<Long, Long> topicCounts() {
+    Map<Long, Long> map = new HashMap<>();
+    try {
+      List<TopicMapper.CountRow> rows = topicMapper.countPostsByTopic();
+      if (rows != null) {
+        for (TopicMapper.CountRow row : rows) {
+          if (row != null) {
+            map.put(row.topicId(), row.cnt());
+          }
+        }
+      }
+    } catch (RuntimeException ex) {
+      log.warn("topic post counts unavailable");
+    }
+    return map;
+  }
+
+  private static List<FeedDtos.OpsNotice> toNotices(List<PlatformNotice> rows, boolean enabledOnly) {
+    List<FeedDtos.OpsNotice> out = new ArrayList<>();
+    for (PlatformNotice row : rows) {
+      if (enabledOnly && !enabled(row.getEnabled())) {
+        continue;
+      }
+      out.add(toNotice(row));
+    }
+    return out;
+  }
+
+  private static FeedDtos.OpsNotice toNotice(PlatformNotice row) {
+    return new FeedDtos.OpsNotice(
+        String.valueOf(row.getId()),
+        row.getTitle() == null ? "" : row.getTitle(),
+        row.getBody() == null ? "" : row.getBody(),
         n(row.getSortOrder()),
         enabled(row.getEnabled()));
   }

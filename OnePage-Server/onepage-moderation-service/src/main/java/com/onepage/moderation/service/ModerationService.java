@@ -327,7 +327,7 @@ public class ModerationService {
   public ModerationDtos.OpsCatalog catalog() {
     ContentClient.OpsCatalog raw = contentClient.catalog(internalToken);
     if (raw == null) {
-      return new ModerationDtos.OpsCatalog(List.of(), List.of(), List.of());
+      return new ModerationDtos.OpsCatalog(List.of(), List.of(), List.of(), List.of());
     }
     List<ModerationDtos.OpsCategory> categories = new ArrayList<>();
     if (raw.categories() != null) {
@@ -350,11 +350,21 @@ public class ModerationService {
     if (raw.topics() != null) {
       for (ContentClient.OpsTopic row : raw.topics()) {
         if (row != null) {
-          topics.add(new ModerationDtos.OpsTopic(row.topicId(), row.name(), row.official(), row.sortOrder(), row.enabled()));
+          topics.add(new ModerationDtos.OpsTopic(
+              row.topicId(), row.name(), row.official(), row.sortOrder(), row.enabled(), row.postCount()));
         }
       }
     }
-    return new ModerationDtos.OpsCatalog(categories, campaigns, topics);
+    List<ModerationDtos.OpsNotice> notices = new ArrayList<>();
+    if (raw.notices() != null) {
+      for (ContentClient.OpsNotice row : raw.notices()) {
+        if (row != null) {
+          notices.add(new ModerationDtos.OpsNotice(
+              row.noticeId(), row.title(), row.body(), row.sortOrder(), row.enabled()));
+        }
+      }
+    }
+    return new ModerationDtos.OpsCatalog(categories, campaigns, topics, notices);
   }
 
   public ModerationDtos.OpsOverview overview() {
@@ -424,11 +434,25 @@ public class ModerationService {
     ContentClient.OpsTopic row = StringUtils.hasText(id)
         ? contentClient.patchTopic(internalToken, id, body)
         : contentClient.createTopic(internalToken, body);
-    return new ModerationDtos.OpsTopic(row.topicId(), row.name(), row.official(), row.sortOrder(), row.enabled());
+    return new ModerationDtos.OpsTopic(
+        row.topicId(), row.name(), row.official(), row.sortOrder(), row.enabled(), row.postCount());
   }
 
   public void setTopicEnabled(long id, boolean enabled) {
     contentClient.topicEnabled(internalToken, id, enabled);
+  }
+
+  public ModerationDtos.OpsNotice saveNotice(String id, ModerationDtos.NoticeSpec spec) {
+    ContentClient.NoticeSpec body =
+        new ContentClient.NoticeSpec(spec.title(), spec.body(), spec.sortOrder(), spec.enabled());
+    ContentClient.OpsNotice row = StringUtils.hasText(id)
+        ? contentClient.patchNotice(internalToken, id, body)
+        : contentClient.createNotice(internalToken, body);
+    return new ModerationDtos.OpsNotice(row.noticeId(), row.title(), row.body(), row.sortOrder(), row.enabled());
+  }
+
+  public void setNoticeEnabled(long id, boolean enabled) {
+    contentClient.noticeEnabled(internalToken, id, enabled);
   }
 
   public ModerationDtos.OpsUser getUser(long targetId) {

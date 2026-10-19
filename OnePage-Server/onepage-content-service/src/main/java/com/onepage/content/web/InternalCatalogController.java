@@ -138,6 +138,31 @@ public class InternalCatalogController {
     return ResponseEntity.noContent().build();
   }
 
+  @PostMapping("/notices")
+  public FeedDtos.OpsNotice createNotice(HttpServletRequest request, @RequestBody FeedDtos.NoticeSpec spec) {
+    assertInternal(request);
+    return catalogService.saveNotice(null, spec);
+  }
+
+  @PostMapping("/notices/{id}")
+  public FeedDtos.OpsNotice patchNotice(
+      HttpServletRequest request,
+      @PathVariable("id") String id,
+      @RequestBody FeedDtos.NoticeSpec spec) {
+    assertInternal(request);
+    return catalogService.saveNotice(id, spec);
+  }
+
+  @PostMapping("/notices/{id}/enabled")
+  public ResponseEntity<Void> noticeEnabled(
+      HttpServletRequest request,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value) {
+    assertInternal(request);
+    catalogService.setNoticeEnabled(id, value);
+    return ResponseEntity.noContent().build();
+  }
+
   private void assertInternal(HttpServletRequest request) {
     String token = request.getHeader(GatewayHeaders.INTERNAL_TOKEN);
     if (token == null || !token.equals(expectedToken)) {

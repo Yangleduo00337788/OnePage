@@ -281,6 +281,35 @@ public class OpsController {
     return ResponseEntity.noContent().build();
   }
 
+  @PostMapping("/notices")
+  public ModerationDtos.OpsNotice createNotice(
+      HttpServletRequest request, @RequestBody ModerationDtos.NoticeSpec spec) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.saveNotice(null, spec);
+  }
+
+  @PatchMapping("/notices/{id}")
+  public ModerationDtos.OpsNotice patchNotice(
+      HttpServletRequest request,
+      @PathVariable("id") String id,
+      @RequestBody ModerationDtos.NoticeSpec spec) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.saveNotice(id, spec);
+  }
+
+  @PostMapping("/notices/{id}/enabled")
+  public ResponseEntity<Void> noticeEnabled(
+      HttpServletRequest request,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.setNoticeEnabled(id, value);
+    return ResponseEntity.noContent().build();
+  }
+
   @GetMapping("/users/{userId}")
   public ModerationDtos.OpsUser user(
       HttpServletRequest request,

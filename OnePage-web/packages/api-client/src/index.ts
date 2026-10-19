@@ -424,6 +424,15 @@ export type OpsTopic = {
   official: boolean
   sortOrder: number
   enabled: boolean
+  postCount?: number
+}
+
+export type OpsNotice = {
+  noticeId: string
+  title: string
+  body: string
+  sortOrder: number
+  enabled: boolean
 }
 
 export type OpsImPeer = {
@@ -470,6 +479,7 @@ export type OpsCatalog = {
   categories: OpsCategory[]
   campaigns: OpsCampaign[]
   topics: OpsTopic[]
+  notices: OpsNotice[]
 }
 
 export type PublicCatalog = OpsCatalog
@@ -1155,6 +1165,17 @@ export const api = {
     }),
   opsTopicEnabled: (id: string, value: boolean) =>
     request<void>(`/api/v1/ops/topics/${encodeURIComponent(id)}/enabled?value=${value}`, {
+      method: 'POST',
+    }),
+  opsCreateNotice: (body: { title: string; body?: string; sortOrder?: number; enabled?: boolean }) =>
+    request<OpsNotice>('/api/v1/ops/notices', { method: 'POST', body: JSON.stringify(body) }),
+  opsPatchNotice: (id: string, body: { title?: string; body?: string; sortOrder?: number; enabled?: boolean }) =>
+    request<OpsNotice>(`/api/v1/ops/notices/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  opsNoticeEnabled: (id: string, value: boolean) =>
+    request<void>(`/api/v1/ops/notices/${encodeURIComponent(id)}/enabled?value=${value}`, {
       method: 'POST',
     }),
   opsUser: (userId: string) =>

@@ -11,3 +11,4 @@
 | local | 006_ops_media_block.sql | 已有库给 media_asset 加 blocked_at |
 | local | 007_post_review.sql | 已有库给 post 加 reject_reason，status 含 pending/rejected |
 | local | 008_creator_metrics.sql | share_log / post_cover_show / post_play_complete |
+| local | 009_platform_notice.sql | 创作者首页平台公告 |

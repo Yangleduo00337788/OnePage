@@ -49,7 +49,7 @@ order: 3
 | `/ai/**` | AI（`onepage-ai-service`，HTTP LLM） |
 | `/live/**` | 直播 |
 | `/reports/**` | 用户提交举报（P5，moderation） |
-| `/catalog/**` | 公开目录（分类/活动/话题） |
+| `/catalog/**` | 公开目录（分类/活动/话题/公告） |
 | `/ops/**` | 运营后台（P5；员工 Session；工单/用户/笔记审稿/评论/媒体库/分类活动话题 CRUD/私信巡查/关注粉丝/收件箱/AI 配置；Feign content+auth+message+user+notification+ai+live） |
 
 完整路径列表见 [API 明细](/engineering/process/api-endpoints)。

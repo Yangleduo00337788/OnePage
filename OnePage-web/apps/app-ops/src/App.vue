@@ -13,6 +13,7 @@ import OpsComments from './OpsComments.vue'
 import OpsCategories from './OpsCategories.vue'
 import OpsCampaigns from './OpsCampaigns.vue'
 import OpsTopics from './OpsTopics.vue'
+import OpsNotices from './OpsNotices.vue'
 import OpsMessages from './OpsMessages.vue'
 import OpsMedia from './OpsMedia.vue'
 import OpsAi from './OpsAi.vue'
@@ -28,6 +29,7 @@ export type PageId =
   | 'categories'
   | 'campaigns'
   | 'topics'
+  | 'notices'
   | 'ai-model'
   | 'ai-yeh'
   | 'ai-polish'
@@ -57,6 +59,7 @@ const groups: NavGroup[] = [
       { id: 'categories', label: '分类', icon: 'layout-grid' },
       { id: 'campaigns', label: '活动', icon: 'calendar' },
       { id: 'topics', label: '话题', icon: 'hash' },
+      { id: 'notices', label: '公告', icon: 'flag' },
     ],
   },
   {
@@ -232,6 +235,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsCategories v-else-if="page === 'categories'" />
       <OpsCampaigns v-else-if="page === 'campaigns'" />
       <OpsTopics v-else-if="page === 'topics'" />
+      <OpsNotices v-else-if="page === 'notices'" />
       <OpsAi v-else-if="page === 'ai-model'" kind="model" />
       <OpsAi v-else-if="page === 'ai-yeh'" kind="yeh" />
       <OpsAi v-else-if="page === 'ai-polish'" kind="polish" />

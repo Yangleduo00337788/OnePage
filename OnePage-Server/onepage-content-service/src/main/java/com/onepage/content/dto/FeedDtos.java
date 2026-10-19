@@ -148,15 +148,26 @@ public final class FeedDtos {
 
   public record OpsCategory(String categoryId, String name, int sortOrder, boolean enabled) {}
 
-  public record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled) {}
+  public record OpsTopic(
+      String topicId, String name, boolean official, int sortOrder, boolean enabled, long postCount) {}
+
+  public record OpsNotice(String noticeId, String title, String body, int sortOrder, boolean enabled) {}
 
   public record TopicIndexDoc(String topicId, String name, boolean official, int sortOrder) {}
 
   public record TopicIndexPage(List<TopicIndexDoc> items, String nextCursor, boolean hasMore) {}
 
-  public record OpsCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
+  public record OpsCatalog(
+      List<OpsCategory> categories,
+      List<OpsCampaign> campaigns,
+      List<OpsTopic> topics,
+      List<OpsNotice> notices) {}
 
-  public record PublicCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
+  public record PublicCatalog(
+      List<OpsCategory> categories,
+      List<OpsCampaign> campaigns,
+      List<OpsTopic> topics,
+      List<OpsNotice> notices) {}
 
   public record ContentStats(long postsLive, long postsDown, long comments) {}
 
@@ -166,6 +177,8 @@ public final class FeedDtos {
       String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
 
   public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
+
+  public record NoticeSpec(String title, String body, Integer sortOrder, Boolean enabled) {}
 
   public record OpsMediaRow(
       String mediaId,

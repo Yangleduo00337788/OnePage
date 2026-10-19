@@ -8,6 +8,9 @@ public record CreatorFanStats(
     long followerNew,
     long followerNewPrev,
     long reciprocalCount,
+    long unfollow,
+    long unfollowPrev,
+    Double retention7d,
     List<DayCount> trend) {
   public record DayCount(String date, long count) {}
 }

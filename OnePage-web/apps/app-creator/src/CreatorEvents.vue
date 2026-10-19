@@ -1,8 +1,7 @@
-<!-- 活动中心：状态 Tab + 活动卡。数据来自 GET /catalog。 -->
+<!-- 活动中心：状态 Tab + 活动卡。只读 GET /catalog，空则空态。 -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api } from '@onepage/api-client'
-import { EVENTS } from './events'
 
 type TabId = 'all' | '进行中' | '预告'
 
@@ -13,7 +12,7 @@ const tabs: { id: TabId; label: string }[] = [
   { id: '预告', label: '预告' },
 ]
 
-const items = ref(EVENTS)
+const items = ref<{ id: string; title: string; time: string; status: string; intro: string; cover: string }[]>([])
 
 const list = computed(() => {
   if (tab.value === 'all') return items.value.filter((item) => item.status !== '结束')
@@ -32,7 +31,6 @@ onMounted(() => {
     .catalog()
     .then((data) => {
       const rows = (data.campaigns || []).filter((row) => row.enabled)
-      if (!rows.length) return
       items.value = rows.map((row) => ({
         id: row.eventId,
         title: row.title,
@@ -43,7 +41,7 @@ onMounted(() => {
       }))
     })
     .catch(() => {
-      /* 目录失败时沿用占位 */
+      items.value = []
     })
 })
 </script>

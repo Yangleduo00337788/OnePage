@@ -105,6 +105,21 @@ public interface ContentClient {
       @PathVariable("id") long id,
       @RequestParam("value") boolean value);
 
+  @PostMapping("/internal/notices")
+  OpsNotice createNotice(@RequestHeader("X-Internal-Token") String token, @RequestBody NoticeSpec spec);
+
+  @PostMapping("/internal/notices/{id}")
+  OpsNotice patchNotice(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") String id,
+      @RequestBody NoticeSpec spec);
+
+  @PostMapping("/internal/notices/{id}/enabled")
+  void noticeEnabled(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value);
+
   @GetMapping("/internal/media/ops")
   OpsMediaPage opsMedia(
       @RequestHeader("X-Internal-Token") String token,
@@ -179,9 +194,15 @@ public interface ContentClient {
 
   record OpsCategory(String categoryId, String name, int sortOrder, boolean enabled) {}
 
-  record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled) {}
+  record OpsTopic(String topicId, String name, boolean official, int sortOrder, boolean enabled, long postCount) {}
 
-  record OpsCatalog(List<OpsCategory> categories, List<OpsCampaign> campaigns, List<OpsTopic> topics) {}
+  record OpsNotice(String noticeId, String title, String body, int sortOrder, boolean enabled) {}
+
+  record OpsCatalog(
+      List<OpsCategory> categories,
+      List<OpsCampaign> campaigns,
+      List<OpsTopic> topics,
+      List<OpsNotice> notices) {}
 
   record ContentStats(long postsLive, long postsDown, long comments) {}
 
@@ -191,6 +212,8 @@ public interface ContentClient {
       String eventId, String title, String intro, String coverUrl, String status, Integer sortOrder, Boolean enabled) {}
 
   record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
+
+  record NoticeSpec(String title, String body, Integer sortOrder, Boolean enabled) {}
 
   record OpsMediaRow(
       String mediaId,

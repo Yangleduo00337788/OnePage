@@ -87,16 +87,8 @@ const starters = [
   { id: 'article' as PublishKind, title: '写长文', hint: '以正文为主，可再配图', tone: 'mint', icon: 'pencil' },
 ]
 
-const topics = [
-  { tag: '美食', heat: '34.7 万人参与' },
-  { tag: '时尚', heat: '21.2 万人参与' },
-  { tag: '出行', heat: '16.3 万人参与' },
-  { tag: '知识', heat: '12.8 万人参与' },
-]
-
-const notices = [
-  { title: '一页公约', desc: '真诚分享，友好互动' },
-]
+const topics = ref<{ tag: string; heat: string }[]>([])
+const notices = ref<{ title: string; desc: string }[]>([])
 
 const recent = ref<Note[]>([])
 const campaigns = ref<{ id: string; title: string; time: string; cover: string }[]>([])
@@ -123,7 +115,7 @@ async function loadRecent() {
   }
 }
 
-async function loadCampaigns() {
+async function loadCatalog() {
   try {
     const data = await api.catalog()
     const rows = (data.campaigns || []).filter((row) => row.enabled && row.status !== 'ended')
@@ -137,8 +129,20 @@ async function loadCampaigns() {
       time: campaignStatus(row.status),
       cover: row.coverUrl || '',
     }))
+    const topicRows = [...(data.topics || [])]
+    topicRows.sort((a, b) => (b.postCount ?? 0) - (a.postCount ?? 0) || a.sortOrder - b.sortOrder)
+    topics.value = topicRows.slice(0, 6).map((row) => ({
+      tag: row.name,
+      heat: `${row.postCount ?? 0} 篇笔记`,
+    }))
+    notices.value = (data.notices || []).map((row) => ({
+      title: row.title,
+      desc: row.body,
+    }))
   } catch {
     campaigns.value = []
+    topics.value = []
+    notices.value = []
   }
 }
 
@@ -163,7 +167,7 @@ async function loadOverview() {
 onMounted(() => {
   void loadRecent()
   void loadOverview()
-  void loadCampaigns()
+  void loadCatalog()
 })
 
 watch(
@@ -243,12 +247,13 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
 
       <article class="card">
         <h3>创作话题</h3>
-        <ul class="topics">
+        <ul v-if="topics.length" class="topics">
           <li v-for="item in topics" :key="item.tag">
             <strong>#{{ item.tag }}</strong>
             <span>{{ item.heat }}</span>
           </li>
         </ul>
+        <p v-else class="empty-hint">还没有话题</p>
       </article>
     </div>
 
@@ -297,10 +302,13 @@ const period = computed(() => (range.value === '1' ? '昨日' : '近 30 日'))
       </article>
       <article class="card">
         <h3>平台公告</h3>
-        <div v-for="item in notices" :key="item.title" class="notice">
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.desc }}</p>
+        <div v-if="notices.length">
+          <div v-for="item in notices" :key="item.title" class="notice">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.desc }}</p>
+          </div>
         </div>
+        <p v-else class="empty-hint">暂无公告</p>
       </article>
       <article class="card">
         <div class="card-head">

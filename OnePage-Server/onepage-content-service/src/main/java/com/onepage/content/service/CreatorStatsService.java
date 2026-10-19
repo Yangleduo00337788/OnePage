@@ -69,6 +69,11 @@ public class CreatorStatsService {
     long followerNewPrev = fansRaw == null ? 0L : fansRaw.followerNewPrev();
     long followerTotal = fansRaw == null ? 0L : fansRaw.followerTotal();
     long reciprocal = fansRaw == null ? 0L : fansRaw.reciprocalCount();
+    long unfollow = fansRaw == null ? 0L : fansRaw.unfollow();
+    long unfollowPrev = fansRaw == null ? 0L : fansRaw.unfollowPrev();
+    long followerNet = followerNew - unfollow;
+    long followerNetPrev = followerNewPrev - unfollowPrev;
+    Double retention7d = fansRaw == null ? null : fansRaw.retention7d();
 
     List<Long> viewerIds = nvl(statsMapper.listViewerIds(authorId, win.fromAt, win.toAt));
     List<Long> engagedIds = nvl(statsMapper.listEngagedIds(authorId, win.fromAt, win.toAt));
@@ -110,7 +115,7 @@ public class CreatorStatsService {
         metric(comments, commentsPrev),
         metric(favorites, favoritesPrev),
         metric(shares, sharesPrev),
-        metric(followerNew, followerNewPrev),
+        metric(followerNet, followerNetPrev),
         metric(followerNew, followerNewPrev),
         metric(percent(views, shows), percent(viewsPrev, showsPrev)),
         metric(percent(completes, videoViews), percent(completesPrev, videoViewsPrev)),
@@ -122,15 +127,15 @@ public class CreatorStatsService {
 
     CreatorStatsDtos.Fans fans = new CreatorStatsDtos.Fans(
         new CreatorStatsDtos.Metric(followerTotal, null),
+        metric(followerNet, followerNetPrev),
         metric(followerNew, followerNewPrev),
-        metric(followerNew, followerNewPrev),
-        null,
+        unfollow,
         activeRate,
         reciprocalRate,
         viewerFans,
         engagedFans,
-        null,
-        new CreatorStatsDtos.MixChange(followerNew, null, followerNew),
+        retention7d,
+        new CreatorStatsDtos.MixChange(followerNew, unfollow, followerNet),
         fanTrend);
 
     return new CreatorStatsDtos.Stats(
