@@ -37,6 +37,8 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 | nickname | string | |
 | avatarUrl | string | 可空，CDN 或网关签名 URL |
 | followedByMe | boolean | 关注/粉丝列表有；资料接口也有。未登录为 false |
+| liveHost | boolean | 主播入驻通过 |
+| verified | boolean | 大 V 认证通过 |
 
 ### PostBrief
 
@@ -159,7 +161,7 @@ OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub �
 ### GET `/api/v1/users/me/suggest`
 
 评论 @ 联想，必须登录。Query：`q`（可空；不要 `%` `_` `\`）。空词返回已关注（最多 8）。有词：一页号前缀或昵称包含，精确优先，最多 8，不含自己。  
-**Response 200**：`UserSummary[]`（`userId`, `pageId`, `nickname`, `avatarUrl`）
+**Response 200**：`UserSummary[]`（`userId`, `pageId`, `nickname`, `avatarUrl`, `liveHost`, `verified`）
 
 ### GET `/api/v1/users/{pageId}`
 
@@ -204,8 +206,8 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 
 ### POST `/api/v1/uploads/presign`
 
-**Body**：`mimeType`, `sizeBytes`, `purpose`（`avatar` | `cover` | `post_image` | `post_video` | `im_image`）  
-`im_image`：仅 jpeg/png/webp/gif，最大 10MB。  
+**Body**：`mimeType`, `sizeBytes`, `purpose`（`avatar` | `cover` | `post_image` | `post_video` | `im_image` | `feedback`）  
+`im_image` / `feedback`：仅 jpeg/png/webp/gif，最大 10MB。  
 **Response 200**：`{ "mediaId", "uploadUrl", "objectKey", "expiresAt" }`
 
 ### POST `/api/v1/uploads/complete`
@@ -246,6 +248,10 @@ Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=p
 公开。社区首页 Tab、发帖分类/活动、创作者活动中心同源。
 
 **Response**：`{ categories: OpsCategory[], campaigns: OpsCampaign[], topics: OpsTopic[], notices: OpsNotice[] }`（仅 `enabled=true`）。活动 `status`：`live` / `upcoming` / `ended`。话题含 `postCount`（已发布笔记正文含 `#话题名` 的篇数）。公告 `{ noticeId, title, body, sortOrder, enabled }`。
+
+### GET `/api/v1/catalog/faq`
+
+公开。创作者「创作字典」。**Response**：`OpsFaq[]`（仅启用）：`faqId` `groupId`（`account` / `create` / `data` / `faq`）`groupTitle` `question` `answer` `sortOrder` `enabled`。接口失败时创作者中心回落内置文案。
 
 ### GET `/api/v1/catalog/topics`
 
@@ -415,7 +421,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注 / `review` 审核）。  
 **Response**：`CursorPage<NotificationItem>`
 
-**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要或审稿回复，最多 120 字）, `read`, `createdAt`。`mention` 归入 `group=comment`；`review_reject` 归入 `group=review`。社区通知页拉列表不自动已读，点开条目再 `POST /notifications/read`。
+**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`/`support_reply`/`apply_live`/`apply_verify`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要、审稿回复或工单回复，最多 120 字）, `read`, `createdAt`, `coverUrl?`（有 `postId` 时 Feign content briefs 的**图片**封面，可空；视频地址不回填）。`mention` 归入 `group=comment`；`review_reject` / `support_reply` / `apply_live` / `apply_verify` 归入 `group=review`。帮助类通知允许投给申请人本人。社区通知页拉列表不自动已读，点开条目再 `POST /notifications/read`。右侧出 44px 封面。
 
 ### POST `/api/v1/notifications/read`
 
@@ -482,7 +488,7 @@ Query：`beforeId?`, `limit`
 ### GET `/api/v1/search`
 
 公开。Query：`q`（空则空结果）、`type`（`post` | `user` | `all` | `topic` | `live`）、`cursor`、`limit`、`postType?`（逗号分隔 `image`/`video`）、`sort?`（`latest`/`hot`/`likes`/`comments`/`favorites`）、`time?`（`week`/`month`/`half`）、`scope?`（`following`/`seen`/`unseen`，须登录，靠 `X-User-Id`）  
-**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio" }], "topics": [{ "topicId", "name", "official", "sortOrder" }], "lives": LiveItem[], "nextCursor", "hasMore" }`  
+**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio", "liveHost", "verified" }], "topics": [{ "topicId", "name", "official", "sortOrder" }], "lives": LiveItem[], "nextCursor", "hasMore" }`  
 笔记/用户/话题/在播走 ES（话题 `onepage-topics` 只含启用；在播 `onepage-lives` 只含 `status=live`）。筛选只作用于 `type=post`。`scope=following` Feign 关注 id；`seen`/`unseen` Feign 浏览 id。发帖联想仍 `GET /catalog/topics`。顶栏空词直播仍 `GET /live/sessions`。MQ 未消费时由 content/user/live Feign 写入，search 启动回填（含话题与在播）。
 
 ---
@@ -575,6 +581,10 @@ Query：`beforeId?`, `limit`
 **Response 201**：`{ "reportId" }`
 
 社区用户提交。详情「更多 → 举报」、评论「举报」、他人主页「举报」、直播间资料卡三角「举报这场直播」（`live` + sessionId）已接。处理走下面 Ops。评论工单在治理台显示「删除评论 / 封禁用户」。直播工单显示「关播 / 封禁主播」，关播走内网 `POST /internal/live/sessions/{sessionId}/end`。
+
+### POST `/api/v1/support`
+
+须登录。**Body**：`kind`（`feedback` / `live` / `verify`）, `title?`（入驻/认证必填名称）, `contact?`（入驻/认证必填）, `body?`（反馈必填）, `mediaUrls?`（反馈附图，最多 6 个公开 `http(s)` URL，来自 `purpose=feedback` complete）。**Response 201**：`{ "ticketId" }`。写入 `support_ticket`。运营结案不自动开通直播或认证标识。
 
 ---
 
@@ -675,9 +685,17 @@ Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
 
 Body：`title` `body` `sortOrder`。写入 `platform_notice`。创作者首页只出 `enabled=true`。治理调 content 内网用 **POST** `/internal/notices`（Feign 不能 PATCH）。
 
+### GET `/api/v1/ops/support` · PATCH `/api/v1/ops/support/{ticketId}`
+
+**Query**：`kind` feedback/live/verify 可空, `status` pending/done, `cursor`, `limit`。**Response**：`CursorPage<OpsSupport>`：`ticketId` `kind` `title` `contact` `body` `mediaUrls` `status` `user` `handler` `handleNote` `createdAt` `handledAt`。PATCH Body：`action`（feedback=`reply`；live/verify=`approve`/`reject`）、`note` 必填。结案 `status=done`；通过主播/大 V 时内网 `POST /internal/users/{id}/badges`，再投通知 `support_reply` / `apply_live` / `apply_verify`。
+
+### GET `/api/v1/ops/faqs` · POST `/api/v1/ops/faqs` · PATCH `/api/v1/ops/faqs/{id}` · POST `.../enabled?value=`
+
+Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网 **POST** `/internal/faqs`（Feign 不能 PATCH）。
+
 ### GET `/api/v1/ops/users/{userId}`
 
-**Response**：`OpsUser`。
+**Response**：`OpsUser`（`userId` `pageId` `nickname` `avatarUrl` `liveHost` `verified` `frozen`）。
 
 ### GET `/api/v1/ops/users`
 
@@ -687,7 +705,11 @@ Body：`title` `body` `sortOrder`。写入 `platform_notice`。创作者首页�
 
 ### POST `/api/v1/ops/users/{userId}/unfreeze`
 
-**Response**：`OpsUser`。解冻把 auth `status` 改回 0。
+**Response**：`OpsUser`。解冻把 auth `status` 改回 0。`OpsUser` 含 `liveHost` `verified`。
+
+### POST `/api/v1/ops/users/{userId}/badges`
+
+**Body**：`{ liveHost?: boolean, verified?: boolean }`，至少一项。内网 `POST /internal/users/{userId}/badges`。`false` 取消主播或大 V。**Response**：`OpsUser`。
 
 ### GET `/api/v1/ops/users/{userId}/following`
 

@@ -70,6 +70,8 @@ order: 4
 | cover_object_key | VARCHAR(512) 可空 | |
 | bio | VARCHAR(500) 可空 | 签名 |
 | gender | TINYINT | 0 未知 1 男 2 女（可扩展） |
+| live_host | TINYINT | 1 主播入驻通过。脚本 [004_user_badges.sql](/engineering/tech/sql/onepage-user-service/004_user_badges) |
+| verified | TINYINT | 1 大 V 认证通过 |
 | created_at | DATETIME(3) | |
 | updated_at | DATETIME(3) | |
 
@@ -199,6 +201,20 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | id | BIGINT PK | |
 | title | VARCHAR(64) | |
 | body | VARCHAR(500) | |
+| sort_order | INT | |
+| enabled | TINYINT | 1 展示 |
+| created_at | DATETIME(3) | |
+
+### creator_faq
+
+脚本 [010_creator_faq.sql](/engineering/tech/sql/onepage-content-service/010_creator_faq)。创作者「创作字典」。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| group_id | VARCHAR(16) | `account` / `create` / `data` / `faq` |
+| question | VARCHAR(120) | |
+| answer | VARCHAR(1000) | |
 | sort_order | INT | |
 | enabled | TINYINT | 1 展示 |
 | created_at | DATETIME(3) | |
@@ -384,6 +400,25 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | handled_at | DATETIME(3) 可空 | |
 | created_at | DATETIME(3) | |
 
+### support_ticket
+
+脚本 [002_support.sql](/engineering/tech/sql/onepage-moderation-service/002_support)。帮助反馈与入驻/认证申请。运营结案不自动改账号权限。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT PK | |
+| user_id | BIGINT | 提交人 |
+| kind | VARCHAR(16) | `feedback` / `live` / `verify` |
+| title | VARCHAR(64) | 申请名称；反馈可空 |
+| contact | VARCHAR(64) | |
+| body | VARCHAR(2000) | |
+| media_urls | VARCHAR(4000) | 附图公开 URL JSON 数组 |
+| status | TINYINT | 0 待处理 1 已处理 |
+| handler_id | BIGINT 可空 | |
+| handle_note | VARCHAR(500) 可空 | |
+| handled_at | DATETIME(3) 可空 | |
+| created_at | DATETIME(3) | |
+
 ## onepage_live
 
 ### live_room
@@ -456,6 +491,9 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-19 | 修正 `platform_notice`、`user_unfollow_log` 中文 COMMENT |
+| 2026-10-19 | `user_profile.live_host` / `verified` |
+| 2026-10-19 | `support_ticket`；`creator_faq` |
 | 2026-10-19 | `platform_notice`；`user_unfollow_log` |
 | 2026-10-18 | ES `onepage-lives`；索引名与代码对齐（连字符） |
 | 2026-10-18 | `live_room.notice` 本场公告 |

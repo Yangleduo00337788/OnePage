@@ -13,6 +13,8 @@ order: 5
 | [onepage-auth-service / 001_init](/engineering/tech/sql/onepage-auth-service/001_init) | `onepage-auth-service/db/sql/001_init.sql` |
 | [onepage-user-service / 001_init](/engineering/tech/sql/onepage-user-service/001_init) | `onepage-user-service/db/sql/001_init.sql` |
 | [002_follow](/engineering/tech/sql/onepage-user-service/002_follow) | `onepage-user-service/db/sql/002_follow.sql` |
+| [004_user_badges](/engineering/tech/sql/onepage-user-service/004_user_badges) | `onepage-user-service/db/sql/004_user_badges.sql` |
+| [005_unfollow_log_comments](/engineering/tech/sql/onepage-user-service/005_unfollow_log_comments) | `onepage-user-service/db/sql/005_unfollow_log_comments.sql` |
 | [onepage-content-service / 001_init](/engineering/tech/sql/onepage-content-service/001_init) | `onepage-content-service/db/sql/001_init.sql` |
 | [002_p1](/engineering/tech/sql/onepage-content-service/002_p1) | `onepage-content-service/db/sql/002_p1.sql` |
 | [002_p1_fix_comments](/engineering/tech/sql/onepage-content-service/002_p1_fix_comments) | `onepage-content-service/db/sql/002_p1_fix_comments.sql` |
@@ -25,6 +27,9 @@ order: 5
 | [onepage-message-service / 001_init](/engineering/tech/sql/onepage-message-service/001_init) | `onepage-message-service/db/sql/001_init.sql` |
 | [002_ops_hide](/engineering/tech/sql/onepage-message-service/002_ops_hide) | `onepage-message-service/db/sql/002_ops_hide.sql` |
 | [onepage-moderation-service / 001_init](/engineering/tech/sql/onepage-moderation-service/001_init) | `onepage-moderation-service/db/sql/001_init.sql` |
+| [002_support](/engineering/tech/sql/onepage-moderation-service/002_support) | `onepage-moderation-service/db/sql/002_support.sql` |
+| [onepage-content-service / 010_creator_faq](/engineering/tech/sql/onepage-content-service/010_creator_faq) | `onepage-content-service/db/sql/010_creator_faq.sql` |
+| [011_platform_notice_comments](/engineering/tech/sql/onepage-content-service/011_platform_notice_comments) | `onepage-content-service/db/sql/011_platform_notice_comments.sql` |
 | [onepage-live-service / 001_init](/engineering/tech/sql/onepage-live-service/001_init) | `onepage-live-service/db/sql/001_init.sql` |
 | [002_chat](/engineering/tech/sql/onepage-live-service/002_chat) | `onepage-live-service/db/sql/002_chat.sql` |
 | [003_presence](/engineering/tech/sql/onepage-live-service/003_presence) | `onepage-live-service/db/sql/003_presence.sql` |

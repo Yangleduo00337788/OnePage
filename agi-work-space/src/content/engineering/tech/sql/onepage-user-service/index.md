@@ -9,3 +9,5 @@ order: 2
 - [001_init.sql](/engineering/tech/sql/onepage-user-service/001_init) — 资料与计数
 - [002_follow.sql](/engineering/tech/sql/onepage-user-service/002_follow) — 关注边（已有库必须执行）
 - [003_unfollow_log.sql](/engineering/tech/sql/onepage-user-service/003_unfollow_log) — 取关日志（已有库必须执行）
+- [004_user_badges.sql](/engineering/tech/sql/onepage-user-service/004_user_badges) — 主播/大 V 标识列（已有库必须执行）
+- [005_unfollow_log_comments.sql](/engineering/tech/sql/onepage-user-service/005_unfollow_log_comments) — 修正取关日志中文 COMMENT
