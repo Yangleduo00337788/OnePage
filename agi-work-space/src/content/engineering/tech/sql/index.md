@@ -15,6 +15,7 @@ order: 5
 | [002_follow](/engineering/tech/sql/onepage-user-service/002_follow) | `onepage-user-service/db/sql/002_follow.sql` |
 | [004_user_badges](/engineering/tech/sql/onepage-user-service/004_user_badges) | `onepage-user-service/db/sql/004_user_badges.sql` |
 | [005_unfollow_log_comments](/engineering/tech/sql/onepage-user-service/005_unfollow_log_comments) | `onepage-user-service/db/sql/005_unfollow_log_comments.sql` |
+| [006_official_badge](/engineering/tech/sql/onepage-user-service/006_official_badge) | `onepage-user-service/db/sql/006_official_badge.sql` |
 | [onepage-content-service / 001_init](/engineering/tech/sql/onepage-content-service/001_init) | `onepage-content-service/db/sql/001_init.sql` |
 | [002_p1](/engineering/tech/sql/onepage-content-service/002_p1) | `onepage-content-service/db/sql/002_p1.sql` |
 | [002_p1_fix_comments](/engineering/tech/sql/onepage-content-service/002_p1_fix_comments) | `onepage-content-service/db/sql/002_p1_fix_comments.sql` |

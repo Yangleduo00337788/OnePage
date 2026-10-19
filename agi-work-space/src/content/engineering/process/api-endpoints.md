@@ -39,6 +39,7 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 | followedByMe | boolean | 关注/粉丝列表有；资料接口也有。未登录为 false |
 | liveHost | boolean | 主播入驻通过 |
 | verified | boolean | 大 V 认证通过 |
+| official | boolean | 一页官方认证号 |
 
 ### PostBrief
 
@@ -161,7 +162,7 @@ OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub �
 ### GET `/api/v1/users/me/suggest`
 
 评论 @ 联想，必须登录。Query：`q`（可空；不要 `%` `_` `\`）。空词返回已关注（最多 8）。有词：一页号前缀或昵称包含，精确优先，最多 8，不含自己。  
-**Response 200**：`UserSummary[]`（`userId`, `pageId`, `nickname`, `avatarUrl`, `liveHost`, `verified`）
+**Response 200**：`UserSummary[]`（`userId`, `pageId`, `nickname`, `avatarUrl`, `liveHost`, `verified`, `official`）
 
 ### GET `/api/v1/users/{pageId}`
 
@@ -488,7 +489,7 @@ Query：`beforeId?`, `limit`
 ### GET `/api/v1/search`
 
 公开。Query：`q`（空则空结果）、`type`（`post` | `user` | `all` | `topic` | `live`）、`cursor`、`limit`、`postType?`（逗号分隔 `image`/`video`）、`sort?`（`latest`/`hot`/`likes`/`comments`/`favorites`）、`time?`（`week`/`month`/`half`）、`scope?`（`following`/`seen`/`unseen`，须登录，靠 `X-User-Id`）  
-**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio", "liveHost", "verified" }], "topics": [{ "topicId", "name", "official", "sortOrder" }], "lives": LiveItem[], "nextCursor", "hasMore" }`  
+**Response**：`{ "posts": PostBrief[], "users": [{ "userId", "pageId", "nickname", "avatarUrl", "bio", "liveHost", "verified", "official" }], "topics": [{ "topicId", "name", "official", "sortOrder" }], "lives": LiveItem[], "nextCursor", "hasMore" }`  
 笔记/用户/话题/在播走 ES（话题 `onepage-topics` 只含启用；在播 `onepage-lives` 只含 `status=live`）。筛选只作用于 `type=post`。`scope=following` Feign 关注 id；`seen`/`unseen` Feign 浏览 id。发帖联想仍 `GET /catalog/topics`。顶栏空词直播仍 `GET /live/sessions`。MQ 未消费时由 content/user/live Feign 写入，search 启动回填（含话题与在播）。
 
 ---
@@ -695,7 +696,7 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### GET `/api/v1/ops/users/{userId}`
 
-**Response**：`OpsUser`（`userId` `pageId` `nickname` `avatarUrl` `liveHost` `verified` `frozen`）。
+**Response**：`OpsUser`（`userId` `pageId` `nickname` `avatarUrl` `liveHost` `verified` `official` `frozen`）。
 
 ### GET `/api/v1/ops/users`
 
@@ -705,11 +706,11 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### POST `/api/v1/ops/users/{userId}/unfreeze`
 
-**Response**：`OpsUser`。解冻把 auth `status` 改回 0。`OpsUser` 含 `liveHost` `verified`。
+**Response**：`OpsUser`。解冻把 auth `status` 改回 0。`OpsUser` 含 `liveHost` `verified` `official`。
 
 ### POST `/api/v1/ops/users/{userId}/badges`
 
-**Body**：`{ liveHost?: boolean, verified?: boolean }`，至少一项。内网 `POST /internal/users/{userId}/badges`。`false` 取消主播或大 V。**Response**：`OpsUser`。
+**Body**：`{ liveHost?: boolean, verified?: boolean, official?: boolean }`，至少一项。内网 `POST /internal/users/{userId}/badges`。`false` 取消主播、大 V 或官方号。**Response**：`OpsUser`。
 
 ### GET `/api/v1/ops/users/{userId}/following`
 

@@ -72,6 +72,7 @@ order: 4
 | gender | TINYINT | 0 未知 1 男 2 女（可扩展） |
 | live_host | TINYINT | 1 主播入驻通过。脚本 [004_user_badges.sql](/engineering/tech/sql/onepage-user-service/004_user_badges) |
 | verified | TINYINT | 1 大 V 认证通过 |
+| official | TINYINT | 1 一页官方认证号。脚本 [006_official_badge.sql](/engineering/tech/sql/onepage-user-service/006_official_badge) |
 | created_at | DATETIME(3) | |
 | updated_at | DATETIME(3) | |
 
@@ -491,6 +492,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-19 | `user_profile.official` 一页官方认证号 |
 | 2026-10-19 | 修正 `platform_notice`、`user_unfollow_log` 中文 COMMENT |
 | 2026-10-19 | `user_profile.live_host` / `verified` |
 | 2026-10-19 | `support_ticket`；`creator_faq` |
