@@ -61,6 +61,16 @@ public final class ModerationDtos {
       String avatarUrl,
       boolean frozen) {}
 
+  public record OpsLiveView(
+      String sessionId,
+      String roomId,
+      String title,
+      String status,
+      String coverUrl,
+      String notice,
+      UserSummary owner,
+      boolean ended) {}
+
   public record CursorPage(List<OpsReport> items, String nextCursor, boolean hasMore) {}
 
   public record OpsPostRow(

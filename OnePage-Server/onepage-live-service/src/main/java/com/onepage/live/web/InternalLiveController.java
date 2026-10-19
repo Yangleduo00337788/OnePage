@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 内网：是否正在直播、MediaMTX 推流钩子。浏览器不能调。 */
+import java.util.List;
+
+/** 内网：是否正在直播、场次摘要/关播、MediaMTX 推流钩子。浏览器不能调。 */
 @RestController
 @RequestMapping("/internal/live")
 public class InternalLiveController {
@@ -35,6 +37,26 @@ public class InternalLiveController {
   public LiveDtos.LivePage searchable(HttpServletRequest request) {
     tokenFilter.assertInternal(request);
     return liveService.list("", "");
+  }
+
+  @GetMapping("/sessions/briefs")
+  public List<LiveDtos.LiveItem> briefs(
+      HttpServletRequest request, @RequestParam("ids") List<Long> ids) {
+    tokenFilter.assertInternal(request);
+    return liveService.briefs(ids);
+  }
+
+  @GetMapping("/sessions/{sessionId}")
+  public LiveDtos.LiveItem session(HttpServletRequest request, @PathVariable("sessionId") long sessionId) {
+    tokenFilter.assertInternal(request);
+    return liveService.get(sessionId, true);
+  }
+
+  @PostMapping("/sessions/{sessionId}/end")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void forceEnd(HttpServletRequest request, @PathVariable("sessionId") long sessionId) {
+    tokenFilter.assertInternal(request);
+    liveService.forceEnd(sessionId);
   }
 
   @PostMapping("/hooks/publish")

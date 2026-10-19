@@ -520,6 +520,14 @@ Query：`beforeId?`, `limit`
 
 内网。Header `X-Internal-Token`。**Response**：`{ "items": LiveItem[] }`（当前 `status=live`，无关键词过滤）。search 回填 `onepage-lives` 用。
 
+### GET `/internal/live/sessions/briefs` · `/sessions/{sessionId}`
+
+内网。Header `X-Internal-Token`。briefs Query `ids`。**Response**：`LiveItem[]` / 单条 `LiveItem`（含已结束）。治理工单标题与预览用。
+
+### POST `/internal/live/sessions/{sessionId}/end`
+
+内网。Header `X-Internal-Token`。运营关播，不校验房主。已结束则空操作。**Response 204**。
+
 ### POST `/internal/live/hooks/publish` · `/unpublish`
 
 内网、**可选**。Header `X-Internal-Token`。主路径是 live 每 2s 轮询推流；钩子只是更快。MediaMTX 可直连 `:8089`。Query 或 JSON：`path`（取最后一段当 `stream_key`）或 `streamKey`。**Response 204**。
@@ -533,7 +541,7 @@ Query：`beforeId?`, `limit`
 **Body**：`targetType`（`post` / `user` / `comment` / `live`）, `targetId`, `reasonCode`（`spam` / `porn` / `abuse` / `illegal` / `other`）, `detail?`
 **Response 201**：`{ "reportId" }`
 
-社区用户提交。详情「更多 → 举报」、评论「举报」、他人主页「举报」、直播间资料卡三角「举报这场直播」（`live` + sessionId）已接。处理走下面 Ops。评论工单在治理台显示「删除评论 / 封禁用户」。
+社区用户提交。详情「更多 → 举报」、评论「举报」、他人主页「举报」、直播间资料卡三角「举报这场直播」（`live` + sessionId）已接。处理走下面 Ops。评论工单在治理台显示「删除评论 / 封禁用户」。直播工单显示「关播 / 封禁主播」，关播走内网 `POST /internal/live/sessions/{sessionId}/end`。
 
 ---
 
@@ -554,12 +562,12 @@ Query：`beforeId?`, `limit`
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | reportId | string | |
-| targetType | string | post / user |
+| targetType | string | post / user / comment / live |
 | targetId | string | |
 | targetTitle | string | 笔记标题或用户昵称，可空 |
 | targetPageId | string | 作者或被举报用户的一页号，可空 |
 | authorId | string | 笔记作者，用户工单为空 |
-| takenDown | boolean | 笔记是否已下架 |
+| takenDown | boolean | 笔记已下架 / 评论已隐藏 / 直播已结束 |
 | reasonCode | string | |
 | detail | string | 可空 |
 | status | string | pending / done |
@@ -574,7 +582,11 @@ Query：`beforeId?`, `limit`
 
 **Body**：`action` dismiss / takedown / restore / ban / unban，`note?`
 
-**Response**：`{ reportId, status }`。笔记工单：takedown 下架、restore 恢复、ban 封禁作者（同时下架）。评论工单：takedown 隐藏评论、restore 恢复评论、ban 封禁评论作者（同时隐藏该评）。用户工单：ban / unban 冻结/解冻该用户。dismiss 忽略。不能冻结员工或自己。已处理工单仍可 restore / ban / unban / takedown，dismiss 不行。
+**Response**：`{ reportId, status }`。笔记工单：takedown 下架、restore 恢复、ban 封禁作者（同时下架）。评论工单：takedown 隐藏评论、restore 恢复评论、ban 封禁评论作者（同时隐藏该评）。直播工单：takedown 关播、ban 关播并封禁主播、unban 解冻主播；**不能 restore**。用户工单：ban / unban 冻结/解冻该用户。dismiss 忽略。不能冻结员工或自己。已处理工单仍可 restore / ban / unban / takedown（直播 restore 除外），dismiss 不行。
+
+### GET `/api/v1/ops/lives/{sessionId}`
+
+员工预览直播工单对象。已结束也返回标题、封面、主播、公告。**Response**：`OpsLiveView`（`ended` 为 true 表示已关播）。
 
 ### GET `/api/v1/ops/posts`
 

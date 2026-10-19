@@ -96,6 +96,15 @@ public class OpsController {
     return moderationService.opsPost(postId);
   }
 
+  @GetMapping("/lives/{sessionId}")
+  public ModerationDtos.OpsLiveView live(
+      HttpServletRequest request,
+      @PathVariable("sessionId") long sessionId) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.opsLive(sessionId);
+  }
+
   @PostMapping("/posts/{postId}/takedown")
   public ModerationDtos.OpsPostView takedownPost(
       HttpServletRequest request,

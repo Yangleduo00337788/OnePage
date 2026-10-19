@@ -276,6 +276,31 @@ public class LiveService {
     return items.getFirst();
   }
 
+  public List<LiveDtos.LiveItem> briefs(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    List<LiveHit> hits = new ArrayList<>();
+    for (Long id : ids) {
+      if (id == null) {
+        continue;
+      }
+      LiveHit hit = sessionMapper.findHit(id);
+      if (hit != null) {
+        hits.add(hit);
+      }
+    }
+    return toItems(hits);
+  }
+
+  public void forceEnd(long sessionId) {
+    LiveHit hit = sessionMapper.findHit(sessionId);
+    if (hit == null) {
+      throw BusinessException.notFound("场次不存在");
+    }
+    closeLive(hit);
+  }
+
   public LiveDtos.PresenceTick heartbeat(Long userId, long sessionId, LiveDtos.HeartbeatSpec spec) {
     LiveHit hit = sessionMapper.findHit(sessionId);
     if (hit == null) {

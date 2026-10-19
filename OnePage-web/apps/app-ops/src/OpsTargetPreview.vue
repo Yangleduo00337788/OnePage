@@ -1,13 +1,14 @@
-<!-- 运营站内预览笔记或用户，不跳社区。 -->
+<!-- 运营站内预览笔记/用户/评论/直播，不跳社区。 -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { OpsCommentRow, OpsPostView, OpsUser } from '@onepage/api-client'
+import type { OpsCommentRow, OpsLiveView, OpsPostView, OpsUser } from '@onepage/api-client'
 
 const props = defineProps<{
-  kind: 'post' | 'user' | 'comment'
+  kind: 'post' | 'user' | 'comment' | 'live'
   post: OpsPostView | null
   user: OpsUser | null
   comment?: OpsCommentRow | null
+  live?: OpsLiveView | null
   loading: boolean
   error: string
 }>()
@@ -88,6 +89,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           <p class="author">{{ user.nickname || '未命名' }}</p>
           <p class="sub">{{ user.pageId || user.userId }}</p>
           <p v-if="user.frozen" class="badge">已冻结</p>
+        </div>
+      </div>
+      <div v-else-if="kind === 'live' && live" class="person">
+        <img v-if="live.coverUrl" class="cover" :src="live.coverUrl" alt="" />
+        <div v-else class="cover is-empty">直播</div>
+        <div>
+          <p v-if="live.ended" class="badge">已关播</p>
+          <p v-else class="badge is-live">直播中</p>
+          <p class="author">{{ live.title || '无标题' }}</p>
+          <p class="sub">{{ live.owner?.nickname || live.owner?.pageId || '主播' }}</p>
+          <p v-if="live.notice" class="body">{{ live.notice }}</p>
         </div>
       </div>
     </section>
@@ -225,6 +237,27 @@ h2 {
   background: rgb(255 36 66 / 10%);
   color: #ff2442;
   font-size: 12px;
+}
+
+.badge.is-live {
+  background: rgb(0 0 0 / 8%);
+  color: #555;
+}
+
+.cover {
+  width: 90px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #111;
+}
+
+.cover.is-empty {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 13px;
 }
 
 .person {

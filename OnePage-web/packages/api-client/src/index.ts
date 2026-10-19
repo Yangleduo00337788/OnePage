@@ -278,6 +278,17 @@ export type OpsReport = {
 
 export type OpsResolveAction = 'dismiss' | 'takedown' | 'restore' | 'ban' | 'unban'
 
+export type OpsLiveView = {
+  sessionId: string
+  roomId: string
+  title: string
+  status: string
+  coverUrl: string
+  notice: string
+  owner?: UserBrief
+  ended: boolean
+}
+
 export type OpsPostView = {
   postId: string
   author?: UserBrief
@@ -972,6 +983,8 @@ export const api = {
     ),
   opsPost: (postId: string) =>
     request<OpsPostView>(`/api/v1/ops/posts/${encodeURIComponent(postId)}`),
+  opsLive: (sessionId: string) =>
+    request<OpsLiveView>(`/api/v1/ops/lives/${encodeURIComponent(sessionId)}`),
   opsPosts: (opts?: {
     q?: string
     taken?: 'live' | 'down' | 'pending' | 'rejected'

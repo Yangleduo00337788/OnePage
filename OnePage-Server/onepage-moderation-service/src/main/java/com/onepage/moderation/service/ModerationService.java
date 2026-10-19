@@ -6,6 +6,7 @@ import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.moderation.client.AuthClient;
 import com.onepage.moderation.client.ContentClient;
+import com.onepage.moderation.client.LiveClient;
 import com.onepage.moderation.client.MessageClient;
 import com.onepage.moderation.client.NotifyClient;
 import com.onepage.moderation.client.UserClient;
@@ -49,6 +50,7 @@ public class ModerationService {
   private final AuthClient authClient;
   private final MessageClient messageClient;
   private final NotifyClient notifyClient;
+  private final LiveClient liveClient;
   private final StaffGuard staffGuard;
   private final String internalToken;
 
@@ -59,6 +61,7 @@ public class ModerationService {
       AuthClient authClient,
       MessageClient messageClient,
       NotifyClient notifyClient,
+      LiveClient liveClient,
       StaffGuard staffGuard,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
@@ -67,6 +70,7 @@ public class ModerationService {
     this.authClient = authClient;
     this.messageClient = messageClient;
     this.notifyClient = notifyClient;
+    this.liveClient = liveClient;
     this.staffGuard = staffGuard;
     this.internalToken = internalToken;
   }
@@ -130,10 +134,11 @@ public class ModerationService {
     }
     Map<Long, ContentClient.PostBrief> posts = loadPosts(rows);
     Map<Long, ContentClient.OpsCommentRow> comments = loadComments(rows);
-    Map<Long, UserSummary> people = loadPeople(rows, posts, comments);
+    Map<Long, LiveClient.LiveItem> lives = loadLives(rows);
+    Map<Long, UserSummary> people = loadPeople(rows, posts, comments, lives);
     List<ModerationDtos.OpsReport> items = new ArrayList<>();
     for (Report row : rows) {
-      items.add(toView(row, people, posts, comments));
+      items.add(toView(row, people, posts, comments, lives));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -541,11 +546,18 @@ public class ModerationService {
         contentClient.hideComment(internalToken, row.getTargetId());
         return;
       }
+      if ("live".equals(row.getTargetType())) {
+        liveClient.end(internalToken, row.getTargetId());
+        return;
+      }
       requirePost(row);
       contentClient.takedown(internalToken, row.getTargetId());
       return;
     }
     if ("restore".equals(action)) {
+      if ("live".equals(row.getTargetType())) {
+        throw BusinessException.validation("直播关播后不能恢复");
+      }
       if ("comment".equals(row.getTargetType())) {
         contentClient.restoreComment(internalToken, row.getTargetId());
         return;
@@ -561,6 +573,8 @@ public class ModerationService {
         contentClient.takedown(internalToken, row.getTargetId());
       } else if ("comment".equals(row.getTargetType())) {
         contentClient.hideComment(internalToken, row.getTargetId());
+      } else if ("live".equals(row.getTargetType())) {
+        liveClient.end(internalToken, row.getTargetId());
       }
       authClient.freeze(internalToken, punishId);
       return;
@@ -590,6 +604,17 @@ public class ModerationService {
         throw BusinessException.notFound("找不到评论作者");
       }
     }
+    if ("live".equals(row.getTargetType())) {
+      LiveClient.LiveItem live = liveClient.session(internalToken, row.getTargetId());
+      if (live == null || live.owner() == null || !StringUtils.hasText(live.owner().userId())) {
+        throw BusinessException.notFound("找不到主播");
+      }
+      try {
+        return Long.parseLong(live.owner().userId());
+      } catch (NumberFormatException ex) {
+        throw BusinessException.notFound("找不到主播");
+      }
+    }
     requirePost(row);
     List<ContentClient.PostBrief> list = contentClient.postBriefs(internalToken, List.of(row.getTargetId()));
     if (list == null || list.isEmpty() || !StringUtils.hasText(list.get(0).authorId())) {
@@ -605,7 +630,8 @@ public class ModerationService {
   private Map<Long, UserSummary> loadPeople(
       List<Report> rows,
       Map<Long, ContentClient.PostBrief> posts,
-      Map<Long, ContentClient.OpsCommentRow> comments) {
+      Map<Long, ContentClient.OpsCommentRow> comments,
+      Map<Long, LiveClient.LiveItem> lives) {
     Set<Long> ids = new LinkedHashSet<>();
     for (Report row : rows) {
       if (row.getReporterId() != null) {
@@ -631,6 +657,15 @@ public class ModerationService {
       if (comment != null && comment.author() != null && StringUtils.hasText(comment.author().userId())) {
         try {
           ids.add(Long.parseLong(comment.author().userId()));
+        } catch (NumberFormatException ignored) {
+          // skip
+        }
+      }
+    }
+    for (LiveClient.LiveItem live : lives.values()) {
+      if (live != null && live.owner() != null && StringUtils.hasText(live.owner().userId())) {
+        try {
+          ids.add(Long.parseLong(live.owner().userId()));
         } catch (NumberFormatException ignored) {
           // skip
         }
@@ -692,11 +727,61 @@ public class ModerationService {
     return map;
   }
 
+  private Map<Long, LiveClient.LiveItem> loadLives(List<Report> rows) {
+    List<Long> ids = new ArrayList<>();
+    for (Report row : rows) {
+      if ("live".equals(row.getTargetType()) && row.getTargetId() != null) {
+        ids.add(row.getTargetId());
+      }
+    }
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    try {
+      List<LiveClient.LiveItem> list = liveClient.briefs(internalToken, ids);
+      if (list == null) {
+        return Map.of();
+      }
+      Map<Long, LiveClient.LiveItem> map = new java.util.HashMap<>();
+      for (LiveClient.LiveItem brief : list) {
+        if (brief != null && StringUtils.hasText(brief.sessionId())) {
+          map.put(Long.parseLong(brief.sessionId()), brief);
+        }
+      }
+      return map;
+    } catch (RuntimeException ex) {
+      log.warn("ops live-briefs failed");
+      return Map.of();
+    }
+  }
+
+  public ModerationDtos.OpsLiveView opsLive(long sessionId) {
+    LiveClient.LiveItem raw = liveClient.session(internalToken, sessionId);
+    if (raw == null) {
+      throw BusinessException.notFound("场次不存在");
+    }
+    return toLiveView(raw);
+  }
+
+  private static ModerationDtos.OpsLiveView toLiveView(LiveClient.LiveItem raw) {
+    boolean ended = raw.status() == null || !"live".equals(raw.status());
+    return new ModerationDtos.OpsLiveView(
+        raw.sessionId() == null ? "" : raw.sessionId(),
+        raw.roomId() == null ? "" : raw.roomId(),
+        raw.title() == null ? "" : raw.title(),
+        raw.status() == null ? "" : raw.status(),
+        raw.coverUrl() == null ? "" : raw.coverUrl(),
+        raw.notice() == null ? "" : raw.notice(),
+        raw.owner(),
+        ended);
+  }
+
   private static ModerationDtos.OpsReport toView(
       Report row,
       Map<Long, UserSummary> people,
       Map<Long, ContentClient.PostBrief> posts,
-      Map<Long, ContentClient.OpsCommentRow> comments) {
+      Map<Long, ContentClient.OpsCommentRow> comments,
+      Map<Long, LiveClient.LiveItem> lives) {
     String title = "";
     String pageId = "";
     String authorId = "";
@@ -725,7 +810,16 @@ public class ModerationService {
         pageId = target.pageId() == null ? "" : target.pageId();
       }
     } else if ("live".equals(row.getTargetType())) {
+      LiveClient.LiveItem brief = lives.get(row.getTargetId());
       title = "直播场次";
+      if (brief != null) {
+        title = StringUtils.hasText(brief.title()) ? brief.title() : title;
+        takenDown = brief.status() == null || !"live".equals(brief.status());
+        if (brief.owner() != null) {
+          authorId = brief.owner().userId() == null ? "" : brief.owner().userId();
+          pageId = brief.owner().pageId() == null ? "" : brief.owner().pageId();
+        }
+      }
     } else if ("comment".equals(row.getTargetType())) {
       ContentClient.OpsCommentRow brief = comments.get(row.getTargetId());
       if (brief != null) {

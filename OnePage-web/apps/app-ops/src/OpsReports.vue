@@ -1,7 +1,7 @@
 <!-- 举报工单：待处理 / 已处理。翻页、备注、对象标题。 -->
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { api, ApiError, REPORT_REASONS, type OpsCommentRow, type OpsPostView, type OpsReport, type OpsResolveAction, type OpsUser } from '@onepage/api-client'
+import { api, ApiError, REPORT_REASONS, type OpsCommentRow, type OpsLiveView, type OpsPostView, type OpsReport, type OpsResolveAction, type OpsUser } from '@onepage/api-client'
 import EmptyState from './EmptyState.vue'
 import Icon from './Icon.vue'
 import OpsPager from './OpsPager.vue'
@@ -20,10 +20,11 @@ const failed = ref('')
 const toast = ref('')
 const busyId = ref('')
 const previewOpen = ref(false)
-const previewKind = ref<'post' | 'user' | 'comment'>('post')
+const previewKind = ref<'post' | 'user' | 'comment' | 'live'>('post')
 const previewPost = ref<OpsPostView | null>(null)
 const previewUser = ref<OpsUser | null>(null)
 const previewComment = ref<OpsCommentRow | null>(null)
+const previewLive = ref<OpsLiveView | null>(null)
 const previewLoading = ref(false)
 const previewError = ref('')
 
@@ -48,6 +49,9 @@ function actionName(item: OpsReport, action: string) {
   if (item.targetType === 'comment' && action === 'takedown') return '删除评论'
   if (item.targetType === 'comment' && action === 'ban') return '封禁用户'
   if (item.targetType === 'comment' && action === 'unban') return '解冻用户'
+  if (item.targetType === 'live' && action === 'takedown') return '关播'
+  if (item.targetType === 'live' && action === 'ban') return '封禁主播'
+  if (item.targetType === 'live' && action === 'unban') return '解冻主播'
   if (item.targetType === 'post' && action === 'ban') return '封禁作者'
   if (item.targetType === 'post' && action === 'unban') return '解冻作者'
   return actionLabel[action] || action
@@ -61,7 +65,11 @@ function flash(text: string) {
 }
 
 function targetLabel(item: OpsReport) {
-  if (item.targetTitle) return item.targetType === 'comment' ? `评论：${item.targetTitle}` : item.targetTitle
+  if (item.targetTitle) {
+    if (item.targetType === 'comment') return `评论：${item.targetTitle}`
+    if (item.targetType === 'live') return `直播：${item.targetTitle}`
+    return item.targetTitle
+  }
   if (item.targetType === 'post') return `笔记 ${item.targetId}`
   if (item.targetType === 'comment') return `评论 ${item.targetId}`
   if (item.targetType === 'live') return `直播 ${item.targetId}`
@@ -74,6 +82,7 @@ async function openTarget(item: OpsReport) {
   previewPost.value = null
   previewUser.value = null
   previewComment.value = null
+  previewLive.value = null
   previewError.value = ''
   previewLoading.value = true
   try {
@@ -84,7 +93,7 @@ async function openTarget(item: OpsReport) {
       previewComment.value = page.items.find((row) => row.commentId === item.targetId) || page.items[0] || null
       if (!previewComment.value) previewError.value = '评论不存在或已删除'
     } else if (item.targetType === 'live') {
-      previewError.value = '直播工单暂不预览'
+      previewLive.value = await api.opsLive(item.targetId)
     } else {
       previewUser.value = await api.opsUser(item.targetId)
     }
@@ -217,6 +226,7 @@ watch(tab, () => load(1, true))
               <button type="button" class="link" @click="openTarget(item)">{{ targetLabel(item) }}</button>
               <span v-if="item.targetType === 'post' && item.takenDown" class="tag">已下架</span>
               <span v-else-if="item.targetType === 'comment' && item.takenDown" class="tag">已删除</span>
+              <span v-else-if="item.targetType === 'live' && item.takenDown" class="tag">已关播</span>
             </td>
             <td>{{ reasonLabel[item.reasonCode] || item.reasonCode }}</td>
             <td class="detail">{{ item.detail || '—' }}</td>
@@ -255,6 +265,15 @@ watch(tab, () => load(1, true))
                 删除评论
               </button>
               <button
+                v-if="item.targetType === 'live' && !item.takenDown"
+                type="button"
+                class="danger"
+                :disabled="busyId === item.reportId"
+                @click="resolve(item, 'takedown')"
+              >
+                关播
+              </button>
+              <button
                 v-if="item.targetType === 'post' && item.takenDown"
                 type="button"
                 :disabled="busyId === item.reportId"
@@ -276,10 +295,26 @@ watch(tab, () => load(1, true))
                 :disabled="busyId === item.reportId"
                 @click="resolve(item, 'ban')"
               >
-                {{ item.targetType === 'user' ? '封禁' : item.targetType === 'comment' ? '封禁用户' : '封禁作者' }}
+                {{
+                  item.targetType === 'user'
+                    ? '封禁'
+                    : item.targetType === 'comment'
+                      ? '封禁用户'
+                      : item.targetType === 'live'
+                        ? '封禁主播'
+                        : '封禁作者'
+                }}
               </button>
               <button type="button" :disabled="busyId === item.reportId" @click="resolve(item, 'unban')">
-                {{ item.targetType === 'user' ? '解冻' : item.targetType === 'comment' ? '解冻用户' : '解冻作者' }}
+                {{
+                  item.targetType === 'user'
+                    ? '解冻'
+                    : item.targetType === 'comment'
+                      ? '解冻用户'
+                      : item.targetType === 'live'
+                        ? '解冻主播'
+                        : '解冻作者'
+                }}
               </button>
             </td>
           </tr>
@@ -302,6 +337,7 @@ watch(tab, () => load(1, true))
       :post="previewPost"
       :user="previewUser"
       :comment="previewComment"
+      :live="previewLive"
       :loading="previewLoading"
       :error="previewError"
       @close="closePreview"
