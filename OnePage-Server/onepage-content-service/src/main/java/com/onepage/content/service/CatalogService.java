@@ -8,10 +8,12 @@ import com.onepage.content.entity.Campaign;
 import com.onepage.content.entity.Comment;
 import com.onepage.content.entity.Post;
 import com.onepage.content.entity.PostCategory;
+import com.onepage.content.entity.CreatorFaq;
 import com.onepage.content.entity.PlatformNotice;
 import com.onepage.content.entity.Topic;
 import com.onepage.content.mapper.CampaignMapper;
 import com.onepage.content.mapper.CommentMapper;
+import com.onepage.content.mapper.CreatorFaqMapper;
 import com.onepage.content.mapper.PlatformNoticeMapper;
 import com.onepage.content.mapper.PostCategoryMapper;
 import com.onepage.content.mapper.PostMapper;
@@ -41,11 +43,17 @@ public class CatalogService {
   private static final Set<String> FALLBACK_CATEGORIES =
       Set.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐");
   private static final Set<String> CAMPAIGN_STATUS = Set.of("live", "upcoming", "ended");
+  private static final Map<String, String> FAQ_GROUPS = Map.of(
+      "account", "用户账号管理",
+      "create", "创作功能",
+      "data", "数据中心",
+      "faq", "常见问题");
 
   private final PostCategoryMapper categoryMapper;
   private final CampaignMapper campaignMapper;
   private final TopicMapper topicMapper;
   private final PlatformNoticeMapper noticeMapper;
+  private final CreatorFaqMapper faqMapper;
   private final PostMapper postMapper;
   private final CommentMapper commentMapper;
   private final SearchIndexer searchIndexer;
@@ -55,6 +63,7 @@ public class CatalogService {
       CampaignMapper campaignMapper,
       TopicMapper topicMapper,
       PlatformNoticeMapper noticeMapper,
+      CreatorFaqMapper faqMapper,
       PostMapper postMapper,
       CommentMapper commentMapper,
       @Lazy SearchIndexer searchIndexer) {
@@ -62,6 +71,7 @@ public class CatalogService {
     this.campaignMapper = campaignMapper;
     this.topicMapper = topicMapper;
     this.noticeMapper = noticeMapper;
+    this.faqMapper = faqMapper;
     this.postMapper = postMapper;
     this.commentMapper = commentMapper;
     this.searchIndexer = searchIndexer;
@@ -133,6 +143,14 @@ public class CatalogService {
   public List<FeedDtos.OpsTopic> suggestTopics(String q) {
     List<Topic> rows = listTopics(q);
     return toTopics(rows, true);
+  }
+
+  public List<FeedDtos.OpsFaq> publicFaqs() {
+    return toFaqs(listFaqs(), true);
+  }
+
+  public List<FeedDtos.OpsFaq> opsFaqs() {
+    return toFaqs(listFaqs(), false);
   }
 
   @Transactional
@@ -306,6 +324,58 @@ public class CatalogService {
     }
     row.setEnabled(enabled ? 1 : 0);
     noticeMapper.updateById(row);
+  }
+
+  @Transactional
+  public FeedDtos.OpsFaq saveFaq(String id, FeedDtos.FaqSpec spec) {
+    if (spec == null || !StringUtils.hasText(spec.groupId()) || !StringUtils.hasText(spec.question())
+        || !StringUtils.hasText(spec.answer())) {
+      throw BusinessException.validation("分组、问题和回答必填");
+    }
+    String groupId = spec.groupId().trim();
+    if (!FAQ_GROUPS.containsKey(groupId)) {
+      throw BusinessException.validation("分组不合法");
+    }
+    String question = spec.question().trim();
+    String answer = spec.answer().trim();
+    if (question.length() > 120) {
+      throw BusinessException.validation("问题过长");
+    }
+    if (answer.length() > 1000) {
+      throw BusinessException.validation("回答过长");
+    }
+    CreatorFaq row;
+    if (StringUtils.hasText(id)) {
+      row = faqMapper.selectById(Long.parseLong(id));
+      if (row == null) {
+        throw BusinessException.notFound("问答不存在");
+      }
+    } else {
+      row = new CreatorFaq();
+      row.setId(IdGenerator.nextId());
+      row.setCreatedAt(LocalDateTime.now());
+    }
+    row.setGroupId(groupId);
+    row.setQuestion(question);
+    row.setAnswer(answer);
+    row.setSortOrder(spec.sortOrder() == null ? 0 : spec.sortOrder());
+    row.setEnabled(bool(spec.enabled(), true));
+    if (StringUtils.hasText(id)) {
+      faqMapper.updateById(row);
+    } else {
+      faqMapper.insert(row);
+    }
+    return toFaq(row);
+  }
+
+  @Transactional
+  public void setFaqEnabled(long id, boolean enabled) {
+    CreatorFaq row = faqMapper.selectById(id);
+    if (row == null) {
+      throw BusinessException.notFound("问答不存在");
+    }
+    row.setEnabled(enabled ? 1 : 0);
+    faqMapper.updateById(row);
   }
 
   @Transactional
@@ -544,6 +614,43 @@ public class CatalogService {
       out.add(toNotice(row));
     }
     return out;
+  }
+
+  private List<CreatorFaq> listFaqs() {
+    try {
+      List<CreatorFaq> rows = faqMapper.selectList(
+          Wrappers.<CreatorFaq>lambdaQuery()
+              .orderByAsc(CreatorFaq::getGroupId)
+              .orderByAsc(CreatorFaq::getSortOrder)
+              .orderByAsc(CreatorFaq::getId));
+      return rows == null ? List.of() : rows;
+    } catch (RuntimeException ex) {
+      log.warn("creator_faq missing");
+      return List.of();
+    }
+  }
+
+  private static List<FeedDtos.OpsFaq> toFaqs(List<CreatorFaq> rows, boolean enabledOnly) {
+    List<FeedDtos.OpsFaq> out = new ArrayList<>();
+    for (CreatorFaq row : rows) {
+      if (enabledOnly && !enabled(row.getEnabled())) {
+        continue;
+      }
+      out.add(toFaq(row));
+    }
+    return out;
+  }
+
+  private static FeedDtos.OpsFaq toFaq(CreatorFaq row) {
+    String groupId = row.getGroupId() == null ? "" : row.getGroupId();
+    return new FeedDtos.OpsFaq(
+        String.valueOf(row.getId()),
+        groupId,
+        FAQ_GROUPS.getOrDefault(groupId, groupId),
+        row.getQuestion() == null ? "" : row.getQuestion(),
+        row.getAnswer() == null ? "" : row.getAnswer(),
+        n(row.getSortOrder()),
+        enabled(row.getEnabled()));
   }
 
   private static FeedDtos.OpsNotice toNotice(PlatformNotice row) {

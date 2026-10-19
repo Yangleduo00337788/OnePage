@@ -20,6 +20,8 @@ public class UserProfile {
   private String coverObjectKey;
   private String bio;
   private Integer gender;
+  private Integer liveHost;
+  private Integer verified;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
 
@@ -37,6 +39,10 @@ public class UserProfile {
   public void setBio(String bio) { this.bio = bio; }
   public Integer getGender() { return gender; }
   public void setGender(Integer gender) { this.gender = gender; }
+  public Integer getLiveHost() { return liveHost; }
+  public void setLiveHost(Integer liveHost) { this.liveHost = liveHost; }
+  public Integer getVerified() { return verified; }
+  public void setVerified(Integer verified) { this.verified = verified; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
   public LocalDateTime getUpdatedAt() { return updatedAt; }

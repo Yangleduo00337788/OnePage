@@ -11,5 +11,12 @@ public interface SearchClient {
   @PostMapping("/internal/index/users")
   void upsertUser(@RequestHeader("X-Internal-Token") String token, @RequestBody UserIndexDoc body);
 
-  record UserIndexDoc(String userId, String pageId, String nickname, String avatarUrl, String bio) {}
+  record UserIndexDoc(
+      String userId,
+      String pageId,
+      String nickname,
+      String avatarUrl,
+      String bio,
+      boolean liveHost,
+      boolean verified) {}
 }

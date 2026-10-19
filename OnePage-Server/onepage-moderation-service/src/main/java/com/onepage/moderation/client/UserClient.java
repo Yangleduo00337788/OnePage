@@ -47,6 +47,13 @@ public interface UserClient {
       @RequestParam(value = "cursor", required = false) String cursor,
       @RequestParam(value = "limit", required = false) Integer limit);
 
+  @PostMapping("/internal/users/{userId}/badges")
+  void setBadges(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("userId") long userId,
+      @RequestParam(value = "liveHost", required = false) Boolean liveHost,
+      @RequestParam(value = "verified", required = false) Boolean verified);
+
   @PostMapping("/internal/users/{followerId}/following/{followeeId}/remove")
   void removeFollow(
       @RequestHeader("X-Internal-Token") String token,

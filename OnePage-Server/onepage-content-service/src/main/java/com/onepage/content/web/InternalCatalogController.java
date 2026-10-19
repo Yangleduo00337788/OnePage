@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 运营目录 CRUD。改分类/活动/话题用 POST 不用 PATCH：
  * Feign 默认 JDK HttpURLConnection 不能发 PATCH，会 ProtocolException。
@@ -160,6 +162,37 @@ public class InternalCatalogController {
       @RequestParam("value") boolean value) {
     assertInternal(request);
     catalogService.setNoticeEnabled(id, value);
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/faqs")
+  public List<FeedDtos.OpsFaq> faqs(HttpServletRequest request) {
+    assertInternal(request);
+    return catalogService.opsFaqs();
+  }
+
+  @PostMapping("/faqs")
+  public FeedDtos.OpsFaq createFaq(HttpServletRequest request, @RequestBody FeedDtos.FaqSpec spec) {
+    assertInternal(request);
+    return catalogService.saveFaq(null, spec);
+  }
+
+  @PostMapping("/faqs/{id}")
+  public FeedDtos.OpsFaq patchFaq(
+      HttpServletRequest request,
+      @PathVariable("id") String id,
+      @RequestBody FeedDtos.FaqSpec spec) {
+    assertInternal(request);
+    return catalogService.saveFaq(id, spec);
+  }
+
+  @PostMapping("/faqs/{id}/enabled")
+  public ResponseEntity<Void> faqEnabled(
+      HttpServletRequest request,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value) {
+    assertInternal(request);
+    catalogService.setFaqEnabled(id, value);
     return ResponseEntity.noContent().build();
   }
 

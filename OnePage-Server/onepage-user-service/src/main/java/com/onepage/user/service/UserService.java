@@ -500,7 +500,9 @@ public class UserService {
           summary.pageId(),
           summary.nickname(),
           summary.avatarUrl(),
-          row.getBio() == null ? "" : row.getBio()));
+          row.getBio() == null ? "" : row.getBio(),
+          summary.liveHost(),
+          summary.verified()));
     }
     String next = null;
     if (hasMore && !rows.isEmpty() && rows.getLast().getUserId() != null) {
@@ -623,7 +625,9 @@ public class UserService {
         String.valueOf(profile.getUserId()),
         profile.getPageId(),
         profile.getNickname(),
-        publicUrl(profile.getAvatarObjectKey()));
+        publicUrl(profile.getAvatarObjectKey()),
+        flag(profile.getLiveHost()),
+        flag(profile.getVerified()));
   }
 
   private UserCursorPage pageRelations(
@@ -711,7 +715,7 @@ public class UserService {
       }
       UserProfile profile = byId.get(actorId);
       UserBriefView actor = profile == null
-          ? new UserBriefView(hit.userId(), "", "用户", "", mine.contains(actorId))
+          ? new UserBriefView(hit.userId(), "", "用户", "", mine.contains(actorId), false, false)
           : toBrief(profile, mine.contains(actorId));
       items.add(new ReceivedItemView(
           actor,
@@ -728,7 +732,9 @@ public class UserService {
         profile.getPageId(),
         profile.getNickname(),
         publicUrl(profile.getAvatarObjectKey()),
-        followedByMe);
+        followedByMe,
+        flag(profile.getLiveHost()),
+        flag(profile.getVerified()));
   }
 
   private UserProfileView toView(UserProfile profile, Long viewerId) {
@@ -751,6 +757,8 @@ public class UserService {
         publicUrl(profile.getCoverObjectKey()),
         profile.getBio() == null ? "" : profile.getBio(),
         profile.getGender() == null ? 0 : profile.getGender(),
+        flag(profile.getLiveHost()),
+        flag(profile.getVerified()),
         followed,
         new UserProfileView.Stats(
             n(stat.getFollowingCount()),
@@ -768,5 +776,26 @@ public class UserService {
 
   private int n(Integer v) {
     return v == null ? 0 : v;
+  }
+
+  private static boolean flag(Integer value) {
+    return Integer.valueOf(1).equals(value);
+  }
+
+  @Transactional
+  public void setBadges(long userId, Boolean liveHost, Boolean verified) {
+    if (liveHost == null && verified == null) {
+      throw BusinessException.validation("liveHost 或 verified 至少填一项");
+    }
+    UserProfile profile = requireProfileByUserId(userId);
+    if (liveHost != null) {
+      profile.setLiveHost(Boolean.TRUE.equals(liveHost) ? 1 : 0);
+    }
+    if (verified != null) {
+      profile.setVerified(Boolean.TRUE.equals(verified) ? 1 : 0);
+    }
+    profile.setUpdatedAt(LocalDateTime.now());
+    profileMapper.updateById(profile);
+    userSearchIndexer.sync(profile, publicUrl(profile.getAvatarObjectKey()));
   }
 }

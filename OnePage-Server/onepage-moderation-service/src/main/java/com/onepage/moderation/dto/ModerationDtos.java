@@ -12,6 +12,27 @@ public final class ModerationDtos {
 
   public record CreateReportResult(String reportId) {}
 
+  public record CreateSupportRequest(
+      String kind, String title, String contact, String body, List<String> mediaUrls) {}
+
+  public record CreateSupportResult(String ticketId) {}
+
+  public record OpsSupport(
+      String ticketId,
+      String kind,
+      String title,
+      String contact,
+      String body,
+      List<String> mediaUrls,
+      String status,
+      UserSummary user,
+      UserSummary handler,
+      String handleNote,
+      String createdAt,
+      String handledAt) {}
+
+  public record SupportPage(List<OpsSupport> items, String nextCursor, boolean hasMore) {}
+
   public record ResolveRequest(String action, String note) {}
 
   public record ResolveResult(String reportId, String status) {}
@@ -59,7 +80,11 @@ public final class ModerationDtos {
       String pageId,
       String nickname,
       String avatarUrl,
+      boolean liveHost,
+      boolean verified,
       boolean frozen) {}
+
+  public record SetBadgesRequest(Boolean liveHost, Boolean verified) {}
 
   public record OpsLiveView(
       String sessionId,
@@ -139,6 +164,18 @@ public final class ModerationDtos {
   public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
 
   public record NoticeSpec(String title, String body, Integer sortOrder, Boolean enabled) {}
+
+  public record OpsFaq(
+      String faqId,
+      String groupId,
+      String groupTitle,
+      String question,
+      String answer,
+      int sortOrder,
+      boolean enabled) {}
+
+  public record FaqSpec(
+      String groupId, String question, String answer, Integer sortOrder, Boolean enabled) {}
 
   public record OpsImPeer(String userId, String pageId, String nickname, String avatarUrl) {}
 

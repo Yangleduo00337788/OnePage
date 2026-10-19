@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class UploadService {
   private static final Set<String> PURPOSES =
-      Set.of("avatar", "cover", "post_image", "post_video", "im_image");
+      Set.of("avatar", "cover", "post_image", "post_video", "im_image", "feedback");
   private static final Set<String> IM_IMAGE_MIMES =
       Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
   private static final long IM_IMAGE_MAX_BYTES = 10L * 1024 * 1024;
@@ -81,7 +81,7 @@ public class UploadService {
     if (sizeBytes <= 0 || sizeBytes > 200L * 1024 * 1024) {
       throw BusinessException.validation("文件大小不合法");
     }
-    if ("im_image".equals(purpose)) {
+    if ("im_image".equals(purpose) || "feedback".equals(purpose)) {
       if (!IM_IMAGE_MIMES.contains(mimeType)) {
         throw BusinessException.validation("只支持 jpg / png / webp / gif");
       }

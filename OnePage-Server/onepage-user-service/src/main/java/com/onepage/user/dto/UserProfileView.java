@@ -12,6 +12,8 @@ public record UserProfileView(
     String coverUrl,
     String bio,
     int gender,
+    boolean liveHost,
+    boolean verified,
     boolean followedByMe,
     Stats stats
 ) {

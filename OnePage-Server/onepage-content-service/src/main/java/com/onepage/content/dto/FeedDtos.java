@@ -6,7 +6,8 @@ import java.util.List;
 public final class FeedDtos {
   private FeedDtos() {}
 
-  public record UserBrief(String userId, String pageId, String nickname, String avatarUrl) {}
+  public record UserBrief(
+      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified) {}
 
   public record MediaItem(String mediaId, String url, String mimeType, String role) {}
 
@@ -93,7 +94,7 @@ public final class FeedDtos {
   public record ReceivedPage(List<ReceivedHit> items, String nextCursor, boolean hasMore) {}
 
   /** 治理工单用的笔记摘要。已下架也返回标题。 */
-  public record OpsPostBrief(String postId, String title, String authorId, boolean takenDown) {}
+  public record OpsPostBrief(String postId, String title, String authorId, boolean takenDown, String coverUrl) {}
 
   /** 运营预览：已下架也能看正文和媒体。 */
   public record OpsPostView(
@@ -179,6 +180,17 @@ public final class FeedDtos {
   public record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
 
   public record NoticeSpec(String title, String body, Integer sortOrder, Boolean enabled) {}
+
+  public record OpsFaq(
+      String faqId,
+      String groupId,
+      String groupTitle,
+      String question,
+      String answer,
+      int sortOrder,
+      boolean enabled) {}
+
+  public record FaqSpec(String groupId, String question, String answer, Integer sortOrder, Boolean enabled) {}
 
   public record OpsMediaRow(
       String mediaId,

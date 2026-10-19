@@ -455,6 +455,52 @@ public class ModerationService {
     contentClient.noticeEnabled(internalToken, id, enabled);
   }
 
+  public List<ModerationDtos.OpsFaq> listFaqs() {
+    List<ContentClient.OpsFaq> raw = contentClient.faqs(internalToken);
+    List<ModerationDtos.OpsFaq> out = new ArrayList<>();
+    if (raw == null) {
+      return out;
+    }
+    for (ContentClient.OpsFaq row : raw) {
+      if (row != null) {
+        out.add(toFaq(row));
+      }
+    }
+    return out;
+  }
+
+  public ModerationDtos.OpsFaq saveFaq(String id, ModerationDtos.FaqSpec spec) {
+    ContentClient.FaqSpec body = new ContentClient.FaqSpec(
+        spec.groupId(), spec.question(), spec.answer(), spec.sortOrder(), spec.enabled());
+    ContentClient.OpsFaq row = StringUtils.hasText(id)
+        ? contentClient.patchFaq(internalToken, id, body)
+        : contentClient.createFaq(internalToken, body);
+    return toFaq(row);
+  }
+
+  public void setFaqEnabled(long id, boolean enabled) {
+    contentClient.faqEnabled(internalToken, id, enabled);
+  }
+
+  private static ModerationDtos.OpsUser toOpsUser(long targetId, UserSummary brief, boolean frozen) {
+    if (brief == null) {
+      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", false, false, frozen);
+    }
+    return new ModerationDtos.OpsUser(
+        brief.userId(),
+        brief.pageId(),
+        brief.nickname(),
+        brief.avatarUrl(),
+        brief.liveHost(),
+        brief.verified(),
+        frozen);
+  }
+
+  private static ModerationDtos.OpsFaq toFaq(ContentClient.OpsFaq row) {
+    return new ModerationDtos.OpsFaq(
+        row.faqId(), row.groupId(), row.groupTitle(), row.question(), row.answer(), row.sortOrder(), row.enabled());
+  }
+
   public ModerationDtos.OpsUser getUser(long targetId) {
     List<UserSummary> briefs = userClient.briefs(internalToken, List.of(targetId));
     UserSummary brief = briefs == null || briefs.isEmpty() ? null : briefs.get(0);
@@ -466,9 +512,9 @@ public class ModerationService {
       log.warn("ops freeze-status {} failed", targetId);
     }
     if (brief == null) {
-      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", frozen);
+      return toOpsUser(targetId, null, frozen);
     }
-    return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
+    return toOpsUser(targetId, brief, frozen);
   }
 
   public ModerationDtos.OpsUserPage pageUsers(String q, String cursor, Integer limit) {
@@ -488,7 +534,7 @@ public class ModerationService {
       } catch (RuntimeException ex) {
         log.warn("ops freeze-status {} failed", row.userId());
       }
-      out.add(new ModerationDtos.OpsUser(row.userId(), row.pageId(), row.nickname(), row.avatarUrl(), frozen));
+      out.add(toOpsUser(Long.parseLong(row.userId()), row, frozen));
     }
     return new ModerationDtos.OpsUserPage(out, page.nextCursor(), page.hasMore());
   }
@@ -503,9 +549,23 @@ public class ModerationService {
     List<UserSummary> briefs = userClient.briefs(internalToken, List.of(targetId));
     UserSummary brief = briefs == null || briefs.isEmpty() ? null : briefs.get(0);
     if (brief == null) {
-      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", frozen);
+      return toOpsUser(targetId, null, frozen);
     }
-    return new ModerationDtos.OpsUser(brief.userId(), brief.pageId(), brief.nickname(), brief.avatarUrl(), frozen);
+    return toOpsUser(targetId, brief, frozen);
+  }
+
+  public ModerationDtos.OpsUser setUserBadges(long actorId, long targetId, ModerationDtos.SetBadgesRequest body) {
+    assertCanPunishUser(actorId, targetId);
+    if (body == null || (body.liveHost() == null && body.verified() == null)) {
+      throw BusinessException.validation("liveHost 或 verified 至少填一项");
+    }
+    try {
+      userClient.setBadges(internalToken, targetId, body.liveHost(), body.verified());
+    } catch (RuntimeException ex) {
+      log.warn("ops set badges {} failed", targetId, ex);
+      throw BusinessException.configMissing("更新标识失败，请稍后重试");
+    }
+    return getUser(targetId);
   }
 
   public ModerationDtos.OpsPeerPage opsFollowing(long userId, String cursor, Integer limit) {

@@ -6,7 +6,8 @@ import java.util.List;
 public final class SearchDtos {
   private SearchDtos() {}
 
-  public record UserBrief(String userId, String pageId, String nickname, String avatarUrl) {}
+  public record UserBrief(
+      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified) {}
 
   public record PostBrief(
       String postId,
@@ -30,7 +31,13 @@ public final class SearchDtos {
       String rejectReason) {}
 
   public record UserDoc(
-      String userId, String pageId, String nickname, String avatarUrl, String bio) {}
+      String userId,
+      String pageId,
+      String nickname,
+      String avatarUrl,
+      String bio,
+      boolean liveHost,
+      boolean verified) {}
 
   public record PostPage(List<PostBrief> items, String nextCursor, boolean hasMore) {}
 

@@ -5,6 +5,7 @@ import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onepage.notification.client.ContentClient;
 import com.onepage.notification.client.UserClient;
 import com.onepage.notification.dto.NotifyDtos;
 import com.onepage.notification.dto.TypeCount;
@@ -35,26 +36,31 @@ import java.util.stream.Collectors;
 public class NotifyService {
   private static final Logger log = LoggerFactory.getLogger(NotifyService.class);
   private static final Set<String> TYPES = Set.of(
-      "comment", "reply", "mention", "like_post", "favorite_post", "like_comment", "follow", "review_reject");
+      "comment", "reply", "mention", "like_post", "favorite_post", "like_comment", "follow",
+      "review_reject", "support_reply", "apply_live", "apply_verify");
+  private static final Set<String> SUPPORT_TYPES = Set.of("support_reply", "apply_live", "apply_verify");
   private static final List<String> GROUP_COMMENT = List.of("comment", "reply", "mention");
   private static final List<String> GROUP_REACTION = List.of("like_post", "favorite_post", "like_comment");
   private static final List<String> GROUP_FOLLOW = List.of("follow");
-  private static final List<String> GROUP_REVIEW = List.of("review_reject");
+  private static final List<String> GROUP_REVIEW = List.of("review_reject", "support_reply", "apply_live", "apply_verify");
 
   private static final int PREVIEW_MAX = 120;
 
   private final NotificationMapper mapper;
   private final UserClient userClient;
+  private final ContentClient contentClient;
   private final ObjectMapper objectMapper;
   private final String internalToken;
 
   public NotifyService(
       NotificationMapper mapper,
       UserClient userClient,
+      ContentClient contentClient,
       ObjectMapper objectMapper,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
     this.userClient = userClient;
+    this.contentClient = contentClient;
     this.objectMapper = objectMapper;
     this.internalToken = internalToken;
   }
@@ -67,7 +73,7 @@ public class NotifyService {
     if (!TYPES.contains(body.type())) {
       throw BusinessException.validation("通知类型不合法");
     }
-    if (body.recipientId().equals(body.actorId())) {
+    if (body.recipientId().equals(body.actorId()) && !SUPPORT_TYPES.contains(body.type())) {
       return;
     }
     mapper.upsert(
@@ -106,9 +112,10 @@ public class NotifyService {
       rows = rows.subList(0, size);
     }
     Map<Long, UserSummary> actors = loadActors(rows);
+    Map<Long, String> covers = loadCovers(rows);
     List<NotifyDtos.NotificationItem> items = new ArrayList<>();
     for (NotificationRow row : rows) {
-      items.add(toItem(row, actors.get(row.getActorId())));
+      items.add(toItem(row, actors.get(row.getActorId()), covers.get(row.getPostId())));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -214,11 +221,51 @@ public class NotifyService {
     }
   }
 
-  private NotifyDtos.NotificationItem toItem(NotificationRow row, UserSummary actor) {
+  private Map<Long, String> loadCovers(List<NotificationRow> rows) {
+    LinkedHashSet<Long> ids = new LinkedHashSet<>();
+    for (NotificationRow row : rows) {
+      if (row.getPostId() != null) {
+        ids.add(row.getPostId());
+      }
+    }
+    if (ids.isEmpty()) {
+      return Map.of();
+    }
+    try {
+      List<ContentClient.PostBrief> briefs = contentClient.postBriefs(internalToken, new ArrayList<>(ids));
+      if (briefs == null) {
+        return Map.of();
+      }
+      Map<Long, String> out = new java.util.HashMap<>();
+      for (ContentClient.PostBrief brief : briefs) {
+        if (brief == null || !StringUtils.hasText(brief.postId()) || !StringUtils.hasText(brief.coverUrl())) {
+          continue;
+        }
+        String cover = brief.coverUrl().trim();
+        String lower = cover.toLowerCase();
+        if (lower.contains(".mp4") || lower.contains(".mov") || lower.contains(".webm") || lower.contains(".m4v")) {
+          continue;
+        }
+        out.put(Long.parseLong(brief.postId()), cover);
+      }
+      return out;
+    } catch (RuntimeException ex) {
+      log.warn("load notify covers failed", ex);
+      return Map.of();
+    }
+  }
+
+  private NotifyDtos.NotificationItem toItem(NotificationRow row, UserSummary actor, String coverUrl) {
     NotifyDtos.UserBrief brief = actor == null
         ? new NotifyDtos.UserBrief(
-            row.getActorId() == null ? "" : String.valueOf(row.getActorId()), "", "用户", "")
-        : new NotifyDtos.UserBrief(actor.userId(), actor.pageId(), actor.nickname(), actor.avatarUrl());
+            row.getActorId() == null ? "" : String.valueOf(row.getActorId()), "", "用户", "", false, false)
+        : new NotifyDtos.UserBrief(
+            actor.userId(),
+            actor.pageId(),
+            actor.nickname(),
+            actor.avatarUrl(),
+            actor.liveHost(),
+            actor.verified());
     return new NotifyDtos.NotificationItem(
         String.valueOf(row.getId()),
         row.getType(),
@@ -227,7 +274,8 @@ public class NotifyService {
         row.getCommentId() == null ? null : String.valueOf(row.getCommentId()),
         previewOf(row.getPayload()),
         row.getReadAt() != null,
-        row.getCreatedAt() == null ? "" : row.getCreatedAt().toString());
+        row.getCreatedAt() == null ? "" : row.getCreatedAt().toString(),
+        coverUrl == null ? "" : coverUrl);
   }
 
   private String toPayload(String preview) {

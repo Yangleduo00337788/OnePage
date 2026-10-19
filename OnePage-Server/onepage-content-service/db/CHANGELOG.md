@@ -11,4 +11,6 @@
 | local | 006_ops_media_block.sql | 已有库给 media_asset 加 blocked_at |
 | local | 007_post_review.sql | 已有库给 post 加 reject_reason，status 含 pending/rejected |
 | local | 008_creator_metrics.sql | share_log / post_cover_show / post_play_complete |
-| local | 009_platform_notice.sql | 创作者首页平台公告 |
+| local | 009_platform_notice.sql | 创作者首页平台公告。Windows 须 `mysql --default-character-set=utf8mb4`，不要用 PowerShell 管道，否则种子中文会乱码 |
+| local | 010_creator_faq.sql | 创作者创作字典 |
+| local | 011_platform_notice_comments.sql | 修正 `platform_notice` 中文 COMMENT |

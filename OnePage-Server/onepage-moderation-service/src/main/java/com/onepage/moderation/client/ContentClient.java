@@ -120,6 +120,24 @@ public interface ContentClient {
       @PathVariable("id") long id,
       @RequestParam("value") boolean value);
 
+  @GetMapping("/internal/faqs")
+  List<OpsFaq> faqs(@RequestHeader("X-Internal-Token") String token);
+
+  @PostMapping("/internal/faqs")
+  OpsFaq createFaq(@RequestHeader("X-Internal-Token") String token, @RequestBody FaqSpec spec);
+
+  @PostMapping("/internal/faqs/{id}")
+  OpsFaq patchFaq(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") String id,
+      @RequestBody FaqSpec spec);
+
+  @PostMapping("/internal/faqs/{id}/enabled")
+  void faqEnabled(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value);
+
   @GetMapping("/internal/media/ops")
   OpsMediaPage opsMedia(
       @RequestHeader("X-Internal-Token") String token,
@@ -214,6 +232,17 @@ public interface ContentClient {
   record TopicSpec(String name, Boolean official, Integer sortOrder, Boolean enabled) {}
 
   record NoticeSpec(String title, String body, Integer sortOrder, Boolean enabled) {}
+
+  record OpsFaq(
+      String faqId,
+      String groupId,
+      String groupTitle,
+      String question,
+      String answer,
+      int sortOrder,
+      boolean enabled) {}
+
+  record FaqSpec(String groupId, String question, String answer, Integer sortOrder, Boolean enabled) {}
 
   record OpsMediaRow(
       String mediaId,

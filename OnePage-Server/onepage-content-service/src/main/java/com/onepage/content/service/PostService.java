@@ -317,7 +317,8 @@ public class PostService {
       }
       String title = post.getTitle() == null ? "" : post.getTitle();
       String authorId = post.getAuthorId() == null ? "" : String.valueOf(post.getAuthorId());
-      out.add(new FeedDtos.OpsPostBrief(String.valueOf(id), title, authorId, post.getDeletedAt() != null));
+      out.add(new FeedDtos.OpsPostBrief(
+          String.valueOf(id), title, authorId, post.getDeletedAt() != null, blankToEmpty(firstCoverUrl(id))));
     }
     return out;
   }
@@ -984,22 +985,25 @@ public class PostService {
         Wrappers.<PostMedia>lambdaQuery()
             .eq(PostMedia::getPostId, postId)
             .orderByAsc(PostMedia::getSortOrder));
-    String fallback = "";
+    String gallery = "";
     for (PostMedia link : links) {
       MediaAsset asset = mediaAssetMapper.selectById(link.getMediaId());
       if (asset == null || asset.getBlockedAt() != null) {
         continue;
       }
-      String url = publicUrl(asset.getObjectKey());
       String mime = asset.getMimeType() == null ? "" : asset.getMimeType();
-      if (mime.startsWith("image/")) {
+      if (!mime.startsWith("image/")) {
+        continue;
+      }
+      String url = publicUrl(asset.getObjectKey());
+      if ("cover".equals(link.getRole())) {
         return url;
       }
-      if (fallback.isEmpty()) {
-        fallback = url;
+      if (gallery.isEmpty()) {
+        gallery = url;
       }
     }
-    return fallback;
+    return gallery;
   }
 
   private static String excerpt(String body) {

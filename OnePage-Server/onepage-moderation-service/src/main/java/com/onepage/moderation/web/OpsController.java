@@ -6,6 +6,7 @@ import com.onepage.moderation.client.AiClient;
 import com.onepage.moderation.client.UserClient;
 import com.onepage.moderation.dto.ModerationDtos;
 import com.onepage.moderation.service.ModerationService;
+import com.onepage.moderation.service.SupportService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ import java.util.List;
 @RequestMapping("/api/v1/ops")
 public class OpsController {
   private final ModerationService moderationService;
+  private final SupportService supportService;
   private final StaffGuard staffGuard;
   private final UserClient userClient;
   private final AiClient aiClient;
@@ -32,11 +34,13 @@ public class OpsController {
 
   public OpsController(
       ModerationService moderationService,
+      SupportService supportService,
       StaffGuard staffGuard,
       UserClient userClient,
       AiClient aiClient,
       @Value("${onepage.internal-token}") String internalToken) {
     this.moderationService = moderationService;
+    this.supportService = supportService;
     this.staffGuard = staffGuard;
     this.userClient = userClient;
     this.aiClient = aiClient;
@@ -49,7 +53,7 @@ public class OpsController {
     staffGuard.requireStaff(userId);
     List<UserSummary> briefs = userClient.briefs(internalToken, List.of(userId));
     if (briefs == null || briefs.isEmpty()) {
-      return new UserSummary(String.valueOf(userId), "", "", "");
+      return new UserSummary(String.valueOf(userId), "", "", "", false, false);
     }
     return briefs.get(0);
   }
@@ -348,6 +352,16 @@ public class OpsController {
     return moderationService.freezeUser(actorId, targetId, false);
   }
 
+  @PostMapping("/users/{userId}/badges")
+  public ModerationDtos.OpsUser setBadges(
+      HttpServletRequest request,
+      @PathVariable("userId") long targetId,
+      @RequestBody ModerationDtos.SetBadgesRequest body) {
+    long actorId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(actorId);
+    return moderationService.setUserBadges(actorId, targetId, body);
+  }
+
   @GetMapping("/users/{userId}/following")
   public ModerationDtos.OpsPeerPage following(
       HttpServletRequest request,
@@ -514,5 +528,63 @@ public class OpsController {
     long userId = CurrentUser.requireUserId(request);
     staffGuard.requireStaff(userId);
     return aiClient.probe(internalToken, body);
+  }
+
+  @GetMapping("/support")
+  public ModerationDtos.SupportPage support(
+      HttpServletRequest request,
+      @RequestParam(value = "kind", required = false) String kind,
+      @RequestParam(value = "status", required = false) String status,
+      @RequestParam(value = "cursor", required = false) String cursor,
+      @RequestParam(value = "limit", required = false) Integer limit) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return supportService.page(kind, status, cursor, limit);
+  }
+
+  @PatchMapping("/support/{ticketId}")
+  public ModerationDtos.ResolveResult resolveSupport(
+      HttpServletRequest request,
+      @PathVariable("ticketId") long ticketId,
+      @RequestBody(required = false) ModerationDtos.ResolveRequest body) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return supportService.resolve(userId, ticketId, body);
+  }
+
+  @GetMapping("/faqs")
+  public List<ModerationDtos.OpsFaq> faqs(HttpServletRequest request) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.listFaqs();
+  }
+
+  @PostMapping("/faqs")
+  public ModerationDtos.OpsFaq createFaq(
+      HttpServletRequest request, @RequestBody ModerationDtos.FaqSpec spec) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.saveFaq(null, spec);
+  }
+
+  @PatchMapping("/faqs/{id}")
+  public ModerationDtos.OpsFaq patchFaq(
+      HttpServletRequest request,
+      @PathVariable("id") String id,
+      @RequestBody ModerationDtos.FaqSpec spec) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return moderationService.saveFaq(id, spec);
+  }
+
+  @PostMapping("/faqs/{id}/enabled")
+  public ResponseEntity<Void> faqEnabled(
+      HttpServletRequest request,
+      @PathVariable("id") long id,
+      @RequestParam("value") boolean value) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    moderationService.setFaqEnabled(id, value);
+    return ResponseEntity.noContent().build();
   }
 }

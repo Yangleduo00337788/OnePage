@@ -28,4 +28,9 @@ public class CatalogController {
   public List<FeedDtos.OpsTopic> topics(@RequestParam(value = "q", required = false) String q) {
     return catalogService.suggestTopics(q);
   }
+
+  @GetMapping("/faq")
+  public List<FeedDtos.OpsFaq> faq() {
+    return catalogService.publicFaqs();
+  }
 }

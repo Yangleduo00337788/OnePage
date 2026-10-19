@@ -9,5 +9,7 @@ public record UserSummary(
     String userId,
     String pageId,
     String nickname,
-    String avatarUrl
+    String avatarUrl,
+    boolean liveHost,
+    boolean verified
 ) {}

@@ -36,7 +36,9 @@ public class UserSearchIndexer {
                 profile.getPageId(),
                 profile.getNickname(),
                 avatarUrl == null ? "" : avatarUrl,
-                profile.getBio() == null ? "" : profile.getBio()));
+                profile.getBio() == null ? "" : profile.getBio(),
+                Integer.valueOf(1).equals(profile.getLiveHost()),
+                Integer.valueOf(1).equals(profile.getVerified())));
       } catch (RuntimeException ex) {
         log.warn("search index user {} failed", profile.getUserId(), ex);
       }

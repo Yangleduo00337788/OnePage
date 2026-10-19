@@ -6,7 +6,8 @@ import java.util.List;
 public final class NotifyDtos {
   private NotifyDtos() {}
 
-  public record UserBrief(String userId, String pageId, String nickname, String avatarUrl) {}
+  public record UserBrief(
+      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified) {}
 
   public record NotificationItem(
       String id,
@@ -16,7 +17,8 @@ public final class NotifyDtos {
       String commentId,
       String preview,
       boolean read,
-      String createdAt) {}
+      String createdAt,
+      String coverUrl) {}
 
   public record CursorPage(List<NotificationItem> items, String nextCursor, boolean hasMore) {}
 

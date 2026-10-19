@@ -5,6 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -23,6 +24,18 @@ public interface NotifyClient {
 
   @PostMapping("/internal/notifications/{id}/hide")
   void hide(@RequestHeader("X-Internal-Token") String token, @PathVariable("id") long id);
+
+  @PostMapping("/internal/notifications")
+  void ingest(@RequestHeader("X-Internal-Token") String token, @RequestBody IngestRequest body);
+
+  record IngestRequest(
+      Long recipientId,
+      String type,
+      Long actorId,
+      String aggregateKey,
+      Long postId,
+      Long commentId,
+      String preview) {}
 
   record NotifyItem(
       String id,
