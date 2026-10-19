@@ -258,14 +258,15 @@ public class NotifyService {
   private NotifyDtos.NotificationItem toItem(NotificationRow row, UserSummary actor, String coverUrl) {
     NotifyDtos.UserBrief brief = actor == null
         ? new NotifyDtos.UserBrief(
-            row.getActorId() == null ? "" : String.valueOf(row.getActorId()), "", "用户", "", false, false)
+            row.getActorId() == null ? "" : String.valueOf(row.getActorId()), "", "用户", "", false, false, false)
         : new NotifyDtos.UserBrief(
             actor.userId(),
             actor.pageId(),
             actor.nickname(),
             actor.avatarUrl(),
             actor.liveHost(),
-            actor.verified());
+            actor.verified(),
+            actor.official());
     return new NotifyDtos.NotificationItem(
         String.valueOf(row.getId()),
         row.getType(),

@@ -153,9 +153,10 @@ public class InternalUserController {
       HttpServletRequest request,
       @PathVariable("userId") long userId,
       @RequestParam(value = "liveHost", required = false) Boolean liveHost,
-      @RequestParam(value = "verified", required = false) Boolean verified) {
+      @RequestParam(value = "verified", required = false) Boolean verified,
+      @RequestParam(value = "official", required = false) Boolean official) {
     tokenFilter.assertInternal(request);
-    userService.setBadges(userId, liveHost, verified);
+    userService.setBadges(userId, liveHost, verified, official);
   }
 
   @PostMapping("/users/{followerId}/following/{followeeId}/remove")

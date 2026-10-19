@@ -8,4 +8,5 @@ public record UserBriefView(
     String avatarUrl,
     boolean followedByMe,
     boolean liveHost,
-    boolean verified) {}
+    boolean verified,
+    boolean official) {}

@@ -171,9 +171,9 @@ public class SupportService {
     if ("approve".equals(action) && row.getUserId() != null) {
       try {
         if ("live".equals(kind)) {
-          userClient.setBadges(internalToken, row.getUserId(), true, null);
+          userClient.setBadges(internalToken, row.getUserId(), true, null, null);
         } else if ("verify".equals(kind)) {
-          userClient.setBadges(internalToken, row.getUserId(), null, true);
+          userClient.setBadges(internalToken, row.getUserId(), null, true, null);
         }
       } catch (RuntimeException ex) {
         log.warn("set support badges failed ticket={}", ticketId, ex);

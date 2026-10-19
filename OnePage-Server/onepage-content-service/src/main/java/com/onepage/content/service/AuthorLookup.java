@@ -24,7 +24,7 @@ public class AuthorLookup {
 
   public FeedDtos.UserBrief brief(Long userId) {
     if (userId == null) {
-      return new FeedDtos.UserBrief("", "", "用户", "", false, false);
+      return new FeedDtos.UserBrief("", "", "用户", "", false, false, false);
     }
     try {
       UserSummary summary = userClient.summary(internalToken, userId);
@@ -37,7 +37,8 @@ public class AuthorLookup {
           summary.nickname() == null ? "用户" : summary.nickname(),
           summary.avatarUrl() == null ? "" : summary.avatarUrl(),
           summary.liveHost(),
-          summary.verified());
+          summary.verified(),
+          summary.official());
     } catch (FeignException.ServiceUnavailable ex) {
       log.warn("拉作者摘要失败 userId={}（onepage-user-service 未在 Nacos）", userId);
       return fallback(userId);
@@ -48,6 +49,6 @@ public class AuthorLookup {
   }
 
   private FeedDtos.UserBrief fallback(Long userId) {
-    return new FeedDtos.UserBrief(String.valueOf(userId), IdGenerator.pageId(userId), "用户", "", false, false);
+    return new FeedDtos.UserBrief(String.valueOf(userId), IdGenerator.pageId(userId), "用户", "", false, false, false);
   }
 }

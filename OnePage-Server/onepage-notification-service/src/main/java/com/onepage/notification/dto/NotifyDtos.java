@@ -7,7 +7,7 @@ public final class NotifyDtos {
   private NotifyDtos() {}
 
   public record UserBrief(
-      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified) {}
+      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified, boolean official) {}
 
   public record NotificationItem(
       String id,

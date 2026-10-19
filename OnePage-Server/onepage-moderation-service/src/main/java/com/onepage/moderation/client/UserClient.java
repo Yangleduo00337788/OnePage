@@ -52,7 +52,8 @@ public interface UserClient {
       @RequestHeader("X-Internal-Token") String token,
       @PathVariable("userId") long userId,
       @RequestParam(value = "liveHost", required = false) Boolean liveHost,
-      @RequestParam(value = "verified", required = false) Boolean verified);
+      @RequestParam(value = "verified", required = false) Boolean verified,
+      @RequestParam(value = "official", required = false) Boolean official);
 
   @PostMapping("/internal/users/{followerId}/following/{followeeId}/remove")
   void removeFollow(

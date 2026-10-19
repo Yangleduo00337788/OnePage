@@ -7,7 +7,7 @@ public final class SearchDtos {
   private SearchDtos() {}
 
   public record UserBrief(
-      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified) {}
+      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified, boolean official) {}
 
   public record PostBrief(
       String postId,
@@ -37,7 +37,8 @@ public final class SearchDtos {
       String avatarUrl,
       String bio,
       boolean liveHost,
-      boolean verified) {}
+      boolean verified,
+      boolean official) {}
 
   public record PostPage(List<PostBrief> items, String nextCursor, boolean hasMore) {}
 

@@ -11,5 +11,6 @@ public record UserSummary(
     String nickname,
     String avatarUrl,
     boolean liveHost,
-    boolean verified
+    boolean verified,
+    boolean official
 ) {}

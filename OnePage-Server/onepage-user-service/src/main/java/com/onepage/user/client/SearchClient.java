@@ -18,5 +18,6 @@ public interface SearchClient {
       String avatarUrl,
       String bio,
       boolean liveHost,
-      boolean verified) {}
+      boolean verified,
+      boolean official) {}
 }

@@ -502,7 +502,8 @@ public class UserService {
           summary.avatarUrl(),
           row.getBio() == null ? "" : row.getBio(),
           summary.liveHost(),
-          summary.verified()));
+          summary.verified(),
+          summary.official()));
     }
     String next = null;
     if (hasMore && !rows.isEmpty() && rows.getLast().getUserId() != null) {
@@ -627,7 +628,8 @@ public class UserService {
         profile.getNickname(),
         publicUrl(profile.getAvatarObjectKey()),
         flag(profile.getLiveHost()),
-        flag(profile.getVerified()));
+        flag(profile.getVerified()),
+        flag(profile.getOfficial()));
   }
 
   private UserCursorPage pageRelations(
@@ -715,7 +717,7 @@ public class UserService {
       }
       UserProfile profile = byId.get(actorId);
       UserBriefView actor = profile == null
-          ? new UserBriefView(hit.userId(), "", "用户", "", mine.contains(actorId), false, false)
+          ? new UserBriefView(hit.userId(), "", "用户", "", mine.contains(actorId), false, false, false)
           : toBrief(profile, mine.contains(actorId));
       items.add(new ReceivedItemView(
           actor,
@@ -734,7 +736,8 @@ public class UserService {
         publicUrl(profile.getAvatarObjectKey()),
         followedByMe,
         flag(profile.getLiveHost()),
-        flag(profile.getVerified()));
+        flag(profile.getVerified()),
+        flag(profile.getOfficial()));
   }
 
   private UserProfileView toView(UserProfile profile, Long viewerId) {
@@ -759,6 +762,7 @@ public class UserService {
         profile.getGender() == null ? 0 : profile.getGender(),
         flag(profile.getLiveHost()),
         flag(profile.getVerified()),
+        flag(profile.getOfficial()),
         followed,
         new UserProfileView.Stats(
             n(stat.getFollowingCount()),
@@ -783,9 +787,9 @@ public class UserService {
   }
 
   @Transactional
-  public void setBadges(long userId, Boolean liveHost, Boolean verified) {
-    if (liveHost == null && verified == null) {
-      throw BusinessException.validation("liveHost 或 verified 至少填一项");
+  public void setBadges(long userId, Boolean liveHost, Boolean verified, Boolean official) {
+    if (liveHost == null && verified == null && official == null) {
+      throw BusinessException.validation("liveHost、verified 或 official 至少填一项");
     }
     UserProfile profile = requireProfileByUserId(userId);
     if (liveHost != null) {
@@ -793,6 +797,9 @@ public class UserService {
     }
     if (verified != null) {
       profile.setVerified(Boolean.TRUE.equals(verified) ? 1 : 0);
+    }
+    if (official != null) {
+      profile.setOfficial(Boolean.TRUE.equals(official) ? 1 : 0);
     }
     profile.setUpdatedAt(LocalDateTime.now());
     profileMapper.updateById(profile);

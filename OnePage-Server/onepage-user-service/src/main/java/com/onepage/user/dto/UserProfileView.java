@@ -14,6 +14,7 @@ public record UserProfileView(
     int gender,
     boolean liveHost,
     boolean verified,
+    boolean official,
     boolean followedByMe,
     Stats stats
 ) {

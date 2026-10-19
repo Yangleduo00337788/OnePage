@@ -53,7 +53,7 @@ public class OpsController {
     staffGuard.requireStaff(userId);
     List<UserSummary> briefs = userClient.briefs(internalToken, List.of(userId));
     if (briefs == null || briefs.isEmpty()) {
-      return new UserSummary(String.valueOf(userId), "", "", "", false, false);
+      return new UserSummary(String.valueOf(userId), "", "", "", false, false, false);
     }
     return briefs.get(0);
   }

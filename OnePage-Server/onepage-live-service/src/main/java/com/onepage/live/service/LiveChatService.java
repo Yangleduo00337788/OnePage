@@ -120,7 +120,7 @@ public class LiveChatService {
     for (LiveChat row : rows) {
       UserSummary author = authors.getOrDefault(
           row.getUserId(),
-          new UserSummary(String.valueOf(row.getUserId()), "", "用户", "", false, false));
+          new UserSummary(String.valueOf(row.getUserId()), "", "用户", "", false, false, false));
       String at = row.getCreatedAt() == null
           ? ""
           : row.getCreatedAt().toInstant(ZoneOffset.UTC).toString();

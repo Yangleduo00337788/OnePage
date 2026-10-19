@@ -82,9 +82,10 @@ public final class ModerationDtos {
       String avatarUrl,
       boolean liveHost,
       boolean verified,
+      boolean official,
       boolean frozen) {}
 
-  public record SetBadgesRequest(Boolean liveHost, Boolean verified) {}
+  public record SetBadgesRequest(Boolean liveHost, Boolean verified, Boolean official) {}
 
   public record OpsLiveView(
       String sessionId,

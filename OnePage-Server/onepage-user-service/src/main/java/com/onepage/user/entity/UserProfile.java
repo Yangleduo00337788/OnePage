@@ -22,6 +22,7 @@ public class UserProfile {
   private Integer gender;
   private Integer liveHost;
   private Integer verified;
+  private Integer official;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
 
@@ -43,6 +44,8 @@ public class UserProfile {
   public void setLiveHost(Integer liveHost) { this.liveHost = liveHost; }
   public Integer getVerified() { return verified; }
   public void setVerified(Integer verified) { this.verified = verified; }
+  public Integer getOfficial() { return official; }
+  public void setOfficial(Integer official) { this.official = official; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
   public LocalDateTime getUpdatedAt() { return updatedAt; }

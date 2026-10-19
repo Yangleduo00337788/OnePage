@@ -7,7 +7,7 @@ public final class FeedDtos {
   private FeedDtos() {}
 
   public record UserBrief(
-      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified) {}
+      String userId, String pageId, String nickname, String avatarUrl, boolean liveHost, boolean verified, boolean official) {}
 
   public record MediaItem(String mediaId, String url, String mimeType, String role) {}
 

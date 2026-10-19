@@ -484,7 +484,7 @@ public class ModerationService {
 
   private static ModerationDtos.OpsUser toOpsUser(long targetId, UserSummary brief, boolean frozen) {
     if (brief == null) {
-      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", false, false, frozen);
+      return new ModerationDtos.OpsUser(String.valueOf(targetId), "", "", "", false, false, false, frozen);
     }
     return new ModerationDtos.OpsUser(
         brief.userId(),
@@ -493,6 +493,7 @@ public class ModerationService {
         brief.avatarUrl(),
         brief.liveHost(),
         brief.verified(),
+        brief.official(),
         frozen);
   }
 
@@ -556,11 +557,11 @@ public class ModerationService {
 
   public ModerationDtos.OpsUser setUserBadges(long actorId, long targetId, ModerationDtos.SetBadgesRequest body) {
     assertCanPunishUser(actorId, targetId);
-    if (body == null || (body.liveHost() == null && body.verified() == null)) {
-      throw BusinessException.validation("liveHost 或 verified 至少填一项");
+    if (body == null || (body.liveHost() == null && body.verified() == null && body.official() == null)) {
+      throw BusinessException.validation("liveHost、verified 或 official 至少填一项");
     }
     try {
-      userClient.setBadges(internalToken, targetId, body.liveHost(), body.verified());
+      userClient.setBadges(internalToken, targetId, body.liveHost(), body.verified(), body.official());
     } catch (RuntimeException ex) {
       log.warn("ops set badges {} failed", targetId, ex);
       throw BusinessException.configMissing("更新标识失败，请稍后重试");

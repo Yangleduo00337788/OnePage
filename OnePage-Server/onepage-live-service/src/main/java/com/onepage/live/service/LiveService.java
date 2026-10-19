@@ -359,7 +359,7 @@ public class LiveService {
     List<LiveDtos.LiveItem> out = new ArrayList<>();
     for (LiveHit row : rows) {
       UserSummary owner = owners.getOrDefault(
-          row.getOwnerId(), new UserSummary(String.valueOf(row.getOwnerId()), "", "主播", "", false, false));
+          row.getOwnerId(), new UserSummary(String.valueOf(row.getOwnerId()), "", "主播", "", false, false, false));
       String started = row.getStartedAt() == null
           ? ""
           : row.getStartedAt().toInstant(ZoneOffset.UTC).toString();
