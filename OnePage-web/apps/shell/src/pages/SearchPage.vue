@@ -10,6 +10,7 @@ import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import NoteFeedCard from '../components/NoteFeedCard.vue'
 import LiveFeedCard from '../components/LiveFeedCard.vue'
+import IdentityBadges from '../components/IdentityBadges.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -334,13 +335,16 @@ onUnmounted(() => {
             class="flex w-full items-center gap-3 py-3 text-left"
             @click="openUser(user.pageId)"
           >
-            <img
-              v-if="user.avatarUrl"
-              :src="user.avatarUrl"
-              alt=""
-              class="h-12 w-12 shrink-0 rounded-full object-cover"
-            />
-            <span v-else class="h-12 w-12 shrink-0 rounded-full bg-[var(--fill)]" />
+            <span class="relative h-12 w-12 shrink-0">
+              <img
+                v-if="user.avatarUrl"
+                :src="user.avatarUrl"
+                alt=""
+                class="h-12 w-12 rounded-full object-cover"
+              />
+              <span v-else class="block h-12 w-12 rounded-full bg-[var(--fill)]" />
+              <IdentityBadges size="md" :live-host="user.liveHost" :verified="user.verified" />
+            </span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ user.nickname }}</span>
               <span class="mt-0.5 block truncate text-[13px] text-[#8a8a8a]">

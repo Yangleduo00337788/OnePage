@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import type { LiveSession } from '@onepage/api-client'
 import Icon from './Icon.vue'
+import IdentityBadges from './IdentityBadges.vue'
 import { formatCount } from '../data/home'
 
 defineProps<{ item: LiveSession }>()
@@ -46,6 +47,11 @@ const emit = defineEmits<{ click: [] }>()
           >
             {{ (item.owner?.nickname || '主').slice(0, 1) }}
           </span>
+          <IdentityBadges
+            size="sm"
+            :live-host="item.owner?.liveHost"
+            :verified="item.owner?.verified"
+          />
         </span>
         <span class="truncate">{{ item.owner?.nickname || '主播' }}</span>
       </span>
@@ -71,9 +77,10 @@ const emit = defineEmits<{ click: [] }>()
 .live-ava-ring {
   position: relative;
   display: flex;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  overflow: visible;
   padding: 1px;
   border-radius: 50%;
   background: var(--panel);

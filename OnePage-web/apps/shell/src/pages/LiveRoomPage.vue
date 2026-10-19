@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type LiveChatLine, type LiveSession, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import IdentityBadges from '../components/IdentityBadges.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LivePlayer from '../components/LivePlayer.vue'
 import ReportDialog from '../components/ReportDialog.vue'
@@ -609,13 +610,20 @@ onUnmounted(() => {
           </button>
           <div class="host-hit" :class="{ 'is-open': hostOpen }" @mouseenter="openHost" @mouseleave="closeHost">
             <button type="button" class="live-chip-host" @click="goAuthor">
-              <img
-                v-if="watching.owner?.avatarUrl"
-                :src="watching.owner.avatarUrl"
-                alt=""
-                class="live-chip-ava"
-              />
-              <span v-else class="live-chip-ava is-ph">{{ (watching.owner?.nickname || '主').slice(0, 1) }}</span>
+              <span class="live-chip-ava-wrap">
+                <img
+                  v-if="watching.owner?.avatarUrl"
+                  :src="watching.owner.avatarUrl"
+                  alt=""
+                  class="live-chip-ava"
+                />
+                <span v-else class="live-chip-ava is-ph">{{ (watching.owner?.nickname || '主').slice(0, 1) }}</span>
+                <IdentityBadges
+                  size="sm"
+                  :live-host="watching.owner?.liveHost ?? host?.liveHost"
+                  :verified="watching.owner?.verified ?? host?.verified"
+                />
+              </span>
               <span class="live-chip-meta">
                 <span class="live-chip-name">{{ watching.owner?.nickname || '主播' }}</span>
                 <span class="live-chip-likes">{{ likeLine }}</span>
@@ -623,7 +631,7 @@ onUnmounted(() => {
             </button>
             <div class="host-card" @mouseenter="openHost" @mouseleave="closeHost">
               <div class="host-card-top">
-                <button type="button" class="host-go" @click="goAuthor">
+                <button type="button" class="host-go relative" @click="goAuthor">
                   <img
                     v-if="watching.owner?.avatarUrl"
                     :src="watching.owner.avatarUrl"
@@ -631,6 +639,11 @@ onUnmounted(() => {
                     class="host-card-ava"
                   />
                   <span v-else class="host-card-ava is-ph">{{ (watching.owner?.nickname || '主').slice(0, 1) }}</span>
+                  <IdentityBadges
+                    size="md"
+                    :live-host="watching.owner?.liveHost ?? host?.liveHost"
+                    :verified="watching.owner?.verified ?? host?.verified"
+                  />
                 </button>
                 <button type="button" class="host-go host-card-name" @click="goAuthor">
                   {{ watching.owner?.nickname || '主播' }}
@@ -932,6 +945,11 @@ onUnmounted(() => {
   background: #333;
 }
 
+.live-chip-ava-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
 .live-chip-ava {
   height: 36px;
   width: 36px;

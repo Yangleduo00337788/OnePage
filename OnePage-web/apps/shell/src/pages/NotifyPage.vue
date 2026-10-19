@@ -11,6 +11,7 @@ import { useNoteDetail } from '../stores/noteDetail'
 import { useSession } from '../stores/session'
 import { noteFromPost } from '../data/home'
 import EmptyState from '../components/EmptyState.vue'
+import IdentityBadges from '../components/IdentityBadges.vue'
 
 const NOTIFY_TABS = ['评论和@', '点赞和收藏', '新增关注', '审核'] as const
 type NotifyTab = (typeof NOTIFY_TABS)[number]
@@ -39,6 +40,9 @@ const ACTION: Record<string, string> = {
   like_comment: '赞了你的评论',
   follow: '关注了你',
   review_reject: '未通过你的笔记',
+  support_reply: '回复了你的反馈',
+  apply_live: '处理了你的主播入驻',
+  apply_verify: '处理了你的大 V 认证',
 }
 
 const route = useRoute()
@@ -67,6 +71,14 @@ const tab = computed({
     router.replace({ query: value === '评论和@' ? {} : { tab: value } })
   },
 })
+
+function coverOf(row: NotificationItem) {
+  const url = row.coverUrl?.trim()
+  if (!url) return ''
+  const lower = url.toLowerCase()
+  if (/\.(mp4|mov|webm|m4v)(\?|$)/.test(lower)) return ''
+  return url
+}
 
 function timeText(raw: string) {
   const d = new Date(raw)
@@ -127,6 +139,9 @@ async function openItem(row: NotificationItem) {
     } catch {
       /* 标已读失败不挡打开 */
     }
+  }
+  if (row.type === 'support_reply' || row.type === 'apply_live' || row.type === 'apply_verify') {
+    return
   }
   if (row.postId) {
     try {
@@ -221,6 +236,7 @@ watch([items, loading], async () => {
           >
             {{ (row.actor?.nickname || '一').slice(0, 1) }}
           </span>
+          <IdentityBadges size="md" :live-host="row.actor?.liveHost" :verified="row.actor?.verified" />
           <span v-if="!row.read" class="absolute top-0 right-0 h-2 w-2 rounded-full bg-[#ff2442]" />
         </span>
         <span class="min-w-0 flex-1">
@@ -231,6 +247,12 @@ watch([items, loading], async () => {
           <span v-if="row.preview" class="mt-0.5 block truncate text-[13px] text-[var(--ink)]">{{ row.preview }}</span>
           <span class="mt-0.5 block truncate text-[12px] text-[#8a8a8a]">{{ timeText(row.createdAt) }}</span>
         </span>
+        <img
+          v-if="coverOf(row)"
+          :src="coverOf(row)"
+          alt=""
+          class="h-11 w-11 shrink-0 rounded-[8px] object-cover bg-[var(--fill)]"
+        />
       </button>
       <div ref="sentinel" class="h-4" aria-hidden="true" />
     </div>

@@ -7,6 +7,7 @@ import { noteFromPost } from '../data/home'
 import { useNoteDetail } from '../stores/noteDetail'
 import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
+import IdentityBadges from './IdentityBadges.vue'
 import EmptyState from './EmptyState.vue'
 
 const props = defineProps<{
@@ -169,9 +170,12 @@ watch([items, loading], async () => {
             class="flex w-full items-center gap-3 rounded-[16px] px-3 py-2.5"
           >
             <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="openProfile(item.actor.pageId)">
-              <img v-if="item.actor.avatarUrl" :src="item.actor.avatarUrl" alt="" class="h-11 w-11 rounded-full object-cover" />
-              <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]">
-                {{ (item.actor.nickname || '一').slice(0, 1) }}
+              <span class="relative h-11 w-11 shrink-0">
+                <img v-if="item.actor.avatarUrl" :src="item.actor.avatarUrl" alt="" class="h-11 w-11 rounded-full object-cover" />
+                <span v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hover)] text-[14px] text-[#8a8a8a]">
+                  {{ (item.actor.nickname || '一').slice(0, 1) }}
+                </span>
+                <IdentityBadges size="md" :live-host="item.actor.liveHost" :verified="item.actor.verified" />
               </span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-[15px] font-medium text-[var(--ink)]">{{ item.actor.nickname }}</span>

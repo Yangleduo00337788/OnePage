@@ -9,6 +9,8 @@ export type NoteCard = {
   duration?: string
   pageId?: string
   avatarUrl?: string
+  liveHost?: boolean
+  verified?: boolean
   body?: string
   postType?: string
   original?: boolean
@@ -27,7 +29,7 @@ export function noteFromPost(p: {
   postType: string
   likeCount: number
   original?: boolean
-  author: { nickname: string; pageId: string; avatarUrl: string }
+  author: { nickname: string; pageId: string; avatarUrl: string; liveHost?: boolean; verified?: boolean }
 }): NoteCard {
   return {
     id: p.postId,
@@ -38,6 +40,8 @@ export function noteFromPost(p: {
     video: p.postType === 'video',
     pageId: p.author.pageId,
     avatarUrl: p.author.avatarUrl,
+    liveHost: Boolean(p.author.liveHost),
+    verified: Boolean(p.author.verified),
     body: p.body || '',
     postType: p.postType,
     original: Boolean(p.original),

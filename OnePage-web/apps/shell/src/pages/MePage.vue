@@ -13,6 +13,7 @@ import { useSession } from '../stores/session'
 import { useAuthModal } from '../stores/authModal'
 import ImageCropDialog from '@onepage/image-crop'
 import Icon from '../components/Icon.vue'
+import IdentityCaption from '../components/IdentityCaption.vue'
 import SearchBox from '../components/SearchBox.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import ReceivedListModal from '../components/ReceivedListModal.vue'
@@ -299,7 +300,7 @@ async function logout() {
             </button>
             <button
               type="button"
-              class="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--panel)] text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]"
+              class="absolute left-0 bottom-0 z-[3] flex h-7 w-7 items-center justify-center rounded-full bg-[var(--panel)] text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]"
               :disabled="uploading === 'avatar'"
               aria-label="更换头像"
               @click="pickMedia('avatar')"
@@ -310,8 +311,13 @@ async function logout() {
         </div>
 
         <div class="mx-auto mt-4 max-w-[560px] text-center text-white">
-          <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
+          <h1 class="mx-auto flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[22px] font-semibold tracking-tight">
             <span class="truncate">{{ session.me.nickname }}</span>
+            <IdentityCaption
+              light
+              :live-host="session.me.liveHost"
+              :verified="session.me.verified"
+            />
             <Icon
               v-if="session.me.gender === 1"
               name="mars"

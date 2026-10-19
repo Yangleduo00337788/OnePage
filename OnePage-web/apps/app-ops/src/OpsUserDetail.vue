@@ -10,7 +10,7 @@ import {
 } from '@onepage/api-client'
 
 const props = defineProps<{ user: OpsUser }>()
-const emit = defineEmits<{ close: []; frozen: [OpsUser] }>()
+const emit = defineEmits<{ close: []; frozen: [OpsUser]; updated: [OpsUser] }>()
 
 type Tab = 'following' | 'followers' | 'notify'
 type NotifyGroup = '' | 'comment' | 'reaction' | 'follow' | 'review'
@@ -134,6 +134,19 @@ async function dropNote(row: NotificationItem) {
   }
 }
 
+async function dropBadge(field: 'liveHost' | 'verified') {
+  busyId.value = props.user.userId + field
+  try {
+    const next = await api.opsSetUserBadges(props.user.userId, { [field]: false })
+    emit('updated', next)
+    flash(field === 'verified' ? '已取消大 V' : '已取消主播')
+  } catch (e) {
+    flash(e instanceof ApiError ? e.message : '操作失败')
+  } finally {
+    busyId.value = ''
+  }
+}
+
 async function toggleFreeze() {
   busyId.value = props.user.userId
   try {
@@ -162,9 +175,30 @@ watch(group, () => {
       <header class="head">
         <div>
           <h2>{{ user.nickname || '未命名' }}</h2>
-          <p class="sub">{{ user.pageId || user.userId }}{{ user.frozen ? ' · 已冻结' : '' }}</p>
+          <p class="sub">
+            {{ user.pageId || user.userId }}{{ user.frozen ? ' · 已冻结' : ''
+            }}{{ user.verified ? ' · 大 V' : '' }}{{ user.liveHost ? ' · 主播' : '' }}
+          </p>
         </div>
         <div class="head-acts">
+          <button
+            v-if="user.verified"
+            type="button"
+            class="danger"
+            :disabled="busyId === user.userId + 'verified'"
+            @click="dropBadge('verified')"
+          >
+            取消大 V
+          </button>
+          <button
+            v-if="user.liveHost"
+            type="button"
+            class="danger"
+            :disabled="busyId === user.userId + 'liveHost'"
+            @click="dropBadge('liveHost')"
+          >
+            取消主播
+          </button>
           <button
             type="button"
             :class="{ danger: !user.frozen }"

@@ -7,6 +7,8 @@ import { useNoteDetail } from '../stores/noteDetail'
 import { useAuthModal } from '../stores/authModal'
 import { useSession } from '../stores/session'
 import Icon from './Icon.vue'
+import IdentityBadges from './IdentityBadges.vue'
+import IdentityCaption from './IdentityCaption.vue'
 import EmptyState from './EmptyState.vue'
 import ReportDialog from './ReportDialog.vue'
 import TextNoteCover from './TextNoteCover.vue'
@@ -18,6 +20,8 @@ type Comment = {
   text: string
   time: string
   avatarUrl?: string
+  liveHost?: boolean
+  verified?: boolean
   likeCount: number
   likedByMe: boolean
   replyCount: number
@@ -30,6 +34,8 @@ function mapComment(c: CommentView): Comment {
     id: c.commentId,
     name: c.author.nickname,
     avatarUrl: c.author.avatarUrl,
+    liveHost: Boolean(c.author.liveHost),
+    verified: Boolean(c.author.verified),
     text: c.content,
     time: relativeTime(c.createdAt),
     likeCount: c.likeCount,
@@ -1254,12 +1260,23 @@ watch(moreOpen, async (on) => {
               @mouseenter="openAuthor"
               @mouseleave="closeAuthor"
             >
-              <img v-if="avatar" :src="avatar" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover" />
-              <span v-else class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[13px] text-[#8a8a8a]">
-                {{ (detail.note.author || '一').slice(0, 1) }}
+              <span class="relative h-9 w-9 shrink-0">
+                <img v-if="avatar" :src="avatar" alt="" class="h-9 w-9 rounded-full object-cover" />
+                <span v-else class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--hover)] text-[13px] text-[#8a8a8a]">
+                  {{ (detail.note.author || '一').slice(0, 1) }}
+                </span>
+                <IdentityBadges
+                  size="sm"
+                  :live-host="authorProfile?.liveHost"
+                  :verified="authorProfile?.verified"
+                />
               </span>
-              <span class="flex min-w-0 items-center gap-1 truncate text-[15px] font-medium">
+              <span class="flex min-w-0 items-center gap-1 text-[15px] font-medium">
                 <span class="truncate">{{ detail.note.author }}</span>
+                <IdentityCaption
+                  :live-host="authorProfile?.liveHost"
+                  :verified="authorProfile?.verified"
+                />
                 <Icon
                   v-if="authorGender === 1"
                   name="mars"
@@ -1277,7 +1294,7 @@ watch(moreOpen, async (on) => {
               </span>
               <div class="author-card" @mouseenter="openAuthor" @mouseleave="closeAuthor">
                 <div class="flex items-center gap-2.5">
-                  <button type="button" class="author-go shrink-0" @click.stop="goAuthor">
+                  <button type="button" class="author-go relative shrink-0" @click.stop="goAuthor">
                     <img v-if="avatar" :src="avatar" alt="" class="h-11 w-11 rounded-full object-cover" />
                     <span
                       v-else
@@ -1285,6 +1302,11 @@ watch(moreOpen, async (on) => {
                     >
                       {{ (detail.note.author || '一').slice(0, 1) }}
                     </span>
+                    <IdentityBadges
+                      size="md"
+                      :live-host="authorProfile?.liveHost"
+                      :verified="authorProfile?.verified"
+                    />
                   </button>
                   <button
                     type="button"
@@ -1292,6 +1314,10 @@ watch(moreOpen, async (on) => {
                     @click.stop="goAuthor"
                   >
                     <span class="truncate">{{ detail.note.author }}</span>
+                    <IdentityCaption
+                      :live-host="authorProfile?.liveHost"
+                      :verified="authorProfile?.verified"
+                    />
                     <Icon
                       v-if="authorGender === 1"
                       name="mars"
@@ -1384,17 +1410,20 @@ watch(moreOpen, async (on) => {
             <p class="mb-3 text-[13px] font-medium">评论 {{ commentLabel }}</p>
             <ul v-if="comments.length" class="space-y-3">
               <li v-for="item in comments" :key="item.id" class="flex gap-2.5">
-                <img
-                  v-if="item.avatarUrl"
-                  :src="item.avatarUrl"
-                  alt=""
-                  class="mt-0.5 h-7 w-7 shrink-0 rounded-full object-cover"
-                />
-                <span
-                  v-else
-                  class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[11px] text-[#8a8a8a]"
-                >
-                  {{ item.name.slice(0, 1) }}
+                <span class="relative mt-0.5 h-7 w-7 shrink-0">
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    alt=""
+                    class="h-7 w-7 rounded-full object-cover"
+                  />
+                  <span
+                    v-else
+                    class="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hover)] text-[11px] text-[#8a8a8a]"
+                  >
+                    {{ item.name.slice(0, 1) }}
+                  </span>
+                  <IdentityBadges size="sm" :live-host="item.liveHost" :verified="item.verified" />
                 </span>
                 <div class="min-w-0 flex-1">
                   <p class="text-[13px]">
@@ -1424,17 +1453,20 @@ watch(moreOpen, async (on) => {
                   </p>
                   <ul v-if="item.repliesOpen && item.replies.length" class="mt-2 space-y-2 border-l border-[var(--line)] pl-3">
                     <li v-for="reply in item.replies" :key="reply.id" class="flex gap-2">
-                      <img
-                        v-if="reply.avatarUrl"
-                        :src="reply.avatarUrl"
-                        alt=""
-                        class="mt-0.5 h-6 w-6 shrink-0 rounded-full object-cover"
-                      />
-                      <span
-                        v-else
-                        class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[10px] text-[#8a8a8a]"
-                      >
-                        {{ reply.name.slice(0, 1) }}
+                      <span class="relative mt-0.5 h-6 w-6 shrink-0">
+                        <img
+                          v-if="reply.avatarUrl"
+                          :src="reply.avatarUrl"
+                          alt=""
+                          class="h-6 w-6 rounded-full object-cover"
+                        />
+                        <span
+                          v-else
+                          class="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--hover)] text-[10px] text-[#8a8a8a]"
+                        >
+                          {{ reply.name.slice(0, 1) }}
+                        </span>
+                        <IdentityBadges size="sm" :live-host="reply.liveHost" :verified="reply.verified" />
                       </span>
                       <div class="min-w-0 flex-1">
                         <p class="text-[13px]">
@@ -1483,17 +1515,20 @@ watch(moreOpen, async (on) => {
                       :class="i === mentionHi ? 'is-hi' : ''"
                       @mousedown.prevent="pickMention(user)"
                     >
-                      <img
-                        v-if="user.avatarUrl"
-                        :src="user.avatarUrl"
-                        alt=""
-                        class="h-8 w-8 shrink-0 rounded-full object-cover"
-                      />
-                      <span
-                        v-else
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--hover)] text-[12px] text-[#8a8a8a]"
-                      >
-                        {{ (user.nickname || user.pageId).slice(0, 1) }}
+                      <span class="relative h-8 w-8 shrink-0">
+                        <img
+                          v-if="user.avatarUrl"
+                          :src="user.avatarUrl"
+                          alt=""
+                          class="h-8 w-8 rounded-full object-cover"
+                        />
+                        <span
+                          v-else
+                          class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--hover)] text-[12px] text-[#8a8a8a]"
+                        >
+                          {{ (user.nickname || user.pageId).slice(0, 1) }}
+                        </span>
+                        <IdentityBadges size="sm" :live-host="user.liveHost" :verified="user.verified" />
                       </span>
                       <span class="min-w-0 flex-1 text-left">
                         <span class="block truncate text-[13px] text-[var(--ink)]">{{ user.nickname }}</span>

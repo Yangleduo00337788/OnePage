@@ -7,6 +7,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
 import Icon from '../components/Icon.vue'
+import IdentityCaption from '../components/IdentityCaption.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ReportDialog from '../components/ReportDialog.vue'
 import SearchBox from '../components/SearchBox.vue'
@@ -224,17 +225,20 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       <div class="profile-hero-shade" />
       <div class="profile-hero-body">
         <div class="flex justify-center">
-          <div class="relative h-24 w-24 overflow-hidden rounded-full bg-[var(--fill)] ring-4 ring-[var(--panel)]">
-            <img v-if="profile.avatarUrl" :src="profile.avatarUrl" class="h-full w-full object-cover" alt="" />
-            <span v-else class="flex h-full items-center justify-center text-[28px] text-[#c4c4c4]">
-              {{ (profile.nickname || '一').slice(0, 1) }}
-            </span>
+          <div class="relative h-24 w-24">
+            <div class="h-full w-full overflow-hidden rounded-full bg-[var(--fill)] ring-4 ring-[var(--panel)]">
+              <img v-if="profile.avatarUrl" :src="profile.avatarUrl" class="h-full w-full object-cover" alt="" />
+              <span v-else class="flex h-full items-center justify-center text-[28px] text-[#c4c4c4]">
+                {{ (profile.nickname || '一').slice(0, 1) }}
+              </span>
+            </div>
           </div>
         </div>
 
         <div class="mx-auto mt-4 max-w-[560px] text-center text-white">
-          <h1 class="mx-auto flex max-w-full items-center justify-center gap-1.5 text-[22px] font-semibold tracking-tight">
+          <h1 class="mx-auto flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[22px] font-semibold tracking-tight">
             <span class="truncate">{{ profile.nickname }}</span>
+            <IdentityCaption light :live-host="profile.liveHost" :verified="profile.verified" />
             <Icon
               v-if="profile.gender === 1"
               name="mars"

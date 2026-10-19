@@ -69,13 +69,30 @@ async function openUser(id: string) {
   }
 }
 
+function applyUser(next: OpsUser) {
+  previewUser.value = previewUser.value?.userId === next.userId ? next : previewUser.value
+  items.value = items.value.map((item) => (item.userId === next.userId ? next : item))
+}
+
+async function dropBadge(row: OpsUser, field: 'liveHost' | 'verified') {
+  busyId.value = row.userId + field
+  try {
+    const next = await api.opsSetUserBadges(row.userId, { [field]: false })
+    applyUser(next)
+    flash(field === 'verified' ? '已取消大 V' : '已取消主播')
+  } catch (e) {
+    flash(e instanceof ApiError ? e.message : '操作失败')
+  } finally {
+    busyId.value = ''
+  }
+}
+
 async function toggle(row: OpsUser) {
   busyId.value = row.userId
   try {
     const next = row.frozen ? await api.opsUnfreezeUser(row.userId) : await api.opsFreezeUser(row.userId)
-    items.value = items.value.map((item) => (item.userId === next.userId ? next : item))
+    applyUser(next)
     flash(next.frozen ? '已冻结' : '已解冻')
-    if (previewUser.value?.userId === next.userId) previewUser.value = next
   } catch (e) {
     flash(e instanceof ApiError ? e.message : '操作失败')
   } finally {
@@ -114,6 +131,7 @@ onMounted(() => load(1, true))
             <th>用户</th>
             <th>一页号</th>
             <th>状态</th>
+            <th>标识</th>
             <th />
           </tr>
         </thead>
@@ -126,7 +144,26 @@ onMounted(() => load(1, true))
             </td>
             <td>{{ row.pageId || row.userId }}</td>
             <td>{{ row.frozen ? '已冻结' : '正常' }}</td>
+            <td>{{ [row.verified ? '大 V' : '', row.liveHost ? '主播' : ''].filter(Boolean).join(' · ') || '—' }}</td>
             <td class="acts">
+              <button
+                v-if="row.verified"
+                type="button"
+                class="danger"
+                :disabled="busyId === row.userId + 'verified'"
+                @click="dropBadge(row, 'verified')"
+              >
+                取消大 V
+              </button>
+              <button
+                v-if="row.liveHost"
+                type="button"
+                class="danger"
+                :disabled="busyId === row.userId + 'liveHost'"
+                @click="dropBadge(row, 'liveHost')"
+              >
+                取消主播
+              </button>
               <button
                 type="button"
                 :class="{ danger: !row.frozen }"
@@ -157,12 +194,8 @@ onMounted(() => load(1, true))
       v-else-if="previewOpen && previewUser"
       :user="previewUser"
       @close="previewOpen = false"
-      @frozen="
-        (next) => {
-          previewUser = next
-          items = items.map((item) => (item.userId === next.userId ? next : item))
-        }
-      "
+      @frozen="applyUser"
+      @updated="applyUser"
     />
   </div>
 </template>
@@ -264,6 +297,11 @@ th {
   color: #ff2442;
 }
 
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .acts button {
   height: 32px;
   padding: 0 12px;

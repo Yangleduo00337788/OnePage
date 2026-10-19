@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from './Icon.vue'
+import IdentityBadges from './IdentityBadges.vue'
 import TextNoteCover from './TextNoteCover.vue'
 import { useNoteDetail } from '../stores/noteDetail'
 import type { NoteCard } from '../data/home'
@@ -59,13 +60,16 @@ const isText = computed(() => !props.note.video && !props.note.image)
     <h2 class="mt-2 shrink-0 line-clamp-2 text-[14px] leading-5">{{ note.title }}</h2>
     <div class="mt-2 flex shrink-0 items-center justify-between text-[12px] text-[#8a8a8a]">
       <span class="flex min-w-0 items-center gap-1.5">
-        <img
-          v-if="note.avatarUrl"
-          :src="note.avatarUrl"
-          alt=""
-          class="h-5 w-5 shrink-0 rounded-full object-cover"
-        />
-        <span v-else class="h-5 w-5 shrink-0 rounded-full bg-[#d9d9d9]" />
+        <span class="relative h-7 w-7 shrink-0 overflow-visible">
+          <img
+            v-if="note.avatarUrl"
+            :src="note.avatarUrl"
+            alt=""
+            class="h-7 w-7 rounded-full object-cover"
+          />
+          <span v-else class="block h-7 w-7 rounded-full bg-[#d9d9d9]" />
+          <IdentityBadges size="sm" :live-host="note.liveHost" :verified="note.verified" />
+        </span>
         <span class="truncate">{{ note.author }}</span>
       </span>
       <span class="flex items-center gap-1">
