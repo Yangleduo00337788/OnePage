@@ -29,9 +29,11 @@ import com.onepage.content.mapper.PostMediaMapper;
 import com.onepage.content.mapper.PostPlayCompleteMapper;
 import com.onepage.content.mapper.PostViewMapper;
 import com.onepage.content.mapper.ShareLogMapper;
+import com.onepage.common.tx.AfterCommit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -83,6 +85,8 @@ public class PostService {
   private final SearchIndexer searchIndexer;
   private final ObjectMapper objectMapper;
   private final ImClient imClient;
+  private final CommunityPolicyCache policyCache;
+  private final PostReviewService postReviewService;
   private final String mediaPublicBase;
   private final String frontendUrl;
   private final String internalToken;
@@ -105,6 +109,8 @@ public class PostService {
       SearchIndexer searchIndexer,
       ObjectMapper objectMapper,
       ImClient imClient,
+      CommunityPolicyCache policyCache,
+      @Lazy PostReviewService postReviewService,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
       @Value("${onepage.frontend-url}") String frontendUrl,
       @Value("${onepage.internal-token}") String internalToken) {
@@ -125,6 +131,8 @@ public class PostService {
     this.searchIndexer = searchIndexer;
     this.objectMapper = objectMapper;
     this.imClient = imClient;
+    this.policyCache = policyCache;
+    this.postReviewService = postReviewService;
     this.mediaPublicBase = trimSlash(mediaPublicBase);
     this.frontendUrl = trimSlash(frontendUrl);
     this.internalToken = internalToken;
@@ -153,6 +161,9 @@ public class PostService {
     int vis = parseVisibility(spec.visibility());
     post.setVisibility(vis);
     post.setRejectReason(null);
+    post.setAiReview(null);
+    post.setAiReviewReason(null);
+    post.setAiReviewScore(null);
     if (draft) {
       post.setStatus(STATUS_DRAFT);
     } else {
@@ -170,6 +181,7 @@ public class PostService {
           "postType", type));
     }
     catalogService.rememberHashtags(post.getBody());
+    queueAiReview(post);
     return new FeedDtos.CreateResult(String.valueOf(postId), publishedAt.toString(), post.getStatus());
   }
 
@@ -207,12 +219,18 @@ public class PostService {
         || STATUS_DRAFT.equals(post.getStatus()))) {
       post.setStatus(STATUS_PUBLISHED);
       post.setRejectReason(null);
+      post.setAiReview(null);
+      post.setAiReviewReason(null);
+      post.setAiReviewScore(null);
       post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, true));
     } else if (STATUS_REJECTED.equals(post.getStatus())
         || STATUS_DRAFT.equals(post.getStatus())
         || (vis == 0 && !STATUS_PUBLISHED.equals(post.getStatus()))) {
       post.setStatus(STATUS_PENDING);
       post.setRejectReason(null);
+      post.setAiReview(null);
+      post.setAiReviewReason(null);
+      post.setAiReviewScore(null);
       post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, true));
     } else if (StringUtils.hasText(spec.scheduledAt())) {
       post.setPublishedAt(resolvePublishedAt(spec.scheduledAt(), now, true));
@@ -225,6 +243,7 @@ public class PostService {
         "postId", String.valueOf(postId),
         "authorId", String.valueOf(userId)));
     catalogService.rememberHashtags(post.getBody());
+    queueAiReview(post);
     return detail(userId, postId);
   }
 
@@ -360,7 +379,10 @@ public class PostService {
         post.getDeletedAt() != null,
         iso(post.getPublishedAt()),
         reviewStatusOf(post),
-        blankToEmpty(post.getRejectReason()));
+        blankToEmpty(post.getRejectReason()),
+        blankToEmpty(post.getAiReview()),
+        blankToEmpty(post.getAiReviewReason()),
+        post.getAiReviewScore());
   }
 
   /** 运营下架：不校验作者，已删则当作成功。 */
@@ -508,7 +530,10 @@ public class PostService {
           post.getDeletedAt() != null,
           iso(post.getPublishedAt()),
           reviewStatusOf(post),
-          blankToEmpty(post.getRejectReason())));
+          blankToEmpty(post.getRejectReason()),
+          blankToEmpty(post.getAiReview()),
+          blankToEmpty(post.getAiReviewReason()),
+          post.getAiReviewScore()));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {
@@ -627,9 +652,15 @@ public class PostService {
     post.setVisibility(vis);
     if (vis == 0 && old != 0 && STATUS_PUBLISHED.equals(post.getStatus())) {
       post.setStatus(STATUS_PENDING);
+      post.setAiReview(null);
+      post.setAiReviewReason(null);
+      post.setAiReviewScore(null);
     } else if (vis == 0 && STATUS_REJECTED.equals(post.getStatus())) {
       post.setStatus(STATUS_PENDING);
       post.setRejectReason(null);
+      post.setAiReview(null);
+      post.setAiReviewReason(null);
+      post.setAiReviewScore(null);
     } else if (vis != 0 && (STATUS_PENDING.equals(post.getStatus()) || STATUS_REJECTED.equals(post.getStatus()))) {
       post.setStatus(STATUS_PUBLISHED);
       post.setRejectReason(null);
@@ -637,6 +668,7 @@ public class PostService {
     post.setUpdatedAt(LocalDateTime.now());
     postMapper.updateById(post);
     searchIndexer.sync(postId);
+    queueAiReview(post);
     return toBrief(post, postViewMapper.countByPostId(post.getId()));
   }
 
@@ -1093,6 +1125,14 @@ public class PostService {
     return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
   }
 
+  private void queueAiReview(Post post) {
+    if (post == null || post.getId() == null || !STATUS_PENDING.equals(post.getStatus())) {
+      return;
+    }
+    long postId = post.getId();
+    AfterCommit.run(() -> postReviewService.enqueue(postId));
+  }
+
   private static boolean authorEditable(String status) {
     return STATUS_DRAFT.equals(status)
         || STATUS_PUBLISHED.equals(status)
@@ -1113,6 +1153,8 @@ public class PostService {
 
   private void validatePublish(
       FeedDtos.PublishSpec spec, String type, String cat, List<MediaAsset> assets, boolean draft) {
+    policyCache.assertClean(spec == null ? null : spec.title());
+    policyCache.assertClean(spec == null ? null : spec.body());
     if (!POST_TYPES.contains(type)) {
       throw BusinessException.validation("postType 不支持");
     }

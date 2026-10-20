@@ -60,6 +60,7 @@ public class CatalogService {
   private final PostMapper postMapper;
   private final CommentMapper commentMapper;
   private final SearchIndexer searchIndexer;
+  private final CommunityPolicyCache policyCache;
 
   public CatalogService(
       PostCategoryMapper categoryMapper,
@@ -69,7 +70,8 @@ public class CatalogService {
       CreatorFaqMapper faqMapper,
       PostMapper postMapper,
       CommentMapper commentMapper,
-      @Lazy SearchIndexer searchIndexer) {
+      @Lazy SearchIndexer searchIndexer,
+      CommunityPolicyCache policyCache) {
     this.categoryMapper = categoryMapper;
     this.campaignMapper = campaignMapper;
     this.topicMapper = topicMapper;
@@ -78,6 +80,7 @@ public class CatalogService {
     this.postMapper = postMapper;
     this.commentMapper = commentMapper;
     this.searchIndexer = searchIndexer;
+    this.policyCache = policyCache;
   }
 
   public boolean isEnabledCategory(String name) {
@@ -263,6 +266,7 @@ public class CatalogService {
     if (name.isEmpty() || name.length() > 32) {
       throw BusinessException.validation("话题名不合法");
     }
+    policyCache.assertClean(name);
     Topic row;
     if (StringUtils.hasText(id)) {
       row = topicMapper.selectById(Long.parseLong(id));
@@ -415,6 +419,11 @@ public class CatalogService {
     }
     try {
       for (String name : names) {
+        try {
+          policyCache.assertClean(name);
+        } catch (BusinessException ex) {
+          continue;
+        }
         if (byTopicName(name) != null) {
           continue;
         }

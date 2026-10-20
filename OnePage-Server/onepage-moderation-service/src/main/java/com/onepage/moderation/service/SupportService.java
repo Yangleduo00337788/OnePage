@@ -41,6 +41,7 @@ public class SupportService {
   private final SupportTicketMapper mapper;
   private final UserClient userClient;
   private final NotifyClient notifyClient;
+  private final CommunityPolicyService communityPolicyService;
   private final ObjectMapper objectMapper;
   private final String internalToken;
 
@@ -48,11 +49,13 @@ public class SupportService {
       SupportTicketMapper mapper,
       UserClient userClient,
       NotifyClient notifyClient,
+      CommunityPolicyService communityPolicyService,
       ObjectMapper objectMapper,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
     this.userClient = userClient;
     this.notifyClient = notifyClient;
+    this.communityPolicyService = communityPolicyService;
     this.objectMapper = objectMapper;
     this.internalToken = internalToken;
   }
@@ -88,6 +91,9 @@ public class SupportService {
     if (("live".equals(kind) || "verify".equals(kind)) && (title.isEmpty() || contact.isEmpty())) {
       throw BusinessException.validation("请填写名称和联系方式");
     }
+    communityPolicyService.assertClean(title);
+    communityPolicyService.assertClean(contact);
+    communityPolicyService.assertClean(text);
     SupportTicket row = new SupportTicket();
     row.setId(IdGenerator.nextId());
     row.setUserId(userId);

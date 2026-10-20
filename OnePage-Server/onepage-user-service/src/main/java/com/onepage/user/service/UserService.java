@@ -783,11 +783,7 @@ public class UserService {
     if (!StringUtils.hasText(nickname)) {
       return "一页用户";
     }
-    try {
-      return profileTextGuard.nickname(nickname);
-    } catch (BusinessException ex) {
-      return "一页用户";
-    }
+    return profileTextGuard.nickname(nickname);
   }
 
   private String publicUrl(String objectKey) {

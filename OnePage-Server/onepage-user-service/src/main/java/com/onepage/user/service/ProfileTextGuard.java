@@ -43,14 +43,6 @@ public class ProfileTextGuard {
   }
 
   private void assertClean(String text) {
-    String compact = text.toLowerCase().replaceAll("\\s+", "");
-    for (String word : policyCache.current().bannedWords()) {
-      if (!StringUtils.hasText(word)) {
-        continue;
-      }
-      if (compact.contains(word.toLowerCase().replaceAll("\\s+", ""))) {
-        throw BusinessException.validation("含有不允许的内容");
-      }
-    }
+    policyCache.assertClean(text);
   }
 }

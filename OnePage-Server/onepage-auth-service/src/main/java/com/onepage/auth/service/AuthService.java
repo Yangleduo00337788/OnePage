@@ -1,6 +1,8 @@
 package com.onepage.auth.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onepage.auth.client.UserClient;
 import com.onepage.auth.entity.AuthAccount;
 import com.onepage.auth.entity.AuthOauthBinding;
@@ -10,6 +12,7 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.common.dto.UserSummary;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.common.ops.OpsStaffAllowlist;
+import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
@@ -47,6 +50,7 @@ public class AuthService {
   private final SmsService smsService;
   private final PasswordEncoder passwordEncoder;
   private final UserClient userClient;
+  private final ObjectMapper objectMapper;
   private final StringRedisTemplate redis;
   private final String internalToken;
   private final Set<Long> opsStaffIds;
@@ -57,6 +61,7 @@ public class AuthService {
       SmsService smsService,
       PasswordEncoder passwordEncoder,
       UserClient userClient,
+      ObjectMapper objectMapper,
       StringRedisTemplate redis,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.ops-staff-user-ids:}") String opsStaffUserIds) {
@@ -65,6 +70,7 @@ public class AuthService {
     this.smsService = smsService;
     this.passwordEncoder = passwordEncoder;
     this.userClient = userClient;
+    this.objectMapper = objectMapper;
     this.redis = redis;
     this.internalToken = internalToken;
     this.opsStaffIds = OpsStaffAllowlist.parse(opsStaffUserIds);
@@ -363,7 +369,29 @@ public class AuthService {
 
   /** 调 user-service 内部接口建档；带 internal-token，防止别人直接打 8082。 */
   private void ensureProfile(Long userId, String nickname) {
-    userClient.createProfile(internalToken, new UserClient.CreateProfileRequest(userId, nickname));
+    try {
+      userClient.createProfile(internalToken, new UserClient.CreateProfileRequest(userId, nickname));
+    } catch (FeignException ex) {
+      if (ex.status() == 400) {
+        throw BusinessException.validation(feignMessage(ex, "含有不允许的内容"));
+      }
+      throw ex;
+    }
+  }
+
+  private String feignMessage(FeignException ex, String fallback) {
+    try {
+      JsonNode node = objectMapper.readTree(ex.contentUTF8());
+      if (node != null && node.hasNonNull("message")) {
+        String text = node.get("message").asText();
+        if (StringUtils.hasText(text)) {
+          return text;
+        }
+      }
+    } catch (Exception ignored) {
+      /* 用 fallback */
+    }
+    return fallback;
   }
 
   /** 登录框同一输入：先当手机号查，没有再当邮箱。 */

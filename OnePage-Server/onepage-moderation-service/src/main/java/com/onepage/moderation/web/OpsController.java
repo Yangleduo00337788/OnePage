@@ -534,6 +534,22 @@ public class OpsController {
     return aiClient.probe(internalToken, body);
   }
 
+  @PostMapping("/ai/review/probe")
+  public AiClient.OpsAiProbe probeReviewAi(
+      HttpServletRequest request, @RequestBody AiClient.OpsAiPatch body) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return aiClient.reviewProbe(internalToken, body);
+  }
+
+  @PostMapping("/ai/review/try")
+  public AiClient.ReviewResult tryReview(
+      HttpServletRequest request, @RequestBody AiClient.ReviewSpec body) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return aiClient.review(internalToken, body);
+  }
+
   @GetMapping("/support")
   public ModerationDtos.SupportPage support(
       HttpServletRequest request,

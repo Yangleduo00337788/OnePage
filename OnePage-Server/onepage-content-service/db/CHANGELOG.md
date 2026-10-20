@@ -14,3 +14,5 @@
 | local | 009_platform_notice.sql | 创作者首页平台公告。Windows 须 `mysql --default-character-set=utf8mb4`，不要用 PowerShell 管道，否则种子中文会乱码 |
 | local | 010_creator_faq.sql | 创作者创作字典 |
 | local | 011_platform_notice_comments.sql | 修正 `platform_notice` 中文 COMMENT |
+| local | 012_post_ai_review.sql | post.ai_review / ai_review_reason：公开笔记文字机审 |
+| local | 013_post_ai_review_score.sql | post.ai_review_score：机审风险分 0–100 |

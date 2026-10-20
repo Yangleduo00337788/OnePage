@@ -1,6 +1,7 @@
 package com.onepage.moderation.service;
 
 import com.onepage.common.api.BusinessException;
+import com.onepage.common.text.BannedText;
 import com.onepage.moderation.dto.ModerationDtos;
 import com.onepage.moderation.entity.CommunityPolicy;
 import com.onepage.moderation.mapper.CommunityPolicyMapper;
@@ -29,6 +30,10 @@ public class CommunityPolicyService {
 
   public ModerationDtos.CommunityPolicyView view() {
     return toView(requireRow());
+  }
+
+  public void assertClean(String text) {
+    BannedText.assertClean(text, view().bannedWords());
   }
 
   public ModerationDtos.CommunityPolicyView save(ModerationDtos.CommunityPolicyPatch body) {

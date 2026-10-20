@@ -23,6 +23,12 @@ public interface AiClient {
   @PostMapping("/internal/ai/probe")
   OpsAiProbe probe(@RequestHeader("X-Internal-Token") String token, @RequestBody OpsAiPatch body);
 
+  @PostMapping("/internal/ai/review/probe")
+  OpsAiProbe reviewProbe(@RequestHeader("X-Internal-Token") String token, @RequestBody OpsAiPatch body);
+
+  @PostMapping("/internal/ai/review")
+  ReviewResult review(@RequestHeader("X-Internal-Token") String token, @RequestBody ReviewSpec body);
+
   record OpsAiView(
       String llmBaseUrl,
       String llmModel,
@@ -40,7 +46,14 @@ public interface AiClient {
       int contextBodyMax,
       double temperature,
       int maxTokens,
-      boolean streamEnabled) {}
+      boolean streamEnabled,
+      boolean reviewEnabled,
+      String reviewSystem,
+      String reviewLlmBaseUrl,
+      String reviewLlmModel,
+      boolean reviewLlmKeySet,
+      String reviewLlmKeyMasked,
+      int reviewRiskLimit) {}
 
   record OpsAiPatch(
       String llmBaseUrl,
@@ -58,7 +71,18 @@ public interface AiClient {
       Integer contextBodyMax,
       Double temperature,
       Integer maxTokens,
-      Boolean streamEnabled) {}
+      Boolean streamEnabled,
+      Boolean reviewEnabled,
+      String reviewSystem,
+      String reviewLlmBaseUrl,
+      String reviewLlmApiKey,
+      String reviewLlmModel,
+      Boolean clearReviewLlmKey,
+      Integer reviewRiskLimit) {}
 
   record OpsAiProbe(boolean ok, String message) {}
+
+  record ReviewSpec(String postId, String title, String body) {}
+
+  record ReviewResult(String verdict, String reason, Integer score) {}
 }

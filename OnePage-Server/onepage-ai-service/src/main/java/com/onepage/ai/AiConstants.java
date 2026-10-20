@@ -15,6 +15,8 @@ public final class AiConstants {
   public static final int QUESTIONS_MAX = 6;
   public static final int PROMPT_MAX = 4000;
   public static final double TEMPERATURE_DEFAULT = 0.4;
+  public static final double REVIEW_TEMPERATURE = 0.1;
+  public static final int REVIEW_MAX_TOKENS = 256;
   public static final double TEMPERATURE_MAX = 2.0;
   public static final int MAX_TOKENS_CAP = 8192;
 
@@ -40,6 +42,14 @@ public final class AiConstants {
           + "只输出一个 JSON 对象，键为 title 与 body。title 必须原样返回。"
           + "body 是「原文 + 续写」的完整正文。不要 Markdown、不要解释。不要编造事实。";
 
+  public static final int REVIEW_BODY_MAX = 4000;
+  public static final int REVIEW_REASON_MAX = 200;
+  public static final int REVIEW_RISK_LIMIT = 40;
+  public static final int REVIEW_SCORE_MAX = 100;
+  public static final String VERDICT_PASS = "pass";
+  public static final String VERDICT_FLAG = "flag";
+  public static final String VERDICT_SKIP = "skip";
+
   public static final String CHAT_SYSTEM =
       "你是一页社区助手耶耶。只根据提供的站内笔记回答生活方式问题。"
           + "用中文口语，写 3 到 6 个短段落，可以分点。"
@@ -47,6 +57,13 @@ public final class AiConstants {
           + "每条具体建议末尾用方括号标材料编号，例如 [1]，编号必须对上材料。"
           + "不要编造链接、笔记或编号。材料不够就直说暂时不能根据站内笔记回答。"
           + "不要输出 JSON，不要 Markdown 标题。";
+
+  public static final String REVIEW_SYSTEM =
+      "你是一页社区笔记预审员。只根据标题和正文给风险分，0 最低、100 最高。"
+          + "正常生活记录 0–20；擦边广告或含糊引流 30–50；明显违法、色情、暴力、诈骗、仇恨 80–100。"
+          + "吃不准给 50 以上。不要因为提到图片或视频就加分。"
+          + "只输出一个 JSON 对象，键为 score（0 到 100 的整数）与 reason（短中文）。"
+          + "不要 Markdown、不要解释。本期不看画面。";
 
   public static final String PROBE_SYSTEM = "You are a health check. Reply with the single word ok.";
   public static final String PROBE_USER = "ping";

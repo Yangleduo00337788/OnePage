@@ -218,7 +218,10 @@ public class ModerationService {
         raw.takenDown(),
         raw.publishedAt() == null ? "" : raw.publishedAt(),
         raw.reviewStatus() == null ? "" : raw.reviewStatus(),
-        raw.rejectReason() == null ? "" : raw.rejectReason());
+        raw.rejectReason() == null ? "" : raw.rejectReason(),
+        raw.aiReview() == null ? "" : raw.aiReview(),
+        raw.aiReviewReason() == null ? "" : raw.aiReviewReason(),
+        raw.aiReviewScore());
   }
 
   public ModerationDtos.OpsPostPage opsPosts(String q, String taken, String cursor, Integer limit) {
@@ -240,7 +243,10 @@ public class ModerationService {
           row.takenDown(),
           row.publishedAt() == null ? "" : row.publishedAt(),
           row.reviewStatus() == null ? "" : row.reviewStatus(),
-          row.rejectReason() == null ? "" : row.rejectReason()));
+          row.rejectReason() == null ? "" : row.rejectReason(),
+          row.aiReview() == null ? "" : row.aiReview(),
+          row.aiReviewReason() == null ? "" : row.aiReviewReason(),
+          row.aiReviewScore()));
     }
     return new ModerationDtos.OpsPostPage(items, page.nextCursor(), page.hasMore());
   }

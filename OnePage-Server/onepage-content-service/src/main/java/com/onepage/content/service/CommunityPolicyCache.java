@@ -1,16 +1,19 @@
 package com.onepage.content.service;
 
+import com.onepage.common.text.BannedText;
 import com.onepage.content.client.ModerationClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** 15 秒缓存。治理挂了用上次或默认 10MB / 200MB。 */
+import java.util.List;
+
+/** 15 秒缓存。治理挂了用上次或默认。 */
 @Component
 public class CommunityPolicyCache {
   private static final Logger log = LoggerFactory.getLogger(CommunityPolicyCache.class);
-  static final Snapshot DEFAULT = new Snapshot(10, 200);
+  static final Snapshot DEFAULT = new Snapshot(BannedText.DEFAULT_WORDS, 10, 200);
   private static final long TTL_MS = 15_000L;
 
   private final ModerationClient moderationClient;
@@ -34,6 +37,7 @@ public class CommunityPolicyCache {
       ModerationClient.PolicyView raw = moderationClient.policy(internalToken);
       if (raw != null) {
         Snapshot next = new Snapshot(
+            raw.bannedWords() == null ? List.of() : List.copyOf(raw.bannedWords()),
             raw.imageMaxMb() > 0 ? raw.imageMaxMb() : DEFAULT.imageMaxMb(),
             raw.videoMaxMb() > 0 ? raw.videoMaxMb() : DEFAULT.videoMaxMb());
         cached = next;
@@ -46,5 +50,9 @@ public class CommunityPolicyCache {
     return cached != null ? cached : DEFAULT;
   }
 
-  public record Snapshot(int imageMaxMb, int videoMaxMb) {}
+  public void assertClean(String text) {
+    BannedText.assertClean(text, current().bannedWords());
+  }
+
+  public record Snapshot(List<String> bannedWords, int imageMaxMb, int videoMaxMb) {}
 }

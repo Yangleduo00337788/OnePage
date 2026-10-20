@@ -113,7 +113,10 @@ public final class FeedDtos {
       boolean takenDown,
       String publishedAt,
       String reviewStatus,
-      String rejectReason) {}
+      String rejectReason,
+      String aiReview,
+      String aiReviewReason,
+      Integer aiReviewScore) {}
 
   public record OpsPostRow(
       String postId,
@@ -124,7 +127,10 @@ public final class FeedDtos {
       boolean takenDown,
       String publishedAt,
       String reviewStatus,
-      String rejectReason) {}
+      String rejectReason,
+      String aiReview,
+      String aiReviewReason,
+      Integer aiReviewScore) {}
 
   public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 

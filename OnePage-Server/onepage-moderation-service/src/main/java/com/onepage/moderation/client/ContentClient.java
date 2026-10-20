@@ -187,7 +187,10 @@ public interface ContentClient {
       boolean takenDown,
       String publishedAt,
       String reviewStatus,
-      String rejectReason) {}
+      String rejectReason,
+      String aiReview,
+      String aiReviewReason,
+      Integer aiReviewScore) {}
 
   record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 
@@ -283,5 +286,8 @@ public interface ContentClient {
       boolean takenDown,
       String publishedAt,
       String reviewStatus,
-      String rejectReason) {}
+      String rejectReason,
+      String aiReview,
+      String aiReviewReason,
+      Integer aiReviewScore) {}
 }

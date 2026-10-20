@@ -1,5 +1,6 @@
 package com.onepage.user.service;
 
+import com.onepage.common.text.BannedText;
 import com.onepage.user.client.ModerationClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,10 +13,7 @@ import java.util.List;
 @Component
 public class CommunityPolicyCache {
   private static final Logger log = LoggerFactory.getLogger(CommunityPolicyCache.class);
-  static final Snapshot DEFAULT = new Snapshot(
-      List.of("代孕", "办证", "发票", "枪支", "毒品", "约炮", "色情", "赌博",
-          "加微信", "加vx", "加v信", "澳门赌场", "六合彩"),
-      24, 160, 10, 200);
+  static final Snapshot DEFAULT = new Snapshot(BannedText.DEFAULT_WORDS, 24, 160, 10, 200);
   private static final long TTL_MS = 15_000L;
 
   private final ModerationClient moderationClient;
@@ -52,6 +50,10 @@ public class CommunityPolicyCache {
       log.warn("load community policy failed", ex);
     }
     return cached != null ? cached : DEFAULT;
+  }
+
+  public void assertClean(String text) {
+    BannedText.assertClean(text, current().bannedWords());
   }
 
   public record Snapshot(

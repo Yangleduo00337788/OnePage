@@ -22,6 +22,9 @@ public class Post {
   private String eventTitle;
   private String status;
   private String rejectReason;
+  private String aiReview;
+  private String aiReviewReason;
+  private Integer aiReviewScore;
   private Integer visibility;
   private LocalDateTime publishedAt;
   private LocalDateTime createdAt;
@@ -52,6 +55,12 @@ public class Post {
   public void setStatus(String status) { this.status = status; }
   public String getRejectReason() { return rejectReason; }
   public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+  public String getAiReview() { return aiReview; }
+  public void setAiReview(String aiReview) { this.aiReview = aiReview; }
+  public String getAiReviewReason() { return aiReviewReason; }
+  public void setAiReviewReason(String aiReviewReason) { this.aiReviewReason = aiReviewReason; }
+  public Integer getAiReviewScore() { return aiReviewScore; }
+  public void setAiReviewScore(Integer aiReviewScore) { this.aiReviewScore = aiReviewScore; }
   public Integer getVisibility() { return visibility; }
   public void setVisibility(Integer visibility) { this.visibility = visibility; }
   public LocalDateTime getPublishedAt() { return publishedAt; }

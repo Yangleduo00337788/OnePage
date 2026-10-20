@@ -24,18 +24,27 @@ public class AiSettings {
   private final String envBaseUrl;
   private final String envApiKey;
   private final String envModel;
+  private final String envReviewBaseUrl;
+  private final String envReviewApiKey;
+  private final String envReviewModel;
 
   public AiSettings(
       StringRedisTemplate redis,
       ObjectMapper objectMapper,
       @Value("${onepage.llm-base-url}") String envBaseUrl,
       @Value("${onepage.llm-api-key:}") String envApiKey,
-      @Value("${onepage.llm-model}") String envModel) {
+      @Value("${onepage.llm-model}") String envModel,
+      @Value("${onepage.llm-review-base-url:}") String envReviewBaseUrl,
+      @Value("${onepage.llm-review-api-key:}") String envReviewApiKey,
+      @Value("${onepage.llm-review-model:}") String envReviewModel) {
     this.redis = redis;
     this.objectMapper = objectMapper;
     this.envBaseUrl = envBaseUrl == null ? "" : envBaseUrl.trim();
     this.envApiKey = envApiKey == null ? "" : envApiKey.trim();
     this.envModel = envModel == null ? "" : envModel.trim();
+    this.envReviewBaseUrl = envReviewBaseUrl == null ? "" : envReviewBaseUrl.trim();
+    this.envReviewApiKey = envReviewApiKey == null ? "" : envReviewApiKey.trim();
+    this.envReviewModel = envReviewModel == null ? "" : envReviewModel.trim();
   }
 
   public Stored current() {
@@ -67,7 +76,14 @@ public class AiSettings {
         stored.contextBodyMax(),
         stored.temperature(),
         stored.maxTokens(),
-        stored.streamEnabled());
+        stored.streamEnabled(),
+        reviewOn(stored.reviewEnabled()),
+        promptOrDefault(stored.reviewSystem(), AiConstants.REVIEW_SYSTEM),
+        blank(stored.reviewLlmBaseUrl()),
+        blank(stored.reviewLlmModel()),
+        StringUtils.hasText(stored.reviewLlmApiKey()),
+        mask(stored.reviewLlmApiKey()),
+        clampRiskLimit(stored.reviewRiskLimit()));
   }
 
   public Stored overlay(AiDtos.OpsPatch patch) {
@@ -122,6 +138,26 @@ public class AiSettings {
     boolean stream = patch.streamEnabled() == null
         ? Boolean.TRUE.equals(prev.streamEnabled())
         : patch.streamEnabled();
+    Boolean reviewEnabled = patch.reviewEnabled() == null
+        ? prev.reviewEnabled()
+        : patch.reviewEnabled();
+    String reviewSystem = overlayPrompt(
+        patch.reviewSystem(), prev.reviewSystem(), AiConstants.REVIEW_SYSTEM);
+    String reviewBase = patch.reviewLlmBaseUrl() == null
+        ? blank(prev.reviewLlmBaseUrl())
+        : trimSlash(patch.reviewLlmBaseUrl());
+    String reviewModel = patch.reviewLlmModel() == null
+        ? blank(prev.reviewLlmModel())
+        : patch.reviewLlmModel().trim();
+    String reviewKey = blank(prev.reviewLlmApiKey());
+    if (Boolean.TRUE.equals(patch.clearReviewLlmKey())) {
+      reviewKey = "";
+    } else if (StringUtils.hasText(patch.reviewLlmApiKey())) {
+      reviewKey = patch.reviewLlmApiKey().trim();
+    }
+    int reviewRiskLimit = patch.reviewRiskLimit() == null
+        ? clampRiskLimit(prev.reviewRiskLimit())
+        : clampRiskLimit(patch.reviewRiskLimit());
     return new Stored(
         baseUrl,
         apiKey,
@@ -137,7 +173,13 @@ public class AiSettings {
         contextBodyMax,
         temperature,
         maxTokens,
-        stream);
+        stream,
+        reviewEnabled,
+        reviewSystem,
+        reviewBase,
+        reviewKey,
+        reviewModel,
+        reviewRiskLimit);
   }
 
   public AiDtos.OpsView save(AiDtos.OpsPatch patch) {
@@ -149,6 +191,12 @@ public class AiSettings {
     }
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
       throw BusinessException.validation("模型地址须以 http:// 或 https:// 开头");
+    }
+    String reviewBase = next.reviewLlmBaseUrl() == null ? "" : next.reviewLlmBaseUrl().trim();
+    if (StringUtils.hasText(reviewBase)
+        && !reviewBase.startsWith("http://")
+        && !reviewBase.startsWith("https://")) {
+      throw BusinessException.validation("审稿模型地址须以 http:// 或 https:// 开头");
     }
     try {
       redis.opsForValue().set(AiConstants.REDIS_SETTINGS_KEY, objectMapper.writeValueAsString(next));
@@ -198,7 +246,13 @@ public class AiSettings {
               AiConstants.CONTEXT_BODY_CAP),
           clampTemp(stored.temperature()),
           clampMaxTokens(stored.maxTokens()),
-          Boolean.TRUE.equals(stored.streamEnabled()));
+          Boolean.TRUE.equals(stored.streamEnabled()),
+          stored.reviewEnabled(),
+          readPrompt(stored.reviewSystem(), AiConstants.REVIEW_SYSTEM),
+          trimSlash(stored.reviewLlmBaseUrl()),
+          stored.reviewLlmApiKey() == null ? "" : stored.reviewLlmApiKey().trim(),
+          stored.reviewLlmModel() == null ? "" : stored.reviewLlmModel().trim(),
+          clampRiskLimit(stored.reviewRiskLimit()));
     } catch (Exception ex) {
       log.warn("ai settings read failed, fallback env");
       return null;
@@ -221,7 +275,13 @@ public class AiSettings {
         AiConstants.CONTEXT_BODY_MAX,
         AiConstants.TEMPERATURE_DEFAULT,
         0,
-        false);
+        false,
+        true,
+        AiConstants.REVIEW_SYSTEM,
+        trimSlash(envReviewBaseUrl),
+        envReviewApiKey,
+        envReviewModel,
+        AiConstants.REVIEW_RISK_LIMIT);
   }
 
   private static List<String> defaultQuestions() {
@@ -288,6 +348,13 @@ public class AiSettings {
     return Math.min(value, AiConstants.TEMPERATURE_MAX);
   }
 
+  static int clampRiskLimit(Integer value) {
+    if (value == null || value < 1) {
+      return AiConstants.REVIEW_RISK_LIMIT;
+    }
+    return Math.min(value, AiConstants.REVIEW_SCORE_MAX);
+  }
+
   private static int clampMaxTokens(Integer value) {
     if (value == null || value < 0) {
       return 0;
@@ -301,6 +368,23 @@ public class AiSettings {
       return value.substring(0, value.length() - 1);
     }
     return value;
+  }
+
+  static boolean reviewOn(Boolean value) {
+    return value == null || Boolean.TRUE.equals(value);
+  }
+
+  static boolean reviewConfigured(Stored stored) {
+    if (stored == null) {
+      return false;
+    }
+    return StringUtils.hasText(stored.reviewLlmBaseUrl())
+        && StringUtils.hasText(stored.reviewLlmApiKey())
+        && StringUtils.hasText(stored.reviewLlmModel());
+  }
+
+  private static String blank(String value) {
+    return value == null ? "" : value;
   }
 
   private static String mask(String key) {
@@ -330,5 +414,11 @@ public class AiSettings {
       int contextBodyMax,
       Double temperature,
       Integer maxTokens,
-      Boolean streamEnabled) {}
+      Boolean streamEnabled,
+      Boolean reviewEnabled,
+      String reviewSystem,
+      String reviewLlmBaseUrl,
+      String reviewLlmApiKey,
+      String reviewLlmModel,
+      Integer reviewRiskLimit) {}
 }

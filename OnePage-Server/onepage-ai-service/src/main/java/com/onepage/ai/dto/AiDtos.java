@@ -37,7 +37,14 @@ public final class AiDtos {
       int contextBodyMax,
       double temperature,
       int maxTokens,
-      boolean streamEnabled) {}
+      boolean streamEnabled,
+      boolean reviewEnabled,
+      String reviewSystem,
+      String reviewLlmBaseUrl,
+      String reviewLlmModel,
+      boolean reviewLlmKeySet,
+      String reviewLlmKeyMasked,
+      int reviewRiskLimit) {}
 
   public record OpsPatch(
       String llmBaseUrl,
@@ -55,7 +62,14 @@ public final class AiDtos {
       Integer contextBodyMax,
       Double temperature,
       Integer maxTokens,
-      Boolean streamEnabled) {}
+      Boolean streamEnabled,
+      Boolean reviewEnabled,
+      String reviewSystem,
+      String reviewLlmBaseUrl,
+      String reviewLlmApiKey,
+      String reviewLlmModel,
+      Boolean clearReviewLlmKey,
+      Integer reviewRiskLimit) {}
 
   public record OpsProbe(boolean ok, String message) {}
 
@@ -66,4 +80,8 @@ public final class AiDtos {
   public record StreamError(String message) {}
 
   public record StreamStage(String s, int n) {}
+
+  public record ReviewSpec(String postId, String title, String body) {}
+
+  public record ReviewResult(String verdict, String reason, Integer score) {}
 }

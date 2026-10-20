@@ -71,7 +71,10 @@ public final class ModerationDtos {
       boolean takenDown,
       String publishedAt,
       String reviewStatus,
-      String rejectReason) {}
+      String rejectReason,
+      String aiReview,
+      String aiReviewReason,
+      Integer aiReviewScore) {}
 
   public record ContentMedia(String mediaId, String url, String mimeType, String role) {}
 
@@ -108,7 +111,10 @@ public final class ModerationDtos {
       boolean takenDown,
       String publishedAt,
       String reviewStatus,
-      String rejectReason) {}
+      String rejectReason,
+      String aiReview,
+      String aiReviewReason,
+      Integer aiReviewScore) {}
 
   public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 

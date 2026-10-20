@@ -46,9 +46,25 @@ public class LlmClient {
     return StringUtils.hasText(aiSettings.current().llmApiKey());
   }
 
+  public boolean reviewConfigured() {
+    return AiSettings.reviewConfigured(aiSettings.current());
+  }
+
   public String complete(String system, String user) {
     AiSettings.Stored stored = aiSettings.current();
     return complete(stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, user);
+  }
+
+  public String completeReview(String system, String user) {
+    AiSettings.Stored stored = aiSettings.current();
+    return complete(
+        stored.reviewLlmBaseUrl(),
+        stored.reviewLlmApiKey(),
+        stored.reviewLlmModel(),
+        system,
+        user,
+        AiConstants.REVIEW_TEMPERATURE,
+        AiConstants.REVIEW_MAX_TOKENS);
   }
 
   public void completeStream(String system, String user, Consumer<String> onDelta) {
@@ -71,10 +87,21 @@ public class LlmClient {
   }
 
   public String complete(String baseUrl, String apiKey, String model, String system, String user) {
+    return complete(baseUrl, apiKey, model, system, user, null, null);
+  }
+
+  public String complete(
+      String baseUrl,
+      String apiKey,
+      String model,
+      String system,
+      String user,
+      Double temperature,
+      Integer maxTokens) {
     if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
-    Map<String, Object> body = chatBody(model, system, user, false);
+    Map<String, Object> body = chatBody(model, system, user, false, temperature, maxTokens);
     try {
       String raw = RestClient.builder()
           .baseUrl(baseUrl)
@@ -111,7 +138,7 @@ public class LlmClient {
     if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
-    Map<String, Object> body = chatBody(model, system, user, true);
+    Map<String, Object> body = chatBody(model, system, user, true, null, null);
     try {
       RestClient.builder()
           .baseUrl(baseUrl)
@@ -155,15 +182,25 @@ public class LlmClient {
     }
   }
 
-  private Map<String, Object> chatBody(String model, String system, String user, boolean stream) {
+  private Map<String, Object> chatBody(
+      String model,
+      String system,
+      String user,
+      boolean stream,
+      Double temperature,
+      Integer maxTokens) {
     AiSettings.Stored stored = aiSettings.current();
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("model", model);
-    body.put("temperature", stored.temperature() == null
-        ? AiConstants.TEMPERATURE_DEFAULT
-        : stored.temperature());
-    if (stored.maxTokens() != null && stored.maxTokens() > 0) {
-      body.put("max_tokens", stored.maxTokens());
+    double temp = temperature != null
+        ? temperature
+        : (stored.temperature() == null ? AiConstants.TEMPERATURE_DEFAULT : stored.temperature());
+    body.put("temperature", temp);
+    int tokens = maxTokens != null
+        ? maxTokens
+        : (stored.maxTokens() == null ? 0 : stored.maxTokens());
+    if (tokens > 0) {
+      body.put("max_tokens", tokens);
     }
     body.put("stream", stream);
     body.put(

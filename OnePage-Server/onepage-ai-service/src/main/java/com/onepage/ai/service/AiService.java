@@ -38,6 +38,45 @@ public class AiService {
     this.aiSettings = aiSettings;
   }
 
+  public AiDtos.ReviewResult review(AiDtos.ReviewSpec spec) {
+    String title = spec == null || spec.title() == null ? "" : spec.title().trim();
+    String body = spec == null || spec.body() == null ? "" : spec.body().trim();
+    if (!StringUtils.hasText(title) && !StringUtils.hasText(body)) {
+      return skip("无标题正文，图视频下一步再审");
+    }
+    AiSettings.Stored stored = aiSettings.current();
+    if (!AiSettings.reviewOn(stored.reviewEnabled()) || !llmClient.reviewConfigured()) {
+      return skip("未开启机审或未配置审稿模型");
+    }
+    if (body.length() > AiConstants.REVIEW_BODY_MAX) {
+      body = body.substring(0, AiConstants.REVIEW_BODY_MAX);
+    }
+    String user = "title: " + title + "\nbody:\n" + body;
+    try {
+      String raw = llmClient.completeReview(stored.reviewSystem(), user);
+      JsonNode node = readObjectQuiet(raw);
+      Integer score = readScore(node);
+      if (score == null) {
+        return skip("模型返回无法解析");
+      }
+      String reason = textOf(node, "reason");
+      if (reason.length() > AiConstants.REVIEW_REASON_MAX) {
+        reason = reason.substring(0, AiConstants.REVIEW_REASON_MAX);
+      }
+      int limit = AiSettings.clampRiskLimit(stored.reviewRiskLimit());
+      if (score < limit) {
+        return new AiDtos.ReviewResult(AiConstants.VERDICT_PASS, reason, score);
+      }
+      if (!StringUtils.hasText(reason)) {
+        reason = "风险分 " + score + "，需人工复核";
+      }
+      return new AiDtos.ReviewResult(AiConstants.VERDICT_FLAG, reason, score);
+    } catch (RuntimeException ex) {
+      log.warn("ai review failed");
+      return skip("模型暂时不可用");
+    }
+  }
+
   public AiDtos.PolishResult polish(AiDtos.PolishSpec spec) {
     String title = spec == null || spec.title() == null ? "" : spec.title().trim();
     String body = spec == null || spec.body() == null ? "" : spec.body().trim();
@@ -234,6 +273,36 @@ public class AiService {
       }
     }
     return sb.toString();
+  }
+
+  private static AiDtos.ReviewResult skip(String reason) {
+    return new AiDtos.ReviewResult(AiConstants.VERDICT_SKIP, reason, null);
+  }
+
+  private static Integer readScore(JsonNode node) {
+    if (node == null || node.isMissingNode()) {
+      return null;
+    }
+    JsonNode scoreNode = node.path("score");
+    if (scoreNode.isNumber()) {
+      int score = scoreNode.asInt();
+      if (score < 0) {
+        return 0;
+      }
+      return Math.min(score, AiConstants.REVIEW_SCORE_MAX);
+    }
+    if (!node.path("pass").isMissingNode()) {
+      return node.path("pass").asBoolean(false) ? 0 : 80;
+    }
+    return null;
+  }
+
+  private JsonNode readObjectQuiet(String raw) {
+    try {
+      return readObject(raw);
+    } catch (BusinessException ex) {
+      return null;
+    }
   }
 
   private JsonNode readObject(String raw) {

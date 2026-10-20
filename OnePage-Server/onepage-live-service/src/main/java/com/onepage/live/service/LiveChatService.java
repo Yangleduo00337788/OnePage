@@ -35,16 +35,19 @@ public class LiveChatService {
   private final LiveChatMapper chatMapper;
   private final LiveSessionMapper sessionMapper;
   private final UserClient userClient;
+  private final CommunityPolicyCache policyCache;
   private final String internalToken;
 
   public LiveChatService(
       LiveChatMapper chatMapper,
       LiveSessionMapper sessionMapper,
       UserClient userClient,
+      CommunityPolicyCache policyCache,
       @Value("${onepage.internal-token}") String internalToken) {
     this.chatMapper = chatMapper;
     this.sessionMapper = sessionMapper;
     this.userClient = userClient;
+    this.policyCache = policyCache;
     this.internalToken = internalToken;
   }
 
@@ -76,6 +79,7 @@ public class LiveChatService {
     if (body.isEmpty() || body.length() > BODY_MAX) {
       throw BusinessException.validation("请输入 1～200 字");
     }
+    policyCache.assertClean(body);
     LiveChat row = new LiveChat();
     row.setId(IdGenerator.nextId());
     row.setSessionId(sessionId);

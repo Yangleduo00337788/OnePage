@@ -40,6 +40,7 @@ public class CommentService {
   private final AuthorLookup authorLookup;
   private final InteractionNotifier notifier;
   private final UserClient userClient;
+  private final CommunityPolicyCache policyCache;
   private final String internalToken;
 
   public CommentService(
@@ -49,6 +50,7 @@ public class CommentService {
       AuthorLookup authorLookup,
       InteractionNotifier notifier,
       UserClient userClient,
+      CommunityPolicyCache policyCache,
       @Value("${onepage.internal-token}") String internalToken) {
     this.postService = postService;
     this.commentMapper = commentMapper;
@@ -56,6 +58,7 @@ public class CommentService {
     this.authorLookup = authorLookup;
     this.notifier = notifier;
     this.userClient = userClient;
+    this.policyCache = policyCache;
     this.internalToken = internalToken;
   }
 
@@ -99,6 +102,7 @@ public class CommentService {
     if (!StringUtils.hasText(content) || content.trim().length() > 2000) {
       throw BusinessException.validation("评论内容不合法");
     }
+    policyCache.assertClean(content);
     LocalDateTime now = LocalDateTime.now();
     long id = IdGenerator.nextId();
     Comment row = new Comment();

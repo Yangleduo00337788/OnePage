@@ -54,6 +54,7 @@ public class ImService {
   private final MessageMapper messageMapper;
   private final UserClient userClient;
   private final ContentClient contentClient;
+  private final CommunityPolicyCache policyCache;
   private final ObjectMapper objectMapper;
   private final ImPushHub pushHub;
   private final String internalToken;
@@ -65,6 +66,7 @@ public class ImService {
       MessageMapper messageMapper,
       UserClient userClient,
       ContentClient contentClient,
+      CommunityPolicyCache policyCache,
       ObjectMapper objectMapper,
       ImPushHub pushHub,
       @Value("${onepage.internal-token}") String internalToken,
@@ -74,6 +76,7 @@ public class ImService {
     this.messageMapper = messageMapper;
     this.userClient = userClient;
     this.contentClient = contentClient;
+    this.policyCache = policyCache;
     this.objectMapper = objectMapper;
     this.pushHub = pushHub;
     this.internalToken = internalToken;
@@ -202,6 +205,7 @@ public class ImService {
     if (text.length() > TEXT_MAX) {
       throw BusinessException.validation("文本过长");
     }
+    policyCache.assertClean(text);
     return persist(userId, conversationId, "text", writeJson(Map.of("text", text)));
   }
 

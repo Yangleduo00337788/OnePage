@@ -53,6 +53,7 @@ public class LiveService {
   private final StringRedisTemplate redis;
   private final LiveIngestProbe ingestProbe;
   private final LiveSearchIndexer searchIndexer;
+  private final CommunityPolicyCache policyCache;
   private final String internalToken;
   private final String pushBase;
   private final String hlsBase;
@@ -70,6 +71,7 @@ public class LiveService {
       StringRedisTemplate redis,
       LiveIngestProbe ingestProbe,
       @Lazy LiveSearchIndexer searchIndexer,
+      CommunityPolicyCache policyCache,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.live-push-base}") String pushBase,
       @Value("${onepage.live-hls-base}") String hlsBase,
@@ -85,6 +87,7 @@ public class LiveService {
     this.redis = redis;
     this.ingestProbe = ingestProbe;
     this.searchIndexer = searchIndexer;
+    this.policyCache = policyCache;
     this.internalToken = internalToken;
     this.pushBase = pushBase;
     this.hlsBase = hlsBase;
@@ -98,6 +101,7 @@ public class LiveService {
     if (title.isEmpty() || title.length() > 100) {
       throw BusinessException.validation("请填写直播标题");
     }
+    policyCache.assertClean(title);
     LiveRoom room = new LiveRoom();
     room.setId(IdGenerator.nextId());
     room.setOwnerId(ownerId);
@@ -660,11 +664,12 @@ public class LiveService {
     return slash >= 0 ? raw.substring(slash + 1) : raw;
   }
 
-  private static String normalizeNotice(String raw) {
+  private String normalizeNotice(String raw) {
     String text = raw == null ? "" : raw.trim();
     if (text.length() > NOTICE_MAX) {
       throw BusinessException.validation("公告最多 200 字");
     }
+    policyCache.assertClean(text);
     return text;
   }
 }

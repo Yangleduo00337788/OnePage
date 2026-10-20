@@ -1,6 +1,7 @@
 package com.onepage.ai.web;
 
 import com.onepage.ai.dto.AiDtos;
+import com.onepage.ai.service.AiService;
 import com.onepage.ai.service.AiSettings;
 import com.onepage.ai.service.LlmClient;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,12 +16,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/internal/ai")
 public class InternalAiController {
   private final AiSettings aiSettings;
+  private final AiService aiService;
   private final LlmClient llmClient;
   private final InternalTokenFilter tokenFilter;
 
   public InternalAiController(
-      AiSettings aiSettings, LlmClient llmClient, InternalTokenFilter tokenFilter) {
+      AiSettings aiSettings,
+      AiService aiService,
+      LlmClient llmClient,
+      InternalTokenFilter tokenFilter) {
     this.aiSettings = aiSettings;
+    this.aiService = aiService;
     this.llmClient = llmClient;
     this.tokenFilter = tokenFilter;
   }
@@ -43,11 +49,27 @@ public class InternalAiController {
     return aiSettings.reset();
   }
 
+  @PostMapping("/review")
+  public AiDtos.ReviewResult review(
+      HttpServletRequest request, @RequestBody(required = false) AiDtos.ReviewSpec spec) {
+    tokenFilter.assertInternal(request);
+    return aiService.review(spec);
+  }
+
   @PostMapping("/probe")
   public AiDtos.OpsProbe probe(
       HttpServletRequest request, @RequestBody(required = false) AiDtos.OpsPatch patch) {
     tokenFilter.assertInternal(request);
     AiSettings.Stored stored = aiSettings.overlay(patch);
     return llmClient.probe(stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel());
+  }
+
+  @PostMapping("/review/probe")
+  public AiDtos.OpsProbe reviewProbe(
+      HttpServletRequest request, @RequestBody(required = false) AiDtos.OpsPatch patch) {
+    tokenFilter.assertInternal(request);
+    AiSettings.Stored stored = aiSettings.overlay(patch);
+    return llmClient.probe(
+        stored.reviewLlmBaseUrl(), stored.reviewLlmApiKey(), stored.reviewLlmModel());
   }
 }
