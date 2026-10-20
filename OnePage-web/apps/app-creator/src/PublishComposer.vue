@@ -127,7 +127,7 @@ const specs = computed(() => {
     return [
       { t: '图片数量', d: '最多 9 张，建议 3 张以上。' },
       { t: '图片格式', d: '支持 jpg、png、webp。' },
-      { t: '图片大小', d: '单张建议不超过 20MB。' },
+      { t: '图片大小', d: '单张不超过 10MB。' },
     ]
   }
   if (props.kind === 'article') {
@@ -145,10 +145,10 @@ const specs = computed(() => {
 })
 
 function allowed(file: File) {
-  if (file.size > 200 * 1024 * 1024) return false
-  if (props.kind === 'video') {
-    return file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name)
-  }
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name)
+  if (isVideo && file.size > 200 * 1024 * 1024) return false
+  if (!isVideo && file.size > 10 * 1024 * 1024) return false
+  if (props.kind === 'video') return isVideo
   return file.type.startsWith('image/') || file.type === '' || /\.(jpe?g|png|webp|gif)$/i.test(file.name)
 }
 

@@ -603,7 +603,13 @@ onUnmounted(() => {
     </div>
     <template v-else-if="watching">
       <div class="live-left">
-        <LivePlayer :session="watching" :web-fs="webFs" @web-fs="webFs = !webFs" @share="openShare" />
+        <LivePlayer
+          :session="watching"
+          :web-fs="webFs"
+          :chats="chats"
+          @web-fs="webFs = !webFs"
+          @share="openShare"
+        />
         <div class="live-chip">
           <button type="button" class="live-chip-back" aria-label="返回" @click="goList">
             <Icon name="chevron-left" :size="20" />

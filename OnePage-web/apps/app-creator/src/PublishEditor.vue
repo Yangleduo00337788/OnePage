@@ -157,8 +157,11 @@ async function uploadOne(item: LocalFile): Promise<string> {
   if (item.mediaId) return item.mediaId
   const file = item.file
   if (!file) throw new Error('缺少文件')
+  const purpose = purposeOf(file)
+  if (purpose === 'post_video' && file.size > 200 * 1024 * 1024) throw new Error('视频不能超过 200MB')
+  if (purpose !== 'post_video' && file.size > 10 * 1024 * 1024) throw new Error('图片不能超过 10MB')
   const mimeType = mimeOf(file)
-  const ticket = await api.presign(mimeType, file.size, purposeOf(file))
+  const ticket = await api.presign(mimeType, file.size, purpose)
   await api.putObject(ticket.uploadUrl, file, mimeType)
   await api.completeUpload(ticket.mediaId)
   return ticket.mediaId

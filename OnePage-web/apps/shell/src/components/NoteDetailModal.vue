@@ -1570,25 +1570,25 @@ watch(moreOpen, async (on) => {
                 发送
               </button>
               <div class="acts">
-                <button type="button" class="act" :class="liked ? 'is-on' : ''" @click="toggleLike">
+                <button type="button" class="act" :class="liked ? 'is-on' : ''" @mousedown.prevent @click="toggleLike">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M12 20.5S4.5 15.6 3.2 11.6C2.2 8.6 3.8 5.5 6.8 5c1.9-.3 3.6.6 4.4 2.1C12.1 5.6 13.8 4.7 15.7 5c3 .5 4.6 3.6 3.6 6.6-1.3 4-8.3 8.9-7.3 8.9z" />
                   </svg>
                   <span class="num">{{ likeLabel }}</span>
                 </button>
-                <button type="button" class="act" :class="saved ? 'is-on' : ''" @click="toggleSave">
+                <button type="button" class="act" :class="saved ? 'is-on' : ''" @mousedown.prevent @click="toggleSave">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M7 3.8h10A1.7 1.7 0 0 1 18.7 5.5v15.2L12 16.4 5.3 20.7V5.5A1.7 1.7 0 0 1 7 3.8z" />
                   </svg>
                   <span class="num">{{ favLabel }}</span>
                 </button>
-                <button type="button" class="act" @click="commentBox?.focus()">
+                <button type="button" class="act" @mousedown.prevent="commentBox?.focus()">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M6.2 4.5h11.6A2.2 2.2 0 0 1 20 6.7v8.4a2.2 2.2 0 0 1-2.2 2.2H9.4L4 21.2V6.7A2.2 2.2 0 0 1 6.2 4.5z" />
                   </svg>
                   <span class="num">{{ commentLabel }}</span>
                 </button>
-                <button type="button" class="act" @click="shareOpen = true">
+                <button type="button" class="act" @mousedown.prevent @click="shareOpen = true">
                   <svg class="act-ico" viewBox="0 0 24 24">
                     <path d="M12 3.8v11.2" />
                     <path d="M8.2 7.4 12 3.8l3.8 3.6" />
@@ -1983,6 +1983,8 @@ watch(moreOpen, async (on) => {
   min-width: 192px;
   height: 48px;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
   transition:
     width 0.28s ease,
     min-width 0.28s ease,
@@ -1990,7 +1992,6 @@ watch(moreOpen, async (on) => {
     transform 0.28s ease;
 }
 
-.compose:focus-within .acts,
 .compose.is-on .acts {
   width: 0;
   min-width: 0;
@@ -1999,7 +2000,6 @@ watch(moreOpen, async (on) => {
   pointer-events: none;
 }
 
-.compose:focus-within .send-cmt,
 .compose.is-on .send-cmt {
   max-width: 72px;
   padding: 0 16px;

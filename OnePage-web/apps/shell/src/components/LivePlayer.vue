@@ -2,10 +2,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Hls from 'hls.js'
-import type { LiveSession } from '@onepage/api-client'
+import type { LiveChatLine, LiveSession } from '@onepage/api-client'
 import Icon from './Icon.vue'
 
-const props = defineProps<{ session: LiveSession; webFs?: boolean }>()
+const props = defineProps<{ session: LiveSession; webFs?: boolean; chats?: LiveChatLine[] }>()
 const emit = defineEmits<{ 'web-fs': []; share: [] }>()
 
 const player = ref<HTMLVideoElement | null>(null)
@@ -16,12 +16,16 @@ const volume = ref(0.8)
 const pop = ref('')
 const quality = ref(-1)
 const levels = ref<{ id: number; label: string }[]>([{ id: -1, label: '自动' }])
-const danmakuOn = ref(false)
+const danmakuOn = ref(true)
 const danmakuHint = ref('')
+const flying = ref<{ id: string; text: string; top: number; dur: number }[]>([])
 const isFs = ref(false)
 let hls: Hls | null = null
 let nativeOnError: (() => void) | null = null
 let hintTimer = 0
+let lane = 0
+const seenDanmaku = new Set<string>()
+let danmakuPrimed = false
 
 const ended = computed(() => props.session.status === 'ended')
 const failHint = computed(() => {
@@ -149,13 +153,46 @@ function reload() {
   if (props.session.playUrlHls) startPlayer(props.session.playUrlHls)
 }
 
+function dropDanmaku(id: string) {
+  flying.value = flying.value.filter((item) => item.id !== id)
+}
+
+function spawnDanmaku(id: string, text: string) {
+  lane = (lane + 1) % 8
+  flying.value = flying.value.concat({
+    id,
+    text,
+    top: 8 + lane * 10,
+    dur: 8 + (lane % 3),
+  })
+}
+
+function ingestChats(rows: LiveChatLine[] | undefined) {
+  if (!rows?.length) return
+  if (!danmakuPrimed) {
+    const start = Math.max(0, rows.length - 8)
+    for (let i = 0; i < start; i++) seenDanmaku.add(rows[i].messageId)
+    danmakuPrimed = true
+  }
+  for (const row of rows) {
+    if (!row?.messageId || seenDanmaku.has(row.messageId)) continue
+    seenDanmaku.add(row.messageId)
+    if (!danmakuOn.value || row.kind === 'join') continue
+    const body = (row.body || '').trim()
+    if (!body) continue
+    const nick = (row.author?.nickname || '').trim()
+    spawnDanmaku(row.messageId, nick ? `${nick}：${body}` : body)
+  }
+}
+
 function toggleDanmaku() {
-  danmakuOn.value = false
-  danmakuHint.value = '弹幕尚未开放'
+  danmakuOn.value = !danmakuOn.value
+  if (!danmakuOn.value) flying.value = []
+  danmakuHint.value = danmakuOn.value ? '弹幕已开启' : '弹幕已关闭'
   window.clearTimeout(hintTimer)
   hintTimer = window.setTimeout(() => {
     danmakuHint.value = ''
-  }, 1600)
+  }, 1200)
 }
 
 async function togglePip() {
@@ -203,6 +240,22 @@ watch(
   },
 )
 
+watch(
+  () => props.session.sessionId,
+  () => {
+    seenDanmaku.clear()
+    danmakuPrimed = false
+    flying.value = []
+    lane = 0
+  },
+)
+
+watch(
+  () => props.chats,
+  (rows) => ingestChats(rows),
+  { deep: true, immediate: true },
+)
+
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFsChange)
   void attach()
@@ -225,6 +278,17 @@ onUnmounted(() => {
       :poster="session.coverUrl || undefined"
     />
     <div v-if="failHint" class="live-fail">{{ failHint }}</div>
+    <div v-if="danmakuOn" class="danmaku-layer" aria-hidden="true">
+      <span
+        v-for="item in flying"
+        :key="item.id"
+        class="danmaku-item"
+        :style="{ top: `${item.top}%`, animationDuration: `${item.dur}s` }"
+        @animationend="dropDanmaku(item.id)"
+      >
+        {{ item.text }}
+      </span>
+    </div>
     <p v-if="danmakuHint" class="live-toast">{{ danmakuHint }}</p>
     <div class="vbar" @click.stop>
       <div class="vrow">
@@ -341,6 +405,36 @@ onUnmounted(() => {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.65);
   font-size: 12px;
+}
+
+.danmaku-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 56px;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.danmaku-item {
+  position: absolute;
+  left: 100%;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  animation-name: danmaku-fly;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes danmaku-fly {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100vw - 100%));
+  }
 }
 
 .vbar {

@@ -281,7 +281,9 @@ watch(group, () => {
         <li v-for="row in notes" :key="row.id">
           <div>
             <p>
-              {{ typeLabel[row.type] || row.type }} · {{ row.actor?.nickname || row.actor?.pageId || '用户' }}
+              {{ typeLabel[row.type] || row.type }} · {{ row.actor?.nickname || row.actor?.pageId || '用户' }}{{
+                Number(row.actorCount) > 1 ? ` 等 ${row.actorCount} 人` : ''
+              }}
               <span v-if="!row.read" class="tag">未读</span>
             </p>
             <p class="muted">{{ row.preview || clock(row.createdAt) }}</p>

@@ -187,6 +187,10 @@ function onFile(event: Event, purpose: 'avatar' | 'cover') {
   const file = input.files?.[0]
   input.value = ''
   if (!file) return
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('图片不能超过 10MB')
+    return
+  }
   if (crop.value) URL.revokeObjectURL(crop.value.src)
   crop.value = { purpose, src: URL.createObjectURL(file), name: file.name }
 }

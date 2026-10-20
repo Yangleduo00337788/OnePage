@@ -19,6 +19,7 @@ import OpsSupport from './OpsSupport.vue'
 import OpsMessages from './OpsMessages.vue'
 import OpsMedia from './OpsMedia.vue'
 import OpsAi from './OpsAi.vue'
+import OpsPolicy from './OpsPolicy.vue'
 
 export type PageId =
   | 'home'
@@ -34,6 +35,7 @@ export type PageId =
   | 'notices'
   | 'faqs'
   | 'support'
+  | 'policy'
   | 'ai-model'
   | 'ai-yeh'
   | 'ai-polish'
@@ -50,6 +52,7 @@ const groups: NavGroup[] = [
       { id: 'reports', label: '工单', icon: 'flag' },
       { id: 'support', label: '帮助申请', icon: 'message-square' },
       { id: 'users', label: '用户', icon: 'users' },
+      { id: 'policy', label: '社区规则', icon: 'flag' },
       { id: 'im', label: '私信', icon: 'message-square' },
     ],
   },
@@ -235,6 +238,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsReports v-else-if="page === 'reports'" />
       <OpsSupport v-else-if="page === 'support'" />
       <OpsUsers v-else-if="page === 'users'" />
+      <OpsPolicy v-else-if="page === 'policy'" />
       <OpsMessages v-else-if="page === 'im'" />
       <OpsPosts v-else-if="page === 'posts'" />
       <OpsComments v-else-if="page === 'comments'" />

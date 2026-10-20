@@ -243,6 +243,14 @@ export type OpsAiProbe = {
   message: string
 }
 
+export type CommunityPolicy = {
+  bannedWords: string[]
+  nicknameMax: number
+  bioMax: number
+  imageMaxMb: number
+  videoMaxMb: number
+}
+
 export type NotificationItem = {
   id: string
   type: string
@@ -250,6 +258,7 @@ export type NotificationItem = {
   postId?: string | null
   commentId?: string | null
   preview?: string | null
+  actorCount?: number
   read: boolean
   createdAt: string
   coverUrl?: string | null
@@ -984,6 +993,9 @@ export const api = {
   opsResetAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai/reset', { method: 'POST' }),
   opsProbeAi: (body: { llmBaseUrl?: string; llmApiKey?: string; llmModel?: string }) =>
     request<OpsAiProbe>('/api/v1/ops/ai/probe', { method: 'POST', body: JSON.stringify(body) }),
+  opsPolicy: () => request<CommunityPolicy>('/api/v1/ops/policy'),
+  opsSavePolicy: (body: CommunityPolicy) =>
+    request<CommunityPolicy>('/api/v1/ops/policy', { method: 'POST', body: JSON.stringify(body) }),
   exploreFeed: (cursor?: string, limit?: number, category?: string) => {
     const q = new URLSearchParams()
     if (cursor) q.set('cursor', cursor)

@@ -72,6 +72,15 @@ const tab = computed({
   },
 })
 
+function actionText(row: NotificationItem) {
+  const verb = ACTION[row.type] || row.type
+  const n = Number(row.actorCount) || 1
+  if (n > 1 && (row.type === 'like_post' || row.type === 'favorite_post' || row.type === 'like_comment')) {
+    return `等 ${n} 人${verb}`
+  }
+  return verb
+}
+
 function coverOf(row: NotificationItem) {
   const url = row.coverUrl?.trim()
   if (!url) return ''
@@ -242,7 +251,7 @@ watch([items, loading], async () => {
         <span class="min-w-0 flex-1">
           <span class="block truncate text-[15px] font-medium text-[var(--ink)]">
             {{ row.actor?.nickname || '用户' }}
-            <span class="ml-1 font-normal text-[#8a8a8a]">{{ ACTION[row.type] || row.type }}</span>
+            <span class="ml-1 font-normal text-[#8a8a8a]">{{ actionText(row) }}</span>
           </span>
           <span v-if="row.preview" class="mt-0.5 block truncate text-[13px] text-[var(--ink)]">{{ row.preview }}</span>
           <span class="mt-0.5 block truncate text-[12px] text-[#8a8a8a]">{{ timeText(row.createdAt) }}</span>

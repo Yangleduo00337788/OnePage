@@ -183,6 +183,10 @@ function pickCover(e: Event) {
   const file = input.files?.[0]
   input.value = ''
   if (!file) return
+  if (file.size > 10 * 1024 * 1024) {
+    flash('图片不能超过 10MB')
+    return
+  }
   stopCrop()
   cropName.value = file.name
   cropSrc.value = URL.createObjectURL(file)
