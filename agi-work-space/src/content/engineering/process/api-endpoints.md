@@ -668,7 +668,7 @@ Query：`beforeId?`, `limit`
 
 ### GET `/api/v1/ops/overview`
 
-**Response**：`communityUsers` `postsLive` `postsDown` `comments` `reportsPending` `reportsDone` `categories` `campaigns` `topics`。
+**Response**：`communityUsers` `usersToday` `postsLive` `postsDown` `postsPending` `postsRejected` `postsToday` `comments` `commentsToday` `reportsPending` `reportsDone` `reportsToday` `supportPending` `categories` `campaigns` `topics`。今日按 `Asia/Shanghai` 零点。工作台队列另拉待审笔记 / 待处理工单 / 待处理帮助申请列表。
 
 ### GET `/api/v1/ops/catalog`
 

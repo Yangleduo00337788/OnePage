@@ -6,6 +6,15 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-064 运营工作台按治理台待办优先
+
+- **日期：** 2026-10-20
+- **状态：** 已采纳
+- **背景：** 工作台只有库存数字和分类/活动/话题柱图，不像业界治理后台：先进待办、看今日增量、从首页点进队列。
+- **决策：** `GET /ops/overview` 补 `usersToday` `postsPending` `postsRejected` `postsToday` `commentsToday` `reportsToday` `supportPending`。页面改问候+待办合计、三张待办卡、KPI 带今日、快捷入口、待办构成/笔记状态/今日新增图、最新待审/工单/申请。目录条数仍返回，首页不再当主指标。不接直播在线数（直播不进菜单）。
+- **替代：** 只改前端排版继续用旧 9 个数（否决：待审/帮助申请看不见）。
+- **影响：** 重启 user、content、moderation。工作台并行拉 `GET /ops/posts?taken=pending`、`GET /ops/reports?status=pending`、`GET /ops/support?status=pending`。
+
 ## DEC-063 违禁词与媒体上限运营可配
 
 - **日期：** 2026-10-20
