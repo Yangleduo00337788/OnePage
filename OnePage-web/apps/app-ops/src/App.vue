@@ -86,7 +86,7 @@ const groups: NavGroup[] = [
 ]
 
 const page = ref<PageId>('home')
-const openGroups = ref<Record<string, boolean>>({ gov: true, content: true, ai: true })
+const openGroups = ref<Record<string, boolean>>({})
 const collapsed = ref(localStorage.getItem('onepage.ops.navCollapsed') === '1')
 const me = ref<UserProfile | null>(null)
 const ready = ref(false)
@@ -141,6 +141,7 @@ function toggleGroup(id: string) {
 function setCollapsed(next: boolean) {
   collapsed.value = next
   localStorage.setItem('onepage.ops.navCollapsed', next ? '1' : '0')
+  if (next) openGroups.value = {}
 }
 
 async function logout() {
@@ -182,6 +183,7 @@ function onLoggedIn(profile: UserProfile) {
             class="nav-item"
             :class="{ 'is-on': groupActive(group) }"
             :title="collapsed ? group.label : undefined"
+            :aria-expanded="!!openGroups[group.id]"
             @click="toggleGroup(group.id)"
           >
             <Icon :name="group.icon" :size="20" />
@@ -390,10 +392,21 @@ button {
 }
 
 .sub {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 2px 8px 8px 48px;
+}
+
+.sub::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 10px;
+  left: 25px;
+  width: 1px;
+  background: #ddd;
 }
 
 .sub-item {
