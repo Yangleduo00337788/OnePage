@@ -535,11 +535,18 @@ export type PublicCatalog = OpsCatalog
 
 export type OpsOverview = {
   communityUsers: number
+  usersToday: number
   postsLive: number
   postsDown: number
+  postsPending: number
+  postsRejected: number
+  postsToday: number
   comments: number
+  commentsToday: number
   reportsPending: number
   reportsDone: number
+  reportsToday: number
+  supportPending: number
   categories: number
   campaigns: number
   topics: number

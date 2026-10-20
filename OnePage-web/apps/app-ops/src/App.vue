@@ -234,7 +234,7 @@ function onLoggedIn(profile: UserProfile) {
           </div>
         </div>
       </header>
-      <OpsHome v-if="page === 'home'" @open="openPage($event as PageId)" />
+      <OpsHome v-if="page === 'home'" :nickname="nickname" @open="openPage($event as PageId)" />
       <OpsReports v-else-if="page === 'reports'" />
       <OpsSupport v-else-if="page === 'support'" />
       <OpsUsers v-else-if="page === 'users'" />
