@@ -430,6 +430,11 @@ public class UserService {
     return n == null ? 0L : n;
   }
 
+  public long countProfilesSince(LocalDateTime from) {
+    Long n = profileMapper.selectCount(Wrappers.<UserProfile>lambdaQuery().ge(UserProfile::getCreatedAt, from));
+    return n == null ? 0L : n;
+  }
+
   /** 运营用户列表。q 可空，空则全表倒序。 */
   public UserSummaryPage opsPage(String q, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);

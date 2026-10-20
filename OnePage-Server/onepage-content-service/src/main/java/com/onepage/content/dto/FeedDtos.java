@@ -170,7 +170,14 @@ public final class FeedDtos {
       List<OpsTopic> topics,
       List<OpsNotice> notices) {}
 
-  public record ContentStats(long postsLive, long postsDown, long comments) {}
+  public record ContentStats(
+      long postsLive,
+      long postsDown,
+      long postsPending,
+      long postsRejected,
+      long comments,
+      long postsToday,
+      long commentsToday) {}
 
   public record CategorySpec(String name, Integer sortOrder, Boolean enabled) {}
 

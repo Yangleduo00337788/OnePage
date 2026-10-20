@@ -222,7 +222,14 @@ public interface ContentClient {
       List<OpsTopic> topics,
       List<OpsNotice> notices) {}
 
-  record ContentStats(long postsLive, long postsDown, long comments) {}
+  record ContentStats(
+      long postsLive,
+      long postsDown,
+      long postsPending,
+      long postsRejected,
+      long comments,
+      long postsToday,
+      long commentsToday) {}
 
   record CategorySpec(String name, Integer sortOrder, Boolean enabled) {}
 

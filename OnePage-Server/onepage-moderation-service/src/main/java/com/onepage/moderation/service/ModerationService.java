@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ public class ModerationService {
   private static final Set<String> REASONS = Set.of("spam", "porn", "abuse", "illegal", "other");
   private static final int STATUS_PENDING = 0;
   private static final int STATUS_DONE = 1;
+  private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
   private final ReportMapper mapper;
   private final UserClient userClient;
@@ -51,6 +53,7 @@ public class ModerationService {
   private final MessageClient messageClient;
   private final NotifyClient notifyClient;
   private final LiveClient liveClient;
+  private final SupportService supportService;
   private final StaffGuard staffGuard;
   private final String internalToken;
 
@@ -62,6 +65,7 @@ public class ModerationService {
       MessageClient messageClient,
       NotifyClient notifyClient,
       LiveClient liveClient,
+      SupportService supportService,
       StaffGuard staffGuard,
       @Value("${onepage.internal-token}") String internalToken) {
     this.mapper = mapper;
@@ -71,6 +75,7 @@ public class ModerationService {
     this.messageClient = messageClient;
     this.notifyClient = notifyClient;
     this.liveClient = liveClient;
+    this.supportService = supportService;
     this.staffGuard = staffGuard;
     this.internalToken = internalToken;
   }
@@ -369,35 +374,62 @@ public class ModerationService {
 
   public ModerationDtos.OpsOverview overview() {
     long users = 0;
+    long usersToday = 0;
     try {
       UserClient.Count c = userClient.count(internalToken);
-      users = c == null ? 0 : c.users();
+      if (c != null) {
+        users = c.users();
+        usersToday = c.usersToday();
+      }
     } catch (RuntimeException ex) {
       log.warn("ops user-count failed");
     }
     long live = 0;
     long down = 0;
+    long postsPending = 0;
+    long postsRejected = 0;
+    long postsToday = 0;
     long comments = 0;
+    long commentsToday = 0;
     try {
       ContentClient.ContentStats st = contentClient.stats(internalToken);
       if (st != null) {
         live = st.postsLive();
         down = st.postsDown();
+        postsPending = st.postsPending();
+        postsRejected = st.postsRejected();
+        postsToday = st.postsToday();
         comments = st.comments();
+        commentsToday = st.commentsToday();
       }
     } catch (RuntimeException ex) {
       log.warn("ops content-stats failed");
     }
     ModerationDtos.OpsCatalog cat = catalog();
-    long pending = mapper.selectCount(Wrappers.<Report>lambdaQuery().eq(Report::getStatus, STATUS_PENDING));
-    long done = mapper.selectCount(Wrappers.<Report>lambdaQuery().eq(Report::getStatus, STATUS_DONE));
+    LocalDateTime today = LocalDate.now(ZONE).atStartOfDay();
+    long pending = n(mapper.selectCount(Wrappers.<Report>lambdaQuery().eq(Report::getStatus, STATUS_PENDING)));
+    long done = n(mapper.selectCount(Wrappers.<Report>lambdaQuery().eq(Report::getStatus, STATUS_DONE)));
+    long reportsToday = n(mapper.selectCount(Wrappers.<Report>lambdaQuery().ge(Report::getCreatedAt, today)));
+    long supportPending = 0;
+    try {
+      supportPending = supportService.countPending();
+    } catch (RuntimeException ex) {
+      log.warn("ops support-count failed");
+    }
     return new ModerationDtos.OpsOverview(
         users,
+        usersToday,
         live,
         down,
+        postsPending,
+        postsRejected,
+        postsToday,
         comments,
+        commentsToday,
         pending,
         done,
+        reportsToday,
+        supportPending,
         cat.categories().size(),
         cat.campaigns().size(),
         cat.topics().size());
@@ -1038,5 +1070,9 @@ public class ModerationService {
 
   private static String blankToNull(String value) {
     return StringUtils.hasText(value) ? value.trim() : null;
+  }
+
+  private static long n(Long value) {
+    return value == null ? 0L : value;
   }
 }

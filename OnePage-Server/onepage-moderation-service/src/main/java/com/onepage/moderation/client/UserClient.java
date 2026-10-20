@@ -61,7 +61,7 @@ public interface UserClient {
       @PathVariable("followerId") long followerId,
       @PathVariable("followeeId") long followeeId);
 
-  record Count(long users) {}
+  record Count(long users, long usersToday) {}
 
   record UserPage(List<UserSummary> items, String nextCursor, boolean hasMore) {}
 

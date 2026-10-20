@@ -146,11 +146,18 @@ public final class ModerationDtos {
 
   public record OpsOverview(
       long communityUsers,
+      long usersToday,
       long postsLive,
       long postsDown,
+      long postsPending,
+      long postsRejected,
+      long postsToday,
       long comments,
+      long commentsToday,
       long reportsPending,
       long reportsDone,
+      long reportsToday,
+      long supportPending,
       long categories,
       long campaigns,
       long topics) {}

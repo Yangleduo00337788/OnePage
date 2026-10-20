@@ -25,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -42,6 +44,7 @@ public class CatalogService {
   private static final Pattern HASH = Pattern.compile("#([^\\s#]{1,32})");
   private static final Set<String> FALLBACK_CATEGORIES =
       Set.of("旅行", "美食", "时尚", "摄影", "生活", "运动", "游戏", "音乐");
+  private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
   private static final Set<String> CAMPAIGN_STATUS = Set.of("live", "upcoming", "ended");
   private static final Map<String, String> FAQ_GROUPS = Map.of(
       "account", "用户账号管理",
@@ -133,11 +136,19 @@ public class CatalogService {
   }
 
   public FeedDtos.ContentStats stats() {
-    long live = postMapper.selectCount(
-        Wrappers.<Post>lambdaQuery().isNull(Post::getDeletedAt).eq(Post::getStatus, "published"));
-    long down = postMapper.selectCount(Wrappers.<Post>lambdaQuery().isNotNull(Post::getDeletedAt));
-    long comments = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery().eq(Comment::getStatus, 0));
-    return new FeedDtos.ContentStats(live, down, comments);
+    LocalDateTime today = LocalDate.now(ZONE).atStartOfDay();
+    long live = n(postMapper.selectCount(
+        Wrappers.<Post>lambdaQuery().isNull(Post::getDeletedAt).eq(Post::getStatus, "published")));
+    long down = n(postMapper.selectCount(Wrappers.<Post>lambdaQuery().isNotNull(Post::getDeletedAt)));
+    long pending = n(postMapper.selectCount(
+        Wrappers.<Post>lambdaQuery().isNull(Post::getDeletedAt).eq(Post::getStatus, "pending")));
+    long rejected = n(postMapper.selectCount(
+        Wrappers.<Post>lambdaQuery().isNull(Post::getDeletedAt).eq(Post::getStatus, "rejected")));
+    long comments = n(commentMapper.selectCount(Wrappers.<Comment>lambdaQuery().eq(Comment::getStatus, 0)));
+    long postsToday = n(postMapper.selectCount(Wrappers.<Post>lambdaQuery().ge(Post::getCreatedAt, today)));
+    long commentsToday = n(commentMapper.selectCount(
+        Wrappers.<Comment>lambdaQuery().ge(Comment::getCreatedAt, today)));
+    return new FeedDtos.ContentStats(live, down, pending, rejected, comments, postsToday, commentsToday);
   }
 
   public List<FeedDtos.OpsTopic> suggestTopics(String q) {
@@ -673,6 +684,10 @@ public class CatalogService {
 
   private static int n(Integer value) {
     return value == null ? 0 : value;
+  }
+
+  private static long n(Long value) {
+    return value == null ? 0L : value;
   }
 
   /** 只存公开对象地址。预签名 query 会超过 cover_url 512 并让 MySQL 500。 */

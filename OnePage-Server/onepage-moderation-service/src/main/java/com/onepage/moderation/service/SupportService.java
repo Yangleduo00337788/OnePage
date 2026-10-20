@@ -1,5 +1,6 @@
 package com.onepage.moderation.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onepage.common.api.BusinessException;
@@ -54,6 +55,11 @@ public class SupportService {
     this.notifyClient = notifyClient;
     this.objectMapper = objectMapper;
     this.internalToken = internalToken;
+  }
+
+  public long countPending() {
+    Long n = mapper.selectCount(Wrappers.<SupportTicket>lambdaQuery().eq(SupportTicket::getStatus, STATUS_PENDING));
+    return n == null ? 0L : n;
   }
 
   public ModerationDtos.CreateSupportResult create(long userId, ModerationDtos.CreateSupportRequest body) {

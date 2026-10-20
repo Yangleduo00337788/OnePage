@@ -7,7 +7,9 @@ import com.onepage.user.dto.UserCursorPage;
 import com.onepage.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -118,7 +120,8 @@ public class InternalUserController {
   @GetMapping("/users/count")
   public Count count(HttpServletRequest request) {
     tokenFilter.assertInternal(request);
-    return new Count(userService.countProfiles());
+    LocalDateTime today = LocalDate.now(ZoneId.of("Asia/Shanghai")).atStartOfDay();
+    return new Count(userService.countProfiles(), userService.countProfilesSince(today));
   }
 
   @PostMapping("/users/clear-object-key")
@@ -178,7 +181,7 @@ public class InternalUserController {
     return userService.opsPage(q, cursor, limit);
   }
 
-  public record Count(long users) {}
+  public record Count(long users, long usersToday) {}
 
   public record CreateProfileRequest(Long userId, String nickname) {}
 }
