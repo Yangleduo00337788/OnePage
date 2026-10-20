@@ -18,3 +18,5 @@ order: 3
 - [009_platform_notice.sql](/engineering/tech/sql/onepage-content-service/009_platform_notice) — 创作者平台公告（已有库另执行）
 - [010_creator_faq.sql](/engineering/tech/sql/onepage-content-service/010_creator_faq) — 创作字典（已有库另执行）
 - [011_platform_notice_comments.sql](/engineering/tech/sql/onepage-content-service/011_platform_notice_comments) — 修正公告表中文 COMMENT
+- [012_post_ai_review.sql](/engineering/tech/sql/onepage-content-service/012_post_ai_review) — 公开笔记文字机审字段（已有库另执行）
+- [013_post_ai_review_score.sql](/engineering/tech/sql/onepage-content-service/013_post_ai_review_score) — 机审风险分（已有库另执行）

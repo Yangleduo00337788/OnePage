@@ -98,6 +98,7 @@ P3 已实现：搜索笔记/用户/话题/在播（ES；筛选进查询）；AI 
 
 账密注册。**Body**：`phone?`, `email?`, `password`, `nickname?`  
 `password`：8～32 位，须同时包含字母和数字。  
+填了昵称则走运营违禁词；命中 **400**「含有不允许的内容」（不再改成「一页用户」）。空昵称仍默认「一页用户」。auth 建档 Feign 到 user 若 400，须转成同一句，不要 500。  
 **Response 201**：同登录用户摘要 + Cookie
 
 ### POST `/api/v1/auth/login`
@@ -157,7 +158,7 @@ OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub �
 ### PATCH `/api/v1/users/me`
 
 **Body**（均可选）：`nickname`, `bio`, `gender`, `avatarMediaId`, `coverMediaId`。**不接受 `pageId`**（一页号注册后不可改）。  
-`nickname` / `bio` 长度与违禁词走运营 `community_policy`（默认 24 / 160）；超限或命中词表 **400**。  
+`nickname` / `bio` 长度与违禁词走运营 `community_policy`（默认 24 / 160）；超限或命中词表 **400**「含有不允许的内容」。同一词表还拦发帖、评论、私信文本、弹幕、帮助申请、话题；图/视频不扫画面。  
 **Response 200**：完整 profile。正在开播（`GET /live/mine` 有场次）则 **409**「直播中不可修改资料，请先结束直播」。user Feign live `GET /internal/live/users/{userId}/active`；直播服务不可用时不拦。
 
 ### GET `/api/v1/users/me/suggest`
@@ -242,7 +243,9 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 | draft | boolean | 否；`true` 则 `status=draft`，仅作者可见 |
 | scheduledAt | string | 否；ISO 本地时间（`yyyy-MM-ddTHH:mm`）；写入 `published_at`，未到点不进 Feed |
 
-**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`draft` / `pending` / `published`）。公开笔记先待审，不进 Feed；仅自己与好友可见直接 `published`。好友可见出现在关注者的关注流，不进发现流。
+标题/正文命中运营违禁词 **400**「含有不允许的内容」（草稿同样拦）。
+
+**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`draft` / `pending` / `published`）。公开笔记先待审，不进 Feed；提交后异步文字机审，通过则自动 `published`，未过/失败仍 `pending` 等人审（不自动驳回）。仅自己与好友可见直接 `published`。好友可见出现在关注者的关注流，不进发现流。
 
 Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=public`；关注流公开 + 好友可见。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。分类须为启用中的 `post_category.name`（`GET /catalog`）。
 
@@ -395,6 +398,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 ### POST `/api/v1/posts/{postId}/comments`
 
 **Body**：`content`, `parentId?`, `mentionPageIds?`（@ 一页号或昵称）  
+`content` 空或超过 2000 字不合法；命中运营违禁词 **400**「含有不允许的内容」。  
 服务端还会从正文解析 `@token`。命中用户则投递 `mention` 通知（已收到本条评论/回复通知的人不再重复）。找不到的 token 忽略，评论仍成功。最多 10 人。  
 **Response 201**：Comment
 
@@ -460,8 +464,8 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/conversations/{id}/messages`
 
-**Body 文本**：`{ "msgType": "text", "content": { "text": "..." } }`  
-**Body 图片**：`{ "msgType": "image", "content": { "mediaId": "..." } }`。`mediaId` 须为本人已 `complete` 的 `purpose=im_image`。服务端写入 `content.url`，不信任客户端 URL。  
+**Body 文本**：`{ "msgType": "text", "content": { "text": "..." } }`。命中运营违禁词 **400**。  
+**Body 图片**：`{ "msgType": "image", "content": { "mediaId": "..." } }`。`mediaId` 须为本人已 `complete` 的 `purpose=im_image`。服务端写入 `content.url`，不信任客户端 URL。图片不扫画面。  
 **Response 201** 消息。笔记卡片走 `POST /posts/{id}/share/im`，直播卡片走 `POST /live/sessions/{id}/share/im`，浏览器不能直接发 `post_card` / `live_card`。
 
 ### WebSocket `WS /ws/im`
@@ -500,7 +504,7 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms`
 
-须登录。**Body**：`title`, `category?`, `coverMediaId?`（可选；须是本人已 `complete` 的图片，`purpose=cover`）, `notice?`（本场公告，最多 200 字；空则观众侧用默认欢迎文案）  
+须登录。**Body**：`title`, `category?`, `coverMediaId?`（可选；须是本人已 `complete` 的图片，`purpose=cover`）, `notice?`（本场公告，最多 200 字；空则观众侧用默认欢迎文案）。标题与公告命中运营违禁词 **400**。  
 **Response 201**：`{ "roomId" }`  
 `onepage-live-service`（8089）Feign content 核媒体后把 `objectKey` 写入 `live_room.cover_object_key`。同一主播同时只能一场 `live`。
 
@@ -521,7 +525,7 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/rooms/{roomId}/notice`
 
-须登录且是房主。**Body**：`{ "notice" }`（最多 200 字，可空）  
+须登录且是房主。**Body**：`{ "notice" }`（最多 200 字，可空）。命中运营违禁词 **400**。  
 **Response 200**：`{ "notice" }`。写入 `live_room.notice`；观众靠场次轮询看到。
 
 ### GET `/api/v1/live/sessions`
@@ -546,7 +550,7 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/live/sessions/{sessionId}/messages`
 
-须登录。**Body**：`{ "body" }`（1～200 字，trim）  
+须登录。**Body**：`{ "body" }`（1～200 字，trim）。命中运营违禁词 **400**。  
 **Response 201**：一条 ChatLine。场次已 `ended` 则 409。社区画面弹幕复用本列表文本（不含 `kind=join`），不另开接口。
 
 ### POST `/api/v1/live/sessions/{sessionId}/share/link`
@@ -587,7 +591,7 @@ Query：`beforeId?`, `limit`
 
 ### POST `/api/v1/support`
 
-须登录。**Body**：`kind`（`feedback` / `live` / `verify`）, `title?`（入驻/认证必填名称）, `contact?`（入驻/认证必填）, `body?`（反馈必填）, `mediaUrls?`（反馈附图，最多 6 个公开 `http(s)` URL，来自 `purpose=feedback` complete）。**Response 201**：`{ "ticketId" }`。写入 `support_ticket`。运营结案不自动开通直播或认证标识。
+须登录。**Body**：`kind`（`feedback` / `live` / `verify`）, `title?`（入驻/认证必填名称）, `contact?`（入驻/认证必填）, `body?`（反馈必填）, `mediaUrls?`（反馈附图，最多 6 个公开 `http(s)` URL，来自 `purpose=feedback` complete）。名称/联系方式/正文命中运营违禁词 **400**。**Response 201**：`{ "ticketId" }`。写入 `support_ticket`。运营结案不自动开通直播或认证标识。
 
 ---
 
@@ -637,11 +641,11 @@ Query：`beforeId?`, `limit`
 ### GET `/api/v1/ops/posts`
 
 **Query**：`q` 标题或笔记 ID，`taken` 空=全部 / pending 待审 / live 已通过在线 / rejected 未通过 / down 已下架，`cursor`，`limit`  
-**Response**：`CursorPage<OpsPostRow>`（含 `takenDown` `reviewStatus` `rejectReason`）。
+**Response**：`CursorPage<OpsPostRow>`（含 `takenDown` `reviewStatus` `rejectReason` `aiReview` `aiReviewReason` `aiReviewScore`）。`aiReview`：空=未跑/机审中，`pass` 低分自动过，`flag` 达到阈值进人审，`skip` 未开或失败。`aiReviewScore` 为 0–100 风险分。
 
 ### GET `/api/v1/ops/posts/{postId}`
 
-员工预览。已下架/待审也返回正文和媒体。**Response**：`OpsPostView`（含 `takenDown`、`reviewStatus`、`rejectReason`、`media[]`）。
+员工预览。已下架/待审也返回正文和媒体。**Response**：`OpsPostView`（含 `takenDown`、`reviewStatus`、`rejectReason`、`aiReview`、`aiReviewReason`、`media[]`）。
 
 ### POST `/api/v1/ops/posts/{postId}/approve`
 
@@ -682,7 +686,7 @@ Body 含 `eventId`（新建）`title` `intro` `coverUrl` `status` `sortOrder`。
 
 ### POST `/api/v1/ops/topics` · PATCH `/api/v1/ops/topics/{id}` · POST `.../enabled?value=`
 
-`official` 官方话题。用户发帖 `#标签` 也会写入 topic 表。话题 JSON 含 `postCount`。
+`official` 官方话题。用户发帖 `#标签` 也会写入 topic 表。话题名命中运营违禁词 **400**（正文已拦则不会写入该标签）。话题 JSON 含 `postCount`。
 
 ### POST `/api/v1/ops/notices` · PATCH `/api/v1/ops/notices/{id}` · POST `.../enabled?value=`
 
@@ -766,11 +770,11 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### GET `/api/v1/ops/ai`
 
-员工。**Response**：`llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `persisted` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax` `temperature` `maxTokens` `streamEnabled`。密钥不回全文。`persisted=false` 表示尚未写入 Redis，当前用环境变量。三段 prompt 是 system 文案。`retrieveLimit`/`contextBodyMax` 是耶耶 RAG：检索条数与注入正文截断。`temperature` 默认 0.4、范围 0–2；`maxTokens` 0 表示不设上限（上限 8192）；`streamEnabled` 只影响耶耶 SSE。
+员工。**Response**：对话模型字段 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewLlmBaseUrl` `reviewLlmModel` `reviewLlmKeySet` `reviewLlmKeyMasked` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿地址/密钥不回落到对话模型。`reviewRiskLimit` 默认 40：风险分低于此值自动过。内网 `POST /internal/ai/review` 只给 content 调。
 
 ### POST `/api/v1/ops/ai`
 
-员工。**Body** 可只传本页字段（模型 / 耶耶 / 发帖），未传的保持原值。另可 `llmApiKey?` `clearLlmKey?`。密钥留空不改；`clearLlmKey=true` 清空已存密钥。联想最多 6 条，空列表回落到内置三条。Feign 写 Redis `onepage:ai:settings`。
+员工。**Body** 可只传本页字段（模型 / 耶耶 / 发帖 / 审稿），未传的保持原值。对话密钥 `llmApiKey?` `clearLlmKey?`；审稿密钥 `reviewLlmApiKey?` `clearReviewLlmKey?`；审稿阈值 `reviewRiskLimit?`（1–100，默认 40）。密钥留空不改。联想最多 6 条。Feign 写 Redis `onepage:ai:settings`。
 
 ### POST `/api/v1/ops/ai/reset`
 
@@ -778,7 +782,15 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### POST `/api/v1/ops/ai/probe`
 
-员工。用表单里的地址/模型探测（密钥留空则用已保存的）。**Response**：`{ "ok", "message" }`。连不上也是 200 + `ok=false`，不把上游错误原文甩给浏览器。
+员工。探测**对话**模型（耶耶/润色）。密钥留空则用已保存的。**Response**：`{ "ok", "message" }`。连不上也是 200 + `ok=false`。
+
+### POST `/api/v1/ops/ai/review/probe`
+
+员工。探测**审稿**模型，不走对话密钥。Body：`reviewLlmBaseUrl?` `reviewLlmApiKey?` `reviewLlmModel?`。**Response** 同 `/ops/ai/probe`。
+
+### POST `/api/v1/ops/ai/review/try`
+
+员工。用已保存的审稿配置试审一段标题正文，不发帖。**Body**：`{ title?, body }`。**Response**：`{ verdict, reason, score }`。`verdict` 为 `pass`（低于阈值）/ `flag`（达到阈值）/ `skip`。`score` 为 0–100，skip 可空。
 
 ### GET `/api/v1/ops/policy`
 

@@ -149,6 +149,9 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | category | VARCHAR(32) | 首页 Tab，对应 `post_category.name` |
 | status | VARCHAR(16) | `draft` / `pending` / `published` / `rejected` / `deleted`；Feed 只出 published |
 | reject_reason | VARCHAR(200) 可空 | 未通过原因 |
+| ai_review | VARCHAR(16) 可空 | 空=未跑；`pass` 低分自动过；`flag` 达阈值进人审；`skip` 未跑或失败 |
+| ai_review_reason | VARCHAR(200) 可空 | 机审未过或跳过原因 |
+| ai_review_score | INT 可空 | 机审风险分 0–100 |
 | visibility | TINYINT | 0 公开（发现流）；1 仅自己；2 好友可见（关注流） |
 | original | TINYINT | 1 声明原创 |
 | content_kind | VARCHAR(16) | 空=不声明；虚构创作 / 个人观点 / 专业内容 |
