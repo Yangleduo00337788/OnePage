@@ -21,7 +21,7 @@ order: 1
 - 界面：**shadcn-vue + Tailwind 4**，组件集中在 `packages/ui`。  
 - **站点拆分**：社区 `apps/shell`（本机 5174）、创作者 `apps/app-creator`（本机 5175）、内部 **运营后台** `apps/app-ops`（本机 5176）。不要把运营塞进创作者站，也不要叫 admin（DEC-034）。规划中的 feed / user / im / live 仍可后续用微前端嵌进壳。  
 - 调 API：**带 Cookie**（`credentials: 'include'`），类型由 OpenAPI 生成。  
-- 私信本期：**HTTP** 列表/收发（文本 + 图片）+ 登录后 **WebSocket** `/ws/im`（网关升级，Redis 把帧路由到在线连接）。社区消息页在线不轮询，断线约 3 秒 REST 降级。图片走 MinIO `purpose=im_image`。笔记卡片由分享接口写入。直播间文字聊天在 live-service（`live_chat`，HTTP 轮询），不进私信、不做画面弹幕。
+- 私信本期：**HTTP** 列表/收发（文本 + 图片）+ 登录后 **WebSocket** `/ws/im`（网关升级，Redis 把帧路由到在线连接）。社区消息页在线不轮询，断线约 3 秒 REST 降级。图片走 MinIO `purpose=im_image`。笔记卡片由分享接口写入。直播间文字聊天在 live-service（`live_chat`，HTTP 轮询），不进私信；社区画面弹幕复用同一批文本。
 
 规划目录：
 

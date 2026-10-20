@@ -157,6 +157,7 @@ OAuth 回调。有 `code`：换票后取对方 **id、name、email**（GitHub �
 ### PATCH `/api/v1/users/me`
 
 **Body**（均可选）：`nickname`, `bio`, `gender`, `avatarMediaId`, `coverMediaId`。**不接受 `pageId`**（一页号注册后不可改）。  
+`nickname` / `bio` 长度与违禁词走运营 `community_policy`（默认 24 / 160）；超限或命中词表 **400**。  
 **Response 200**：完整 profile。正在开播（`GET /live/mine` 有场次）则 **409**「直播中不可修改资料，请先结束直播」。user Feign live `GET /internal/live/users/{userId}/active`；直播服务不可用时不拦。
 
 ### GET `/api/v1/users/me/suggest`
@@ -208,7 +209,8 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 ### POST `/api/v1/uploads/presign`
 
 **Body**：`mimeType`, `sizeBytes`, `purpose`（`avatar` | `cover` | `post_image` | `post_video` | `im_image` | `feedback`）  
-`im_image` / `feedback`：仅 jpeg/png/webp/gif，最大 10MB。  
+图片类 `avatar` / `cover` / `post_image` / `im_image` / `feedback`：仅 jpeg/png/webp/gif，大小上限读运营 `community_policy.imageMaxMb`（默认 10）。  
+`post_video`：mp4/mov/webm，上限读 `videoMaxMb`（默认 200）。  
 **Response 200**：`{ "mediaId", "uploadUrl", "objectKey", "expiresAt" }`
 
 ### POST `/api/v1/uploads/complete`
@@ -422,7 +424,7 @@ Query：`rootId?`（拉某楼回复）, `offset`, `limit`
 必须登录。Query：`cursor`, `limit`, `unreadOnly?`, `group?`（`comment` 评论和@ / `reaction` 点赞和收藏 / `follow` 新增关注 / `review` 审核）。  
 **Response**：`CursorPage<NotificationItem>`
 
-**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`/`support_reply`/`apply_live`/`apply_verify`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要、审稿回复或工单回复，最多 120 字）, `read`, `createdAt`, `coverUrl?`（有 `postId` 时 Feign content briefs 的**图片**封面，可空；视频地址不回填）。`mention` 归入 `group=comment`；`review_reject` / `support_reply` / `apply_live` / `apply_verify` 归入 `group=review`。帮助类通知允许投给申请人本人。社区通知页拉列表不自动已读，点开条目再 `POST /notifications/read`。右侧出 44px 封面。
+**NotificationItem**：`id`, `type`（`comment`/`reply`/`mention`/`like_post`/`favorite_post`/`like_comment`/`follow`/`review_reject`/`support_reply`/`apply_live`/`apply_verify`）, `actor` UserBrief, `postId?`, `commentId?`, `preview?`（评论/回复/@ 正文摘要、审稿回复或工单回复，最多 120 字）, `actorCount`（赞/藏/评赞合并后的人数，缺省 1）, `read`, `createdAt`, `coverUrl?`（有 `postId` 时 Feign content briefs 的**图片**封面，可空；视频地址不回填）。`like_post:{postId}`、`favorite_post:{postId}`、`like_comment:{commentId}` 按对象合并，最新 actor 展示，「等 N 人」。`mention` 归入 `group=comment`；`review_reject` / `support_reply` / `apply_live` / `apply_verify` 归入 `group=review`。帮助类通知允许投给申请人本人。社区通知页拉列表不自动已读，点开条目再 `POST /notifications/read`。右侧出 44px 封面。
 
 ### POST `/api/v1/notifications/read`
 
@@ -545,7 +547,7 @@ Query：`beforeId?`, `limit`
 ### POST `/api/v1/live/sessions/{sessionId}/messages`
 
 须登录。**Body**：`{ "body" }`（1～200 字，trim）  
-**Response 201**：一条 ChatLine。场次已 `ended` 则 409。画面弹幕 overlay 不做。
+**Response 201**：一条 ChatLine。场次已 `ended` 则 409。社区画面弹幕复用本列表文本（不含 `kind=join`），不另开接口。
 
 ### POST `/api/v1/live/sessions/{sessionId}/share/link`
 
@@ -777,6 +779,14 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 ### POST `/api/v1/ops/ai/probe`
 
 员工。用表单里的地址/模型探测（密钥留空则用已保存的）。**Response**：`{ "ok", "message" }`。连不上也是 200 + `ok=false`，不把上游错误原文甩给浏览器。
+
+### GET `/api/v1/ops/policy`
+
+员工。**Response**：`bannedWords` `nicknameMax` `bioMax` `imageMaxMb` `videoMaxMb`。落 `community_policy`。须执行 moderation `003_community_policy.sql`。
+
+### POST `/api/v1/ops/policy`
+
+员工。**Body** 同上；未传的字段保持原值。词最多 200 条、每条 32 字。昵称 1～64、签名 1～500、图片 1～50MB、视频 1～2048MB。内网 `GET /internal/policy` 供 user/content 校验。
 
 ---
 

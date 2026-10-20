@@ -8,4 +8,4 @@ order: 6
 
 - [001_init.sql](/engineering/tech/sql/onepage-moderation-service/001_init) — 举报工单（已有环境必须建库并执行）
 - [002_support.sql](/engineering/tech/sql/onepage-moderation-service/002_support) — 帮助反馈 / 入驻认证（已有库另执行）
-- [002_support.sql](/engineering/tech/sql/onepage-moderation-service/002_support) — 帮助反馈 / 入驻认证（已有库另执行）
+- [003_community_policy.sql](/engineering/tech/sql/onepage-moderation-service/003_community_policy) — 社区规则（已有库另执行）

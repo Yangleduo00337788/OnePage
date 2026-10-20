@@ -420,6 +420,20 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | handled_at | DATETIME(3) 可空 | |
 | created_at | DATETIME(3) | |
 
+### community_policy
+
+脚本 [003_community_policy.sql](/engineering/tech/sql/onepage-moderation-service/003_community_policy)。单行配置，运营「社区规则」可改。user / content Feign 拉取，约 15 秒缓存。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | TINYINT PK | 固定 1 |
+| banned_words | TEXT | 一行一个 |
+| nickname_max | INT | 默认 24，范围 1～64 |
+| bio_max | INT | 默认 160，范围 1～500 |
+| image_max_mb | INT | 默认 10，范围 1～50 |
+| video_max_mb | INT | 默认 200，范围 1～2048 |
+| updated_at | DATETIME(3) | |
+
 ## onepage_live
 
 ### live_room
@@ -492,6 +506,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-10-20 | `community_policy` 违禁词与上传上限 |
 | 2026-10-19 | `user_profile.official` 一页官方认证号 |
 | 2026-10-19 | 修正 `platform_notice`、`user_unfollow_log` 中文 COMMENT |
 | 2026-10-19 | `user_profile.live_host` / `verified` |

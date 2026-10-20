@@ -6,6 +6,24 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-063 违禁词与媒体上限运营可配
+
+- **日期：** 2026-10-20
+- **状态：** 已采纳
+- **背景：** DEC-062 把词表和 10MB/200MB 写死在 user/content。运营要能改。
+- **决策：** 表 `community_policy`（moderation，单行 id=1）。员工 `GET/POST /ops/policy`。user/content Feign `GET /internal/policy`，内存缓存 15 秒；治理挂了用上次或默认。词表不做舆情审核。视频时长仍不做。
+- **替代：** 跟 AI 一样塞 Redis（否决：规则要落库、重启不丢）；每个服务各写一份（否决：对不齐）。
+- **影响：** 执行 moderation `003_community_policy.sql`；重启 moderation、user、content。运营左栏治理「社区规则」。
+
+## DEC-062 同帖赞藏合并、资料违禁词、画面弹幕接聊天
+
+- **日期：** 2026-10-20
+- **状态：** 已采纳
+- **背景：** PRD「待 PM 细化」里三项已到该落地；直播底栏「弹幕」一直提示未开放。DEC-054 当时否决 overlay。
+- **决策：** `like_post`/`favorite_post`/`like_comment` 的 `aggregate_key` 按帖/评论不按人；payload 记 `actorIds`/`actorCount`，列表显示「等 N 人」。昵称 1～24、签名 0～160，词表拦广告引流。图片（含头像/封面/笔记图/私信/反馈）10MB，视频 200MB。画面弹幕复用右侧 `live_chat` 文本（不含进房「来了」），底栏可关。礼物/连麦仍不做。
+- **替代：** 每人一条赞通知（否决：刷屏）；弹幕独立 WS（否决：已有轮询聊天）。
+- **影响：** 重启 notification、content、user；社区通知页与运营用户收件箱读 `actorCount`。旧键带 userId 的历史行不自动合并。
+
 ## DEC-061 OAuth 不按邮箱静默并号；冲突后登录再绑定
 
 - **日期：** 2026-10-18
