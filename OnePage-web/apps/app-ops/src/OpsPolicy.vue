@@ -166,7 +166,7 @@ onMounted(() => {
             <input v-model="draft" maxlength="32" placeholder="输入后回车添加" />
             <button type="submit" class="ghost tight">添加</button>
           </form>
-          <p v-if="!banned.length" class="empty">还没有词，添加后改资料会拦</p>
+          <p v-if="!banned.length" class="empty">还没有词。添加后拦昵称、签名、发帖、评论、私信、弹幕、帮助申请；图片视频不扫画面</p>
           <div v-else class="chips">
             <span v-for="word in banned" :key="word" class="chip">
               {{ word }}

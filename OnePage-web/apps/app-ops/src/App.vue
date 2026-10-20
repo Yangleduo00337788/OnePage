@@ -39,6 +39,7 @@ export type PageId =
   | 'ai-model'
   | 'ai-yeh'
   | 'ai-polish'
+  | 'ai-review'
 
 type NavItem = { id: PageId; label: string; icon: string }
 type NavGroup = { id: string; label: string; icon: string; children: NavItem[] }
@@ -79,6 +80,7 @@ const groups: NavGroup[] = [
       { id: 'ai-model', label: '模型', icon: 'spark' },
       { id: 'ai-yeh', label: '耶耶', icon: 'message-square' },
       { id: 'ai-polish', label: '发帖', icon: 'sticky-note' },
+      { id: 'ai-review', label: '审稿', icon: 'flag' },
     ],
   },
 ]
@@ -251,6 +253,7 @@ function onLoggedIn(profile: UserProfile) {
       <OpsAi v-else-if="page === 'ai-model'" kind="model" />
       <OpsAi v-else-if="page === 'ai-yeh'" kind="yeh" />
       <OpsAi v-else-if="page === 'ai-polish'" kind="polish" />
+      <OpsAi v-else-if="page === 'ai-review'" kind="review" />
     </div>
   </div>
 </template>

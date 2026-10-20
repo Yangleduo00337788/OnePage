@@ -68,6 +68,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           <p v-if="post.takenDown" class="badge">已下架</p>
           <p v-else-if="post.reviewStatus === 'pending'" class="badge">待审</p>
           <p v-else-if="post.reviewStatus === 'rejected'" class="badge">未通过</p>
+          <p v-if="post.aiReviewScore != null" class="sub">风险分 {{ post.aiReviewScore }}</p>
+          <p v-if="post.aiReview === 'flag'" class="sub">进人审：{{ post.aiReviewReason || '需人工复核' }}</p>
+          <p v-else-if="post.aiReview === 'skip'" class="sub">{{ post.aiReviewReason || '机审未跑，待人审' }}</p>
+          <p v-else-if="post.reviewStatus === 'pending' && !post.aiReview" class="sub">文字机审中</p>
           <p v-if="post.rejectReason" class="sub">{{ post.rejectReason }}</p>
           <p class="author">{{ post.author?.nickname || post.author?.pageId || '作者' }}</p>
           <h2>{{ post.title || '无标题' }}</h2>

@@ -236,11 +236,24 @@ export type OpsAiConfig = {
   temperature: number
   maxTokens: number
   streamEnabled: boolean
+  reviewEnabled: boolean
+  reviewSystem: string
+  reviewLlmBaseUrl: string
+  reviewLlmModel: string
+  reviewLlmKeySet: boolean
+  reviewLlmKeyMasked: string
+  reviewRiskLimit: number
 }
 
 export type OpsAiProbe = {
   ok: boolean
   message: string
+}
+
+export type OpsAiReviewTry = {
+  verdict: string
+  reason: string
+  score?: number | null
 }
 
 export type CommunityPolicy = {
@@ -389,6 +402,9 @@ export type OpsPostView = {
   publishedAt: string
   reviewStatus?: string
   rejectReason?: string | null
+  aiReview?: string | null
+  aiReviewReason?: string | null
+  aiReviewScore?: number | null
 }
 
 export type OpsUser = {
@@ -412,6 +428,9 @@ export type OpsPostRow = {
   publishedAt: string
   reviewStatus?: string
   rejectReason?: string | null
+  aiReview?: string | null
+  aiReviewReason?: string | null
+  aiReviewScore?: number | null
 }
 
 export type OpsCommentRow = {
@@ -996,10 +1015,24 @@ export const api = {
     temperature?: number
     maxTokens?: number
     streamEnabled?: boolean
+    reviewEnabled?: boolean
+    reviewSystem?: string
+    reviewLlmBaseUrl?: string
+    reviewLlmApiKey?: string
+    reviewLlmModel?: string
+    clearReviewLlmKey?: boolean
+    reviewRiskLimit?: number
   }) => request<OpsAiConfig>('/api/v1/ops/ai', { method: 'POST', body: JSON.stringify(body) }),
   opsResetAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai/reset', { method: 'POST' }),
   opsProbeAi: (body: { llmBaseUrl?: string; llmApiKey?: string; llmModel?: string }) =>
     request<OpsAiProbe>('/api/v1/ops/ai/probe', { method: 'POST', body: JSON.stringify(body) }),
+  opsProbeReviewAi: (body: {
+    reviewLlmBaseUrl?: string
+    reviewLlmApiKey?: string
+    reviewLlmModel?: string
+  }) => request<OpsAiProbe>('/api/v1/ops/ai/review/probe', { method: 'POST', body: JSON.stringify(body) }),
+  opsTryReviewAi: (body: { title?: string; body?: string }) =>
+    request<OpsAiReviewTry>('/api/v1/ops/ai/review/try', { method: 'POST', body: JSON.stringify(body) }),
   opsPolicy: () => request<CommunityPolicy>('/api/v1/ops/policy'),
   opsSavePolicy: (body: CommunityPolicy) =>
     request<CommunityPolicy>('/api/v1/ops/policy', { method: 'POST', body: JSON.stringify(body) }),

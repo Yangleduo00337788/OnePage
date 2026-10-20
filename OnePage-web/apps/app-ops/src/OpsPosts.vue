@@ -92,6 +92,17 @@ function reviewLabel(status?: string) {
   return ''
 }
 
+function aiLabel(row: OpsPostRow) {
+  if (row.reviewStatus !== 'pending') {
+    return row.aiReviewScore != null ? `风险 ${row.aiReviewScore}` : ''
+  }
+  const score = row.aiReviewScore != null ? `风险 ${row.aiReviewScore}` : ''
+  if (row.aiReview === 'flag') return score ? `进人审 · ${score}` : '进人审'
+  if (row.aiReview === 'skip') return '待人审'
+  if (!row.aiReview) return '机审中'
+  return score
+}
+
 function openReject(row: OpsPostRow) {
   rejectRow.value = row
   rejectReason.value = ''
@@ -174,6 +185,7 @@ watch(taken, () => load(1, true))
             <th>标题</th>
             <th>作者</th>
             <th>分类</th>
+            <th>机审</th>
             <th>时间</th>
             <th />
           </tr>
@@ -189,6 +201,10 @@ watch(taken, () => load(1, true))
             </td>
             <td>{{ row.author?.nickname || row.author?.pageId || '—' }}</td>
             <td>{{ row.category || '—' }}</td>
+            <td>
+              <span v-if="aiLabel(row)" class="tag">{{ aiLabel(row) }}</span>
+              <span v-else>—</span>
+            </td>
             <td>{{ clock(row.publishedAt) }}</td>
             <td class="acts">
               <button

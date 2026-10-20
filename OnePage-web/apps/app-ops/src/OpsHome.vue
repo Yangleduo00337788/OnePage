@@ -51,7 +51,7 @@ const queues = computed(() => [
   {
     id: 'posts',
     title: '待审笔记',
-    hint: '公开笔记需人工通过后才进发现',
+    hint: '机审未过或未跑的公开笔记',
     count: n('postsPending'),
   },
   {

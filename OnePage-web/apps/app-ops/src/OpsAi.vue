@@ -3,7 +3,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, type OpsAiConfig } from '@onepage/api-client'
 
-const props = defineProps<{ kind: 'model' | 'yeh' | 'polish' }>()
+const props = defineProps<{ kind: 'model' | 'yeh' | 'polish' | 'review' }>()
 
 const QUESTION_MAX = 6
 const QUESTION_SLOTS = 3
@@ -17,7 +17,14 @@ const titles = {
     h1: '耶耶',
     lead: '开关、RAG 注入、问答提示词、首页文案。保存只改耶耶，不动模型和发帖。',
   },
-  polish: { h1: '发帖', lead: '创作者编辑页的优化 / 续写。保存只改发帖，不动模型和耶耶。' },
+  polish: {
+    h1: '发帖',
+    lead: '创作者编辑页的优化 / 续写。保存只改发帖，不动模型、耶耶和审稿。',
+  },
+  review: {
+    h1: '审稿',
+    lead: '公开笔记文字机审的独立模型。地址、密钥、探测、试审与耶耶分开。先保存再试审。图视频画面下一步再审。',
+  },
 } as const
 
 const heading = computed(() => titles[props.kind])
@@ -45,6 +52,20 @@ const contextBodyMax = ref(400)
 const temperature = ref(0.4)
 const maxTokens = ref(0)
 const streamEnabled = ref(false)
+const reviewEnabled = ref(true)
+const reviewSystem = ref('')
+const reviewLlmBaseUrl = ref('')
+const reviewLlmModel = ref('')
+const reviewLlmApiKey = ref('')
+const reviewLlmKeySet = ref(false)
+const reviewLlmKeyMasked = ref('')
+const reviewRiskLimit = ref(40)
+const tryScore = ref<number | null>(null)
+const tryTitle = ref('周末去海边')
+const tryBody = ref('今天天气很好，拍了几张日落。')
+const trying = ref(false)
+const tryVerdict = ref('')
+const tryReason = ref('')
 
 const questionHint = computed(() => {
   const n = questions.value.filter((item) => item.trim()).length
@@ -79,13 +100,21 @@ function apply(data: OpsAiConfig) {
   temperature.value = data.temperature ?? 0.4
   maxTokens.value = data.maxTokens ?? 0
   streamEnabled.value = data.streamEnabled
+  reviewEnabled.value = data.reviewEnabled !== false
+  reviewSystem.value = data.reviewSystem || ''
+  reviewLlmBaseUrl.value = data.reviewLlmBaseUrl || ''
+  reviewLlmModel.value = data.reviewLlmModel || ''
+  reviewLlmKeySet.value = data.reviewLlmKeySet
+  reviewLlmKeyMasked.value = data.reviewLlmKeyMasked || ''
+  reviewLlmApiKey.value = ''
+  reviewRiskLimit.value = data.reviewRiskLimit || 40
 }
 
 function questionList() {
   return questions.value.map((item) => item.trim()).filter(Boolean)
 }
 
-function patchBody(extra?: { clearLlmKey?: boolean }) {
+function patchBody(extra?: { clearLlmKey?: boolean; clearReviewLlmKey?: boolean }) {
   if (props.kind === 'model') {
     return {
       llmBaseUrl: llmBaseUrl.value.trim(),
@@ -105,6 +134,19 @@ function patchBody(extra?: { clearLlmKey?: boolean }) {
       chatSystem: chatSystem.value,
       retrieveLimit: retrieveLimit.value,
       contextBodyMax: contextBodyMax.value,
+    }
+  }
+  if (props.kind === 'review') {
+    return {
+      reviewEnabled: reviewEnabled.value,
+      reviewSystem: reviewSystem.value,
+      reviewLlmBaseUrl: reviewLlmBaseUrl.value.trim(),
+      reviewLlmApiKey: reviewLlmApiKey.value.trim() || undefined,
+      reviewLlmModel: reviewLlmModel.value.trim(),
+      reviewRiskLimit: Number.isFinite(Number(reviewRiskLimit.value))
+        ? Math.min(100, Math.max(1, Number(reviewRiskLimit.value)))
+        : 40,
+      ...extra,
     }
   }
   return {
@@ -143,7 +185,9 @@ async function clearKey() {
   saving.value = true
   failed.value = ''
   try {
-    apply(await api.opsSaveAiConfig(patchBody({ clearLlmKey: true })))
+    const extra =
+      props.kind === 'review' ? { clearReviewLlmKey: true } : { clearLlmKey: true }
+    apply(await api.opsSaveAiConfig(patchBody(extra)))
     flash('已清除密钥')
   } catch (e) {
     failed.value = e instanceof ApiError ? e.message : '清除失败'
@@ -169,17 +213,53 @@ async function probe() {
   probing.value = true
   failed.value = ''
   try {
-    const res = await api.opsProbeAi({
-      llmBaseUrl: llmBaseUrl.value.trim() || undefined,
-      llmApiKey: llmApiKey.value.trim() || undefined,
-      llmModel: llmModel.value.trim() || undefined,
-    })
+    const res =
+      props.kind === 'review'
+        ? await api.opsProbeReviewAi({
+            reviewLlmBaseUrl: reviewLlmBaseUrl.value.trim() || undefined,
+            reviewLlmApiKey: reviewLlmApiKey.value.trim() || undefined,
+            reviewLlmModel: reviewLlmModel.value.trim() || undefined,
+          })
+        : await api.opsProbeAi({
+            llmBaseUrl: llmBaseUrl.value.trim() || undefined,
+            llmApiKey: llmApiKey.value.trim() || undefined,
+            llmModel: llmModel.value.trim() || undefined,
+          })
     if (res.ok) flash(res.message)
     else failed.value = res.message
   } catch (e) {
     failed.value = e instanceof ApiError ? e.message : '探测失败'
   } finally {
     probing.value = false
+  }
+}
+
+function tryLabel(verdict: string) {
+  if (verdict === 'pass') return '会自动上架'
+  if (verdict === 'flag') return '会进人审'
+  if (verdict === 'skip') return '未跑机审'
+  return verdict
+}
+
+async function tryReview() {
+  trying.value = true
+  failed.value = ''
+  tryVerdict.value = ''
+  tryReason.value = ''
+  tryScore.value = null
+  try {
+    const res = await api.opsTryReviewAi({
+      title: tryTitle.value.trim(),
+      body: tryBody.value.trim(),
+    })
+    tryVerdict.value = res.verdict || ''
+    tryReason.value = res.reason || ''
+    tryScore.value = res.score ?? null
+    flash(tryLabel(tryVerdict.value))
+  } catch (e) {
+    failed.value = e instanceof ApiError ? e.message : '试审失败'
+  } finally {
+    trying.value = false
   }
 }
 
@@ -376,6 +456,82 @@ onMounted(() => load())
           续写提示词
           <textarea v-model="continueSystem" rows="5" maxlength="4000" />
         </label>
+        </template>
+
+        <template v-if="kind === 'review'">
+        <div class="switch-row">
+          <button
+            type="button"
+            class="switch"
+            :class="{ 'is-on': reviewEnabled }"
+            role="switch"
+            :aria-checked="reviewEnabled"
+            @click="reviewEnabled = !reviewEnabled"
+          >
+            <span class="knob" />
+          </button>
+          <div>
+            <p class="switch-title">公开笔记文字机审</p>
+            <p class="hint">模型打 0–100 风险分。低于阈值自动上架；达到或超过阈值、模型挂了则进人审，不自动驳回。只看标题正文。</p>
+          </div>
+        </div>
+        <div class="row">
+          <label>
+            审稿模型地址
+            <input v-model="reviewLlmBaseUrl" placeholder="https://api.openai.com/v1" />
+          </label>
+          <label>
+            审稿模型名
+            <input v-model="reviewLlmModel" placeholder="gpt-4o-mini" />
+          </label>
+        </div>
+        <label>
+          审稿 API 密钥
+          <input
+            v-model="reviewLlmApiKey"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="reviewLlmKeySet ? `已保存 ${reviewLlmKeyMasked}，留空保存则不改` : '未配置'"
+          />
+        </label>
+        <div class="actions start">
+          <button type="button" class="ghost" :disabled="probing || saving" @click="probe">探测连通</button>
+          <button type="button" class="ghost" :disabled="saving || !reviewLlmKeySet" @click="clearKey">清除密钥</button>
+        </div>
+        <label>
+          进人审的风险分阈值（1–100）
+          <input v-model.number="reviewRiskLimit" type="number" min="1" max="100" step="1" />
+        </label>
+        <p class="hint">分数低于此值自动过；大于等于此值推给人。默认 40。改完请保存。</p>
+        <p class="hint">以 system 角色注入审稿模型。留空保存则回到内置文案。</p>
+        <label>
+          审稿提示词
+          <textarea v-model="reviewSystem" rows="5" maxlength="4000" />
+        </label>
+        <p class="hint">试审不发帖、不进队列，用已保存的审稿配置跑一遍。改了地址或提示词请先点保存。</p>
+        <label>
+          试审标题
+          <input v-model="tryTitle" maxlength="80" placeholder="随便写一条会过或不过的标题" />
+        </label>
+        <label>
+          试审正文
+          <textarea v-model="tryBody" rows="4" maxlength="2000" placeholder="例如加微信、发票，或正常生活记录" />
+        </label>
+        <div class="actions start">
+          <button
+            type="button"
+            class="go"
+            :disabled="trying || saving || (!tryTitle.trim() && !tryBody.trim())"
+            @click="tryReview"
+          >
+            {{ trying ? '试审中…' : '试审' }}
+          </button>
+        </div>
+        <p v-if="tryVerdict" class="hint">
+          结论：{{ tryLabel(tryVerdict)
+          }}{{ tryScore != null ? ` · 风险 ${tryScore}` : ''
+          }}{{ tryReason ? ` · ${tryReason}` : '' }}
+        </p>
         </template>
       </form>
     </section>
