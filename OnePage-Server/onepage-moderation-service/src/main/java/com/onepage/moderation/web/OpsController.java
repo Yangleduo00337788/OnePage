@@ -5,6 +5,7 @@ import com.onepage.common.web.CurrentUser;
 import com.onepage.moderation.client.AiClient;
 import com.onepage.moderation.client.UserClient;
 import com.onepage.moderation.dto.ModerationDtos;
+import com.onepage.moderation.service.CommunityPolicyService;
 import com.onepage.moderation.service.ModerationService;
 import com.onepage.moderation.service.SupportService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +28,7 @@ import java.util.List;
 public class OpsController {
   private final ModerationService moderationService;
   private final SupportService supportService;
+  private final CommunityPolicyService communityPolicyService;
   private final StaffGuard staffGuard;
   private final UserClient userClient;
   private final AiClient aiClient;
@@ -35,12 +37,14 @@ public class OpsController {
   public OpsController(
       ModerationService moderationService,
       SupportService supportService,
+      CommunityPolicyService communityPolicyService,
       StaffGuard staffGuard,
       UserClient userClient,
       AiClient aiClient,
       @Value("${onepage.internal-token}") String internalToken) {
     this.moderationService = moderationService;
     this.supportService = supportService;
+    this.communityPolicyService = communityPolicyService;
     this.staffGuard = staffGuard;
     this.userClient = userClient;
     this.aiClient = aiClient;
@@ -586,5 +590,20 @@ public class OpsController {
     staffGuard.requireStaff(userId);
     moderationService.setFaqEnabled(id, value);
     return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/policy")
+  public ModerationDtos.CommunityPolicyView policy(HttpServletRequest request) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return communityPolicyService.view();
+  }
+
+  @PostMapping("/policy")
+  public ModerationDtos.CommunityPolicyView savePolicy(
+      HttpServletRequest request, @RequestBody ModerationDtos.CommunityPolicyPatch body) {
+    long userId = CurrentUser.requireUserId(request);
+    staffGuard.requireStaff(userId);
+    return communityPolicyService.save(body);
   }
 }

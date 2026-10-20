@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +44,10 @@ public class NotifyService {
   private static final List<String> GROUP_REACTION = List.of("like_post", "favorite_post", "like_comment");
   private static final List<String> GROUP_FOLLOW = List.of("follow");
   private static final List<String> GROUP_REVIEW = List.of("review_reject", "support_reply", "apply_live", "apply_verify");
+  private static final Set<String> MERGE_TYPES = Set.of("like_post", "favorite_post", "like_comment");
 
   private static final int PREVIEW_MAX = 120;
+  private static final int ACTOR_ID_MAX = 100;
 
   private final NotificationMapper mapper;
   private final UserClient userClient;
@@ -76,15 +79,32 @@ public class NotifyService {
     if (body.recipientId().equals(body.actorId()) && !SUPPORT_TYPES.contains(body.type())) {
       return;
     }
+    String key = body.aggregateKey().trim();
+    LinkedHashSet<Long> actorIds = new LinkedHashSet<>();
+    if (MERGE_TYPES.contains(body.type())) {
+      NotificationRow existing = mapper.findByUserAndKey(body.recipientId(), key);
+      if (existing != null) {
+        actorIds.addAll(actorIdsOf(existing.getPayload()));
+        if (existing.getActorId() != null) {
+          actorIds.add(existing.getActorId());
+        }
+      }
+    }
+    actorIds.add(body.actorId());
+    List<Long> kept = new ArrayList<>(actorIds);
+    if (kept.size() > ACTOR_ID_MAX) {
+      kept = new ArrayList<>(kept.subList(kept.size() - ACTOR_ID_MAX, kept.size()));
+    }
+    int actorCount = MERGE_TYPES.contains(body.type()) ? kept.size() : 1;
     mapper.upsert(
         IdGenerator.nextId(),
         body.recipientId(),
         body.type(),
         body.actorId(),
-        body.aggregateKey().trim(),
+        key,
         body.postId(),
         body.commentId(),
-        toPayload(body.preview()),
+        toPayload(body.preview(), actorCount, MERGE_TYPES.contains(body.type()) ? kept : List.of()),
         LocalDateTime.now());
   }
 
@@ -274,21 +294,32 @@ public class NotifyService {
         row.getPostId() == null ? null : String.valueOf(row.getPostId()),
         row.getCommentId() == null ? null : String.valueOf(row.getCommentId()),
         previewOf(row.getPayload()),
+        actorCountOf(row.getPayload()),
         row.getReadAt() != null,
         row.getCreatedAt() == null ? "" : row.getCreatedAt().toString(),
         coverUrl == null ? "" : coverUrl);
   }
 
-  private String toPayload(String preview) {
-    if (!StringUtils.hasText(preview)) {
+  private String toPayload(String preview, int actorCount, List<Long> actorIds) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    if (StringUtils.hasText(preview)) {
+      String text = preview.trim();
+      if (text.length() > PREVIEW_MAX) {
+        text = text.substring(0, PREVIEW_MAX);
+      }
+      body.put("preview", text);
+    }
+    if (actorCount > 1) {
+      body.put("actorCount", actorCount);
+    }
+    if (actorIds != null && !actorIds.isEmpty()) {
+      body.put("actorIds", actorIds);
+    }
+    if (body.isEmpty()) {
       return null;
     }
-    String text = preview.trim();
-    if (text.length() > PREVIEW_MAX) {
-      text = text.substring(0, PREVIEW_MAX);
-    }
     try {
-      return objectMapper.writeValueAsString(Map.of("preview", text));
+      return objectMapper.writeValueAsString(body);
     } catch (Exception ex) {
       log.warn("notify payload serialize failed");
       return null;
@@ -296,13 +327,51 @@ public class NotifyService {
   }
 
   private String previewOf(String payload) {
+    JsonNode node = payloadNode(payload);
+    if (node == null) {
+      return null;
+    }
+    JsonNode preview = node.get("preview");
+    return preview == null || preview.isNull() ? null : preview.asText();
+  }
+
+  private int actorCountOf(String payload) {
+    JsonNode node = payloadNode(payload);
+    if (node == null) {
+      return 1;
+    }
+    JsonNode count = node.get("actorCount");
+    if (count != null && count.canConvertToInt() && count.asInt() > 0) {
+      return count.asInt();
+    }
+    List<Long> ids = actorIdsOf(payload);
+    return Math.max(1, ids.size());
+  }
+
+  private List<Long> actorIdsOf(String payload) {
+    JsonNode node = payloadNode(payload);
+    if (node == null) {
+      return List.of();
+    }
+    JsonNode ids = node.get("actorIds");
+    if (ids == null || !ids.isArray()) {
+      return List.of();
+    }
+    LinkedHashSet<Long> out = new LinkedHashSet<>();
+    for (JsonNode item : ids) {
+      if (item != null && item.canConvertToLong()) {
+        out.add(item.asLong());
+      }
+    }
+    return new ArrayList<>(out);
+  }
+
+  private JsonNode payloadNode(String payload) {
     if (!StringUtils.hasText(payload)) {
       return null;
     }
     try {
-      JsonNode node = objectMapper.readTree(payload);
-      JsonNode preview = node.get("preview");
-      return preview == null || preview.isNull() ? null : preview.asText();
+      return objectMapper.readTree(payload);
     } catch (Exception ex) {
       return null;
     }

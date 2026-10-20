@@ -84,6 +84,13 @@ public interface NotificationMapper {
   @Select("""
       SELECT id, user_id, type, actor_id, aggregate_key, post_id, comment_id, payload, read_at, created_at
       FROM notification
+      WHERE user_id = #{userId} AND aggregate_key = #{aggregateKey}
+      """)
+  NotificationRow findByUserAndKey(@Param("userId") long userId, @Param("aggregateKey") String aggregateKey);
+
+  @Select("""
+      SELECT id, user_id, type, actor_id, aggregate_key, post_id, comment_id, payload, read_at, created_at
+      FROM notification
       WHERE id = #{id}
       """)
   NotificationRow findById(@Param("id") long id);

@@ -60,6 +60,7 @@ public class UserService {
   private final NotificationClient notificationClient;
   private final LiveClient liveClient;
   private final UserSearchIndexer userSearchIndexer;
+  private final ProfileTextGuard profileTextGuard;
   private final String internalToken;
   private final String mediaPublicBase;
 
@@ -72,6 +73,7 @@ public class UserService {
       NotificationClient notificationClient,
       LiveClient liveClient,
       UserSearchIndexer userSearchIndexer,
+      ProfileTextGuard profileTextGuard,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.profileMapper = profileMapper;
@@ -82,6 +84,7 @@ public class UserService {
     this.notificationClient = notificationClient;
     this.liveClient = liveClient;
     this.userSearchIndexer = userSearchIndexer;
+    this.profileTextGuard = profileTextGuard;
     this.internalToken = internalToken;
     this.mediaPublicBase = mediaPublicBase.endsWith("/")
         ? mediaPublicBase.substring(0, mediaPublicBase.length() - 1)
@@ -98,7 +101,7 @@ public class UserService {
     UserProfile profile = new UserProfile();
     profile.setUserId(userId);
     profile.setPageId(uniquePageId(userId));
-    profile.setNickname(StringUtils.hasText(nickname) ? nickname : "一页用户");
+    profile.setNickname(safeNickname(nickname));
     profile.setGender(0);
     profile.setCreatedAt(now);
     profile.setUpdatedAt(now);
@@ -289,11 +292,11 @@ public class UserService {
                                   String avatarMediaId, String coverMediaId) {
     assertNotLive(userId);
     UserProfile profile = requireProfileByUserId(userId);
-    if (StringUtils.hasText(nickname)) {
-      profile.setNickname(nickname);
+    if (nickname != null) {
+      profile.setNickname(profileTextGuard.nickname(nickname));
     }
     if (bio != null) {
-      profile.setBio(bio);
+      profile.setBio(profileTextGuard.bio(bio));
     }
     if (gender != null) {
       profile.setGender(gender);
@@ -769,6 +772,17 @@ public class UserService {
             n(stat.getFollowerCount()),
             n(stat.getLikeReceivedCount()),
             n(stat.getFavoriteReceivedCount())));
+  }
+
+  private String safeNickname(String nickname) {
+    if (!StringUtils.hasText(nickname)) {
+      return "一页用户";
+    }
+    try {
+      return profileTextGuard.nickname(nickname);
+    } catch (BusinessException ex) {
+      return "一页用户";
+    }
   }
 
   private String publicUrl(String objectKey) {

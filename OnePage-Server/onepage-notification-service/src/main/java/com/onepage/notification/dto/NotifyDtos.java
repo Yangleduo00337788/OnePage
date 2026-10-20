@@ -16,6 +16,7 @@ public final class NotifyDtos {
       String postId,
       String commentId,
       String preview,
+      int actorCount,
       boolean read,
       String createdAt,
       String coverUrl) {}

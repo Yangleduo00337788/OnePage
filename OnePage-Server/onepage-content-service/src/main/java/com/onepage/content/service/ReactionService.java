@@ -56,7 +56,7 @@ public class ReactionService {
             post.getAuthorId(),
             "like_post",
             userId,
-            "like_post:" + postId + ":" + userId,
+            "like_post:" + postId,
             postId,
             null);
       } catch (DataIntegrityViolationException ignored) {
@@ -87,7 +87,7 @@ public class ReactionService {
             post.getAuthorId(),
             "favorite_post",
             userId,
-            "favorite_post:" + postId + ":" + userId,
+            "favorite_post:" + postId,
             postId,
             null);
       } catch (DataIntegrityViolationException ignored) {
@@ -141,7 +141,7 @@ public class ReactionService {
           comment.getUserId(),
           "like_comment",
           userId,
-          "like_comment:" + commentId + ":" + userId,
+          "like_comment:" + commentId,
           comment.getPostId(),
           commentId);
     } catch (DataIntegrityViolationException ignored) {

@@ -36,14 +36,16 @@ import java.util.concurrent.TimeUnit;
 public class UploadService {
   private static final Set<String> PURPOSES =
       Set.of("avatar", "cover", "post_image", "post_video", "im_image", "feedback");
-  private static final Set<String> IM_IMAGE_MIMES =
+  private static final Set<String> IMAGE_MIMES =
       Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
-  private static final long IM_IMAGE_MAX_BYTES = 10L * 1024 * 1024;
+  private static final Set<String> VIDEO_MIMES =
+      Set.of("video/mp4", "video/quicktime", "video/webm");
   private final MediaAssetMapper mapper;
   private final PostMediaMapper postMediaMapper;
   private final MinioClient minioClient;
   private final AuthorLookup authorLookup;
   private final UserClient userClient;
+  private final CommunityPolicyCache policyCache;
   private final String bucket;
   private final int expirySec;
   private final String mediaPublicBase;
@@ -55,6 +57,7 @@ public class UploadService {
       MinioClient minioClient,
       AuthorLookup authorLookup,
       UserClient userClient,
+      CommunityPolicyCache policyCache,
       @Value("${onepage.minio.bucket}") String bucket,
       @Value("${onepage.minio.presign-expiry-sec}") int expirySec,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
@@ -64,6 +67,7 @@ public class UploadService {
     this.minioClient = minioClient;
     this.authorLookup = authorLookup;
     this.userClient = userClient;
+    this.policyCache = policyCache;
     this.bucket = bucket;
     this.expirySec = expirySec;
     this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
@@ -78,15 +82,26 @@ public class UploadService {
     if (!PURPOSES.contains(purpose)) {
       throw BusinessException.validation("purpose 不支持");
     }
-    if (sizeBytes <= 0 || sizeBytes > 200L * 1024 * 1024) {
+    if (sizeBytes <= 0) {
       throw BusinessException.validation("文件大小不合法");
     }
-    if ("im_image".equals(purpose) || "feedback".equals(purpose)) {
-      if (!IM_IMAGE_MIMES.contains(mimeType)) {
+    CommunityPolicyCache.Snapshot policy = policyCache.current();
+    long imageMax = policy.imageMaxMb() * 1024L * 1024L;
+    long videoMax = policy.videoMaxMb() * 1024L * 1024L;
+    if ("avatar".equals(purpose) || "cover".equals(purpose) || "post_image".equals(purpose)
+        || "im_image".equals(purpose) || "feedback".equals(purpose)) {
+      if (!IMAGE_MIMES.contains(mimeType)) {
         throw BusinessException.validation("只支持 jpg / png / webp / gif");
       }
-      if (sizeBytes > IM_IMAGE_MAX_BYTES) {
-        throw BusinessException.validation("图片不能超过 10MB");
+      if (sizeBytes > imageMax) {
+        throw BusinessException.validation("图片不能超过 " + policy.imageMaxMb() + "MB");
+      }
+    } else if ("post_video".equals(purpose)) {
+      if (!VIDEO_MIMES.contains(mimeType)) {
+        throw BusinessException.validation("只支持 mp4 / mov / webm");
+      }
+      if (sizeBytes > videoMax) {
+        throw BusinessException.validation("视频不能超过 " + policy.videoMaxMb() + "MB");
       }
     }
     long id = IdGenerator.nextId();

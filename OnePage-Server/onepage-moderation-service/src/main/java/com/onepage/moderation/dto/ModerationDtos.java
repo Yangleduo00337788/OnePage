@@ -225,4 +225,18 @@ public final class ModerationDtos {
       String createdAt) {}
 
   public record OpsNotifyPage(List<OpsNotifyRow> items, String nextCursor, boolean hasMore) {}
+
+  public record CommunityPolicyView(
+      List<String> bannedWords,
+      int nicknameMax,
+      int bioMax,
+      int imageMaxMb,
+      int videoMaxMb) {}
+
+  public record CommunityPolicyPatch(
+      List<String> bannedWords,
+      Integer nicknameMax,
+      Integer bioMax,
+      Integer imageMaxMb,
+      Integer videoMaxMb) {}
 }
