@@ -23,8 +23,8 @@ public interface AiClient {
   @PostMapping("/internal/ai/probe")
   OpsAiProbe probe(@RequestHeader("X-Internal-Token") String token, @RequestBody OpsAiPatch body);
 
-  @PostMapping("/internal/ai/review/probe")
-  OpsAiProbe reviewProbe(@RequestHeader("X-Internal-Token") String token, @RequestBody OpsAiPatch body);
+  @PostMapping("/internal/ai/vision/probe")
+  OpsAiProbe visionProbe(@RequestHeader("X-Internal-Token") String token, @RequestBody OpsAiPatch body);
 
   @PostMapping("/internal/ai/review")
   ReviewResult review(@RequestHeader("X-Internal-Token") String token, @RequestBody ReviewSpec body);
@@ -47,12 +47,12 @@ public interface AiClient {
       double temperature,
       int maxTokens,
       boolean streamEnabled,
+      String visionLlmBaseUrl,
+      String visionLlmModel,
+      boolean visionLlmKeySet,
+      String visionLlmKeyMasked,
       boolean reviewEnabled,
       String reviewSystem,
-      String reviewLlmBaseUrl,
-      String reviewLlmModel,
-      boolean reviewLlmKeySet,
-      String reviewLlmKeyMasked,
       int reviewRiskLimit) {}
 
   record OpsAiPatch(
@@ -72,12 +72,12 @@ public interface AiClient {
       Double temperature,
       Integer maxTokens,
       Boolean streamEnabled,
+      String visionLlmBaseUrl,
+      String visionLlmApiKey,
+      String visionLlmModel,
+      Boolean clearVisionLlmKey,
       Boolean reviewEnabled,
       String reviewSystem,
-      String reviewLlmBaseUrl,
-      String reviewLlmApiKey,
-      String reviewLlmModel,
-      Boolean clearReviewLlmKey,
       Integer reviewRiskLimit) {}
 
   record OpsAiProbe(boolean ok, String message) {}

@@ -11,7 +11,7 @@ const QUESTION_SLOTS = 3
 const titles = {
   model: {
     h1: '模型',
-    lead: '兼容 OpenAI Chat Completions。温度、token、流式在本页生效。密钥只显示尾号。「恢复默认」会清掉 Redis 里全部 AI 配置。',
+    lead: '两套兼容 OpenAI Chat Completions：文字给耶耶、润色和审稿正文；看图给识图和画面机审。密钥只显示尾号。「恢复默认」会清掉 Redis 里全部 AI 配置。',
   },
   yeh: {
     h1: '耶耶',
@@ -23,7 +23,7 @@ const titles = {
   },
   review: {
     h1: '审稿',
-    lead: '公开笔记文字机审的独立模型。地址、密钥、探测、试审与耶耶分开。先保存再试审。图视频画面下一步再审。',
+    lead: '文字机审共用「模型」页的文字模型，只改开关、阈值和提示词。先保存再试审。图视频等配好看图模型后再接。',
   },
 } as const
 
@@ -54,12 +54,12 @@ const maxTokens = ref(0)
 const streamEnabled = ref(false)
 const reviewEnabled = ref(true)
 const reviewSystem = ref('')
-const reviewLlmBaseUrl = ref('')
-const reviewLlmModel = ref('')
-const reviewLlmApiKey = ref('')
-const reviewLlmKeySet = ref(false)
-const reviewLlmKeyMasked = ref('')
 const reviewRiskLimit = ref(40)
+const visionLlmBaseUrl = ref('')
+const visionLlmModel = ref('')
+const visionLlmApiKey = ref('')
+const visionLlmKeySet = ref(false)
+const visionLlmKeyMasked = ref('')
 const tryScore = ref<number | null>(null)
 const tryTitle = ref('周末去海边')
 const tryBody = ref('今天天气很好，拍了几张日落。')
@@ -102,19 +102,19 @@ function apply(data: OpsAiConfig) {
   streamEnabled.value = data.streamEnabled
   reviewEnabled.value = data.reviewEnabled !== false
   reviewSystem.value = data.reviewSystem || ''
-  reviewLlmBaseUrl.value = data.reviewLlmBaseUrl || ''
-  reviewLlmModel.value = data.reviewLlmModel || ''
-  reviewLlmKeySet.value = data.reviewLlmKeySet
-  reviewLlmKeyMasked.value = data.reviewLlmKeyMasked || ''
-  reviewLlmApiKey.value = ''
   reviewRiskLimit.value = data.reviewRiskLimit || 40
+  visionLlmBaseUrl.value = data.visionLlmBaseUrl || ''
+  visionLlmModel.value = data.visionLlmModel || ''
+  visionLlmKeySet.value = data.visionLlmKeySet
+  visionLlmKeyMasked.value = data.visionLlmKeyMasked || ''
+  visionLlmApiKey.value = ''
 }
 
 function questionList() {
   return questions.value.map((item) => item.trim()).filter(Boolean)
 }
 
-function patchBody(extra?: { clearLlmKey?: boolean; clearReviewLlmKey?: boolean }) {
+function patchBody(extra?: { clearLlmKey?: boolean; clearVisionLlmKey?: boolean }) {
   if (props.kind === 'model') {
     return {
       llmBaseUrl: llmBaseUrl.value.trim(),
@@ -123,6 +123,9 @@ function patchBody(extra?: { clearLlmKey?: boolean; clearReviewLlmKey?: boolean 
       temperature: Number.isFinite(Number(temperature.value)) ? Number(temperature.value) : 0.4,
       maxTokens: Number.isFinite(Number(maxTokens.value)) ? Math.max(0, Number(maxTokens.value)) : 0,
       streamEnabled: streamEnabled.value,
+      visionLlmBaseUrl: visionLlmBaseUrl.value.trim(),
+      visionLlmApiKey: visionLlmApiKey.value.trim() || undefined,
+      visionLlmModel: visionLlmModel.value.trim(),
       ...extra,
     }
   }
@@ -140,13 +143,9 @@ function patchBody(extra?: { clearLlmKey?: boolean; clearReviewLlmKey?: boolean 
     return {
       reviewEnabled: reviewEnabled.value,
       reviewSystem: reviewSystem.value,
-      reviewLlmBaseUrl: reviewLlmBaseUrl.value.trim(),
-      reviewLlmApiKey: reviewLlmApiKey.value.trim() || undefined,
-      reviewLlmModel: reviewLlmModel.value.trim(),
       reviewRiskLimit: Number.isFinite(Number(reviewRiskLimit.value))
         ? Math.min(100, Math.max(1, Number(reviewRiskLimit.value)))
         : 40,
-      ...extra,
     }
   }
   return {
@@ -181,12 +180,11 @@ async function save() {
   }
 }
 
-async function clearKey() {
+async function clearKey(which: 'text' | 'vision') {
   saving.value = true
   failed.value = ''
   try {
-    const extra =
-      props.kind === 'review' ? { clearReviewLlmKey: true } : { clearLlmKey: true }
+    const extra = which === 'vision' ? { clearVisionLlmKey: true } : { clearLlmKey: true }
     apply(await api.opsSaveAiConfig(patchBody(extra)))
     flash('已清除密钥')
   } catch (e) {
@@ -209,16 +207,16 @@ async function reset() {
   }
 }
 
-async function probe() {
+async function probe(which: 'text' | 'vision') {
   probing.value = true
   failed.value = ''
   try {
     const res =
-      props.kind === 'review'
-        ? await api.opsProbeReviewAi({
-            reviewLlmBaseUrl: reviewLlmBaseUrl.value.trim() || undefined,
-            reviewLlmApiKey: reviewLlmApiKey.value.trim() || undefined,
-            reviewLlmModel: reviewLlmModel.value.trim() || undefined,
+      which === 'vision'
+        ? await api.opsProbeVisionAi({
+            visionLlmBaseUrl: visionLlmBaseUrl.value.trim() || undefined,
+            visionLlmApiKey: visionLlmApiKey.value.trim() || undefined,
+            visionLlmModel: visionLlmModel.value.trim() || undefined,
           })
         : await api.opsProbeAi({
             llmBaseUrl: llmBaseUrl.value.trim() || undefined,
@@ -314,18 +312,20 @@ onMounted(() => load())
         </p>
 
         <template v-if="kind === 'model'">
+        <p class="switch-title">文字模型</p>
+        <p class="hint">耶耶、润色、审稿正文共用。</p>
         <div class="row">
           <label>
-            模型地址
+            文字模型地址
             <input v-model="llmBaseUrl" placeholder="https://api.openai.com/v1" />
           </label>
           <label>
-            模型名
+            文字模型名
             <input v-model="llmModel" placeholder="gpt-4o-mini" />
           </label>
         </div>
         <label>
-          API 密钥
+          文字 API 密钥
           <input
             v-model="llmApiKey"
             type="password"
@@ -334,8 +334,42 @@ onMounted(() => load())
           />
         </label>
         <div class="actions start">
-          <button type="button" class="ghost" :disabled="probing || saving" @click="probe">探测连通</button>
-          <button type="button" class="ghost" :disabled="saving || !llmKeySet" @click="clearKey">清除密钥</button>
+          <button type="button" class="ghost" :disabled="probing || saving" @click="probe('text')">探测连通</button>
+          <button type="button" class="ghost" :disabled="saving || !llmKeySet" @click="clearKey('text')">
+            清除密钥
+          </button>
+        </div>
+        <p class="switch-title">看图模型</p>
+        <p class="hint">可选。给耶耶识图和笔记画面机审预留；未配则画面先不审。可填视觉大模型或 OCR 接口（兼容 Chat Completions）。</p>
+        <div class="row">
+          <label>
+            看图模型地址
+            <input v-model="visionLlmBaseUrl" placeholder="可空" />
+          </label>
+          <label>
+            看图模型名
+            <input v-model="visionLlmModel" placeholder="可空" />
+          </label>
+        </div>
+        <label>
+          看图 API 密钥
+          <input
+            v-model="visionLlmApiKey"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="visionLlmKeySet ? `已保存 ${visionLlmKeyMasked}，留空保存则不改` : '未配置'"
+          />
+        </label>
+        <div class="actions start">
+          <button type="button" class="ghost" :disabled="probing || saving" @click="probe('vision')">探测连通</button>
+          <button
+            type="button"
+            class="ghost"
+            :disabled="saving || !visionLlmKeySet"
+            @click="clearKey('vision')"
+          >
+            清除密钥
+          </button>
         </div>
         <div class="row">
           <label>
@@ -472,31 +506,8 @@ onMounted(() => load())
           </button>
           <div>
             <p class="switch-title">公开笔记文字机审</p>
-            <p class="hint">模型打 0–100 风险分。低于阈值自动上架；达到或超过阈值、模型挂了则进人审，不自动驳回。只看标题正文。</p>
+            <p class="hint">共用「模型」页文字模型打 0–100 风险分。低于阈值自动上架；达到或超过阈值、模型挂了则进人审，不自动驳回。只看标题正文。</p>
           </div>
-        </div>
-        <div class="row">
-          <label>
-            审稿模型地址
-            <input v-model="reviewLlmBaseUrl" placeholder="https://api.openai.com/v1" />
-          </label>
-          <label>
-            审稿模型名
-            <input v-model="reviewLlmModel" placeholder="gpt-4o-mini" />
-          </label>
-        </div>
-        <label>
-          审稿 API 密钥
-          <input
-            v-model="reviewLlmApiKey"
-            type="password"
-            autocomplete="new-password"
-            :placeholder="reviewLlmKeySet ? `已保存 ${reviewLlmKeyMasked}，留空保存则不改` : '未配置'"
-          />
-        </label>
-        <div class="actions start">
-          <button type="button" class="ghost" :disabled="probing || saving" @click="probe">探测连通</button>
-          <button type="button" class="ghost" :disabled="saving || !reviewLlmKeySet" @click="clearKey">清除密钥</button>
         </div>
         <label>
           进人审的风险分阈值（1–100）
@@ -508,7 +519,7 @@ onMounted(() => load())
           审稿提示词
           <textarea v-model="reviewSystem" rows="5" maxlength="4000" />
         </label>
-        <p class="hint">试审不发帖、不进队列，用已保存的审稿配置跑一遍。改了地址或提示词请先点保存。</p>
+        <p class="hint">试审不发帖、不进队列，用「模型」页已保存的文字模型和本页提示词。改了提示词请先点保存。</p>
         <label>
           试审标题
           <input v-model="tryTitle" maxlength="80" placeholder="随便写一条会过或不过的标题" />

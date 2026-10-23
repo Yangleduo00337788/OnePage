@@ -11,7 +11,7 @@ public final class AiDtos {
 
   public record PolishResult(String title, String body) {}
 
-  public record ChatSpec(String question, String sessionId) {}
+  public record ChatSpec(String question, String sessionId, List<String> imageUrls) {}
 
   public record Citation(
       String postId, String snippet, String title, String coverUrl, String nickname, String pageId) {}
@@ -38,12 +38,12 @@ public final class AiDtos {
       double temperature,
       int maxTokens,
       boolean streamEnabled,
+      String visionLlmBaseUrl,
+      String visionLlmModel,
+      boolean visionLlmKeySet,
+      String visionLlmKeyMasked,
       boolean reviewEnabled,
       String reviewSystem,
-      String reviewLlmBaseUrl,
-      String reviewLlmModel,
-      boolean reviewLlmKeySet,
-      String reviewLlmKeyMasked,
       int reviewRiskLimit) {}
 
   public record OpsPatch(
@@ -63,12 +63,12 @@ public final class AiDtos {
       Double temperature,
       Integer maxTokens,
       Boolean streamEnabled,
+      String visionLlmBaseUrl,
+      String visionLlmApiKey,
+      String visionLlmModel,
+      Boolean clearVisionLlmKey,
       Boolean reviewEnabled,
       String reviewSystem,
-      String reviewLlmBaseUrl,
-      String reviewLlmApiKey,
-      String reviewLlmModel,
-      Boolean clearReviewLlmKey,
       Integer reviewRiskLimit) {}
 
   public record OpsProbe(boolean ok, String message) {}

@@ -6,6 +6,24 @@ order: 1
 
 POM 维护。每条决策单独一节，新的写在上面。聊天结论当天搬到这里。
 
+## DEC-070 耶耶附图走看图模型
+
+- **日期：** 2026-10-23
+- **状态：** 已采纳
+- **背景：** 运营已配多模态看图模型，但耶耶只把 MinIO 链接写进问题。上游读不到 `127.0.0.1`，模型只能看到 URL 字符串；无站内笔记命中时还不调模型。
+- **决策：** `POST /ai/chat` 与 `/ai/chat/stream` 增加 `imageUrls`（最多 4 张，须为本站 `MEDIA_PUBLIC_BASE`）。ai-service 本机拉取后转 data URL，用 `visionLlm*` 以 Chat Completions 多模态 content 发送。有图时不要求检索命中。未配看图或拉图失败则回复「暂时看不了图 / 这张图」，不编造。笔记画面机审仍下一步。
+- **替代：** 把公网 URL 直接给上游（否决：本机 MinIO 不可达）；继续只贴链接（否决：模型看不见）。
+- **影响：** 重启 ai。社区耶耶刷新后再问附图。
+
+## DEC-069 模型按文字 / 看图分套，产品共用
+
+- **日期：** 2026-10-23
+- **状态：** 已采纳
+- **背景：** DEC-067 按产品把审稿密钥从耶耶拆开。运营改为按模态配：一套文字、一套看图。耶耶、润色、审稿正文共用文字；识图和以后的画面机审共用看图。
+- **决策：** Redis `onepage:ai:settings` 用 `llm*` 作文字模型，`visionLlmBaseUrl` `visionLlmApiKey` `visionLlmModel` 作看图。运营「模型」页两套地址/密钥/探测；「审稿」页只留开关、风险阈值、提示词、试审。文字机审 `POST /internal/ai/review` 走 `llm*`。未配文字模型则公开帖进人审。看图可空；空则画面机审仍不跑（本步不送图）。环境变量 `LLM_*` 与可选 `LLM_VISION_*`。探测：`POST /ops/ai/probe`（文字）、`POST /ops/ai/vision/probe`（看图）。删除 `/ops/ai/review/probe` 与 `reviewLlm*`。读 Redis 忽略旧 `reviewLlm*` 字段。
+- **替代：** 继续按耶耶/审稿拆密钥（否决：同一文字模型要填两遍）；单独上 OCR 引擎（否决：看图模型可兼容 Chat Completions）。
+- **影响：** 重启 ai、moderation。运营到「模型」页填文字（已有则审稿直接用）和可选看图。图/视频机审另一步。
+
 ## DEC-068 机审按风险分与可配阈值分流
 
 - **日期：** 2026-10-20
@@ -18,11 +36,11 @@ POM 维护。每条决策单独一节，新的写在上面。聊天结论当天�
 ## DEC-067 审稿模型与对话 AI 分套配置
 
 - **日期：** 2026-10-20
-- **状态：** 已采纳
+- **状态：** 已废止（被 DEC-069 取代）
 - **背景：** 机审一度复用耶耶/润色的地址和密钥。运营要单独配审稿 API、密钥，并能单独探测。
-- **决策：** Redis `onepage:ai:settings` 增加 `reviewLlmBaseUrl` `reviewLlmApiKey` `reviewLlmModel`。运营 AI 左侧第四项「审稿」：开关、地址、模型名、密钥、探测、试审、审稿 prompt。不回落到对话模型。未配审稿密钥则公开帖进人审。可选环境变量 `LLM_REVIEW_BASE_URL` `LLM_REVIEW_API_KEY` `LLM_REVIEW_MODEL`（默认可空）。探测 `POST /ops/ai/review/probe`；试审 `POST /ops/ai/review/try`（不发帖）。
-- **替代：** 审稿缺省沿用对话密钥（否决：两套场景不该绑死）。
-- **影响：** 重启 ai、moderation。运营刷新后在「审稿」页填独立密钥。
+- **决策：** 曾为审稿单独配 `reviewLlm*` 与 `/ops/ai/review/probe`。现改为文字/看图两套，审稿走文字模型。
+- **替代：** 见 DEC-069。
+- **影响：** 无。旧 Redis 字段读配置时忽略。
 
 ## DEC-066 公开笔记文字机审，未过才进人审
 

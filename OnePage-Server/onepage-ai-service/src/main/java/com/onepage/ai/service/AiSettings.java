@@ -24,9 +24,9 @@ public class AiSettings {
   private final String envBaseUrl;
   private final String envApiKey;
   private final String envModel;
-  private final String envReviewBaseUrl;
-  private final String envReviewApiKey;
-  private final String envReviewModel;
+  private final String envVisionBaseUrl;
+  private final String envVisionApiKey;
+  private final String envVisionModel;
 
   public AiSettings(
       StringRedisTemplate redis,
@@ -34,17 +34,17 @@ public class AiSettings {
       @Value("${onepage.llm-base-url}") String envBaseUrl,
       @Value("${onepage.llm-api-key:}") String envApiKey,
       @Value("${onepage.llm-model}") String envModel,
-      @Value("${onepage.llm-review-base-url:}") String envReviewBaseUrl,
-      @Value("${onepage.llm-review-api-key:}") String envReviewApiKey,
-      @Value("${onepage.llm-review-model:}") String envReviewModel) {
+      @Value("${onepage.llm-vision-base-url:}") String envVisionBaseUrl,
+      @Value("${onepage.llm-vision-api-key:}") String envVisionApiKey,
+      @Value("${onepage.llm-vision-model:}") String envVisionModel) {
     this.redis = redis;
     this.objectMapper = objectMapper;
     this.envBaseUrl = envBaseUrl == null ? "" : envBaseUrl.trim();
     this.envApiKey = envApiKey == null ? "" : envApiKey.trim();
     this.envModel = envModel == null ? "" : envModel.trim();
-    this.envReviewBaseUrl = envReviewBaseUrl == null ? "" : envReviewBaseUrl.trim();
-    this.envReviewApiKey = envReviewApiKey == null ? "" : envReviewApiKey.trim();
-    this.envReviewModel = envReviewModel == null ? "" : envReviewModel.trim();
+    this.envVisionBaseUrl = envVisionBaseUrl == null ? "" : envVisionBaseUrl.trim();
+    this.envVisionApiKey = envVisionApiKey == null ? "" : envVisionApiKey.trim();
+    this.envVisionModel = envVisionModel == null ? "" : envVisionModel.trim();
   }
 
   public Stored current() {
@@ -77,12 +77,12 @@ public class AiSettings {
         stored.temperature(),
         stored.maxTokens(),
         stored.streamEnabled(),
+        blank(stored.visionLlmBaseUrl()),
+        blank(stored.visionLlmModel()),
+        StringUtils.hasText(stored.visionLlmApiKey()),
+        mask(stored.visionLlmApiKey()),
         reviewOn(stored.reviewEnabled()),
         promptOrDefault(stored.reviewSystem(), AiConstants.REVIEW_SYSTEM),
-        blank(stored.reviewLlmBaseUrl()),
-        blank(stored.reviewLlmModel()),
-        StringUtils.hasText(stored.reviewLlmApiKey()),
-        mask(stored.reviewLlmApiKey()),
         clampRiskLimit(stored.reviewRiskLimit()));
   }
 
@@ -138,23 +138,23 @@ public class AiSettings {
     boolean stream = patch.streamEnabled() == null
         ? Boolean.TRUE.equals(prev.streamEnabled())
         : patch.streamEnabled();
+    String visionBase = patch.visionLlmBaseUrl() == null
+        ? blank(prev.visionLlmBaseUrl())
+        : trimSlash(patch.visionLlmBaseUrl());
+    String visionModel = patch.visionLlmModel() == null
+        ? blank(prev.visionLlmModel())
+        : patch.visionLlmModel().trim();
+    String visionKey = blank(prev.visionLlmApiKey());
+    if (Boolean.TRUE.equals(patch.clearVisionLlmKey())) {
+      visionKey = "";
+    } else if (StringUtils.hasText(patch.visionLlmApiKey())) {
+      visionKey = patch.visionLlmApiKey().trim();
+    }
     Boolean reviewEnabled = patch.reviewEnabled() == null
         ? prev.reviewEnabled()
         : patch.reviewEnabled();
     String reviewSystem = overlayPrompt(
         patch.reviewSystem(), prev.reviewSystem(), AiConstants.REVIEW_SYSTEM);
-    String reviewBase = patch.reviewLlmBaseUrl() == null
-        ? blank(prev.reviewLlmBaseUrl())
-        : trimSlash(patch.reviewLlmBaseUrl());
-    String reviewModel = patch.reviewLlmModel() == null
-        ? blank(prev.reviewLlmModel())
-        : patch.reviewLlmModel().trim();
-    String reviewKey = blank(prev.reviewLlmApiKey());
-    if (Boolean.TRUE.equals(patch.clearReviewLlmKey())) {
-      reviewKey = "";
-    } else if (StringUtils.hasText(patch.reviewLlmApiKey())) {
-      reviewKey = patch.reviewLlmApiKey().trim();
-    }
     int reviewRiskLimit = patch.reviewRiskLimit() == null
         ? clampRiskLimit(prev.reviewRiskLimit())
         : clampRiskLimit(patch.reviewRiskLimit());
@@ -174,11 +174,11 @@ public class AiSettings {
         temperature,
         maxTokens,
         stream,
+        visionBase,
+        visionKey,
+        visionModel,
         reviewEnabled,
         reviewSystem,
-        reviewBase,
-        reviewKey,
-        reviewModel,
         reviewRiskLimit);
   }
 
@@ -192,11 +192,11 @@ public class AiSettings {
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
       throw BusinessException.validation("模型地址须以 http:// 或 https:// 开头");
     }
-    String reviewBase = next.reviewLlmBaseUrl() == null ? "" : next.reviewLlmBaseUrl().trim();
-    if (StringUtils.hasText(reviewBase)
-        && !reviewBase.startsWith("http://")
-        && !reviewBase.startsWith("https://")) {
-      throw BusinessException.validation("审稿模型地址须以 http:// 或 https:// 开头");
+    String visionBase = next.visionLlmBaseUrl() == null ? "" : next.visionLlmBaseUrl().trim();
+    if (StringUtils.hasText(visionBase)
+        && !visionBase.startsWith("http://")
+        && !visionBase.startsWith("https://")) {
+      throw BusinessException.validation("看图模型地址须以 http:// 或 https:// 开头");
     }
     try {
       redis.opsForValue().set(AiConstants.REDIS_SETTINGS_KEY, objectMapper.writeValueAsString(next));
@@ -247,11 +247,11 @@ public class AiSettings {
           clampTemp(stored.temperature()),
           clampMaxTokens(stored.maxTokens()),
           Boolean.TRUE.equals(stored.streamEnabled()),
+          trimSlash(stored.visionLlmBaseUrl()),
+          stored.visionLlmApiKey() == null ? "" : stored.visionLlmApiKey().trim(),
+          stored.visionLlmModel() == null ? "" : stored.visionLlmModel().trim(),
           stored.reviewEnabled(),
           readPrompt(stored.reviewSystem(), AiConstants.REVIEW_SYSTEM),
-          trimSlash(stored.reviewLlmBaseUrl()),
-          stored.reviewLlmApiKey() == null ? "" : stored.reviewLlmApiKey().trim(),
-          stored.reviewLlmModel() == null ? "" : stored.reviewLlmModel().trim(),
           clampRiskLimit(stored.reviewRiskLimit()));
     } catch (Exception ex) {
       log.warn("ai settings read failed, fallback env");
@@ -276,11 +276,11 @@ public class AiSettings {
         AiConstants.TEMPERATURE_DEFAULT,
         0,
         false,
+        trimSlash(envVisionBaseUrl),
+        envVisionApiKey,
+        envVisionModel,
         true,
         AiConstants.REVIEW_SYSTEM,
-        trimSlash(envReviewBaseUrl),
-        envReviewApiKey,
-        envReviewModel,
         AiConstants.REVIEW_RISK_LIMIT);
   }
 
@@ -374,13 +374,22 @@ public class AiSettings {
     return value == null || Boolean.TRUE.equals(value);
   }
 
-  static boolean reviewConfigured(Stored stored) {
+  static boolean textConfigured(Stored stored) {
     if (stored == null) {
       return false;
     }
-    return StringUtils.hasText(stored.reviewLlmBaseUrl())
-        && StringUtils.hasText(stored.reviewLlmApiKey())
-        && StringUtils.hasText(stored.reviewLlmModel());
+    return StringUtils.hasText(stored.llmBaseUrl())
+        && StringUtils.hasText(stored.llmApiKey())
+        && StringUtils.hasText(stored.llmModel());
+  }
+
+  static boolean visionConfigured(Stored stored) {
+    if (stored == null) {
+      return false;
+    }
+    return StringUtils.hasText(stored.visionLlmBaseUrl())
+        && StringUtils.hasText(stored.visionLlmApiKey())
+        && StringUtils.hasText(stored.visionLlmModel());
   }
 
   private static String blank(String value) {
@@ -415,10 +424,10 @@ public class AiSettings {
       Double temperature,
       Integer maxTokens,
       Boolean streamEnabled,
+      String visionLlmBaseUrl,
+      String visionLlmApiKey,
+      String visionLlmModel,
       Boolean reviewEnabled,
       String reviewSystem,
-      String reviewLlmBaseUrl,
-      String reviewLlmApiKey,
-      String reviewLlmModel,
       Integer reviewRiskLimit) {}
 }

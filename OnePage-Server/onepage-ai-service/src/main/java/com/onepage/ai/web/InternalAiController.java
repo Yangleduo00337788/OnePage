@@ -64,12 +64,12 @@ public class InternalAiController {
     return llmClient.probe(stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel());
   }
 
-  @PostMapping("/review/probe")
-  public AiDtos.OpsProbe reviewProbe(
+  @PostMapping("/vision/probe")
+  public AiDtos.OpsProbe visionProbe(
       HttpServletRequest request, @RequestBody(required = false) AiDtos.OpsPatch patch) {
     tokenFilter.assertInternal(request);
     AiSettings.Stored stored = aiSettings.overlay(patch);
     return llmClient.probe(
-        stored.reviewLlmBaseUrl(), stored.reviewLlmApiKey(), stored.reviewLlmModel());
+        stored.visionLlmBaseUrl(), stored.visionLlmApiKey(), stored.visionLlmModel());
   }
 }

@@ -26,16 +26,19 @@ public class AiService {
   private final SearchClient searchClient;
   private final ObjectMapper objectMapper;
   private final AiSettings aiSettings;
+  private final MediaImageLoader mediaImageLoader;
 
   public AiService(
       LlmClient llmClient,
       SearchClient searchClient,
       ObjectMapper objectMapper,
-      AiSettings aiSettings) {
+      AiSettings aiSettings,
+      MediaImageLoader mediaImageLoader) {
     this.llmClient = llmClient;
     this.searchClient = searchClient;
     this.objectMapper = objectMapper;
     this.aiSettings = aiSettings;
+    this.mediaImageLoader = mediaImageLoader;
   }
 
   public AiDtos.ReviewResult review(AiDtos.ReviewSpec spec) {
@@ -46,7 +49,7 @@ public class AiService {
     }
     AiSettings.Stored stored = aiSettings.current();
     if (!AiSettings.reviewOn(stored.reviewEnabled()) || !llmClient.reviewConfigured()) {
-      return skip("未开启机审或未配置审稿模型");
+      return skip("未开启机审或未配置文字模型");
     }
     if (body.length() > AiConstants.REVIEW_BODY_MAX) {
       body = body.substring(0, AiConstants.REVIEW_BODY_MAX);
@@ -111,20 +114,31 @@ public class AiService {
 
   public AiDtos.ChatResult chat(AiDtos.ChatSpec spec) {
     String question = spec == null || spec.question() == null ? "" : spec.question().trim();
-    if (!StringUtils.hasText(question)) {
+    List<String> imageUrls = imageUrlsOf(spec);
+    boolean hasImages = !imageUrls.isEmpty();
+    if (!StringUtils.hasText(question) && !hasImages) {
       throw BusinessException.validation("请输入问题");
     }
     if (!aiSettings.current().chatEnabled() || !llmClient.configured()) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_ANSWER, List.of());
     }
+    if (hasImages && !llmClient.visionConfigured()) {
+      return new AiDtos.ChatResult(AiConstants.MSG_NO_VISION, List.of());
+    }
+    List<String> dataUrls = hasImages ? mediaImageLoader.toDataUrls(imageUrls) : List.of();
+    if (hasImages && dataUrls.isEmpty()) {
+      return new AiDtos.ChatResult(AiConstants.MSG_NO_VISION_FETCH, List.of());
+    }
     AiSettings.Stored stored = aiSettings.current();
     Retrieved found = retrieve(question, stored.retrieveLimit());
     List<AiDtos.Citation> citations = toCitations(found.posts());
-    if (found.posts().isEmpty() && found.topics().isEmpty()) {
+    if (!hasImages && found.posts().isEmpty() && found.topics().isEmpty()) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_NOTES, List.of());
     }
-    String answer = llmClient.complete(
-        stored.chatSystem(), buildChatUser(question, found.posts(), found.topics(), stored.contextBodyMax()));
+    String answer = llmClient.completeChat(
+        chatSystem(stored, hasImages),
+        buildChatUser(question, found.posts(), found.topics(), stored.contextBodyMax()),
+        dataUrls);
     if (!StringUtils.hasText(answer)) {
       return new AiDtos.ChatResult(AiConstants.MSG_NO_ANSWER, citations);
     }
@@ -133,7 +147,9 @@ public class AiService {
 
   public void writeChatStream(AiDtos.ChatSpec spec, OutputStream out) throws IOException {
     String question = spec == null || spec.question() == null ? "" : spec.question().trim();
-    if (!StringUtils.hasText(question)) {
+    List<String> imageUrls = imageUrlsOf(spec);
+    boolean hasImages = !imageUrls.isEmpty();
+    if (!StringUtils.hasText(question) && !hasImages) {
       emit(out, "error", new AiDtos.StreamError("请输入问题"));
       return;
     }
@@ -143,23 +159,38 @@ public class AiService {
       emit(out, "done", new AiDtos.StreamDone(List.of()));
       return;
     }
+    if (hasImages && !llmClient.visionConfigured()) {
+      emit(out, "stage", new AiDtos.StreamStage("notes", 0));
+      emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_VISION));
+      emit(out, "done", new AiDtos.StreamDone(List.of()));
+      return;
+    }
+    List<String> dataUrls = hasImages ? mediaImageLoader.toDataUrls(imageUrls) : List.of();
+    if (hasImages && dataUrls.isEmpty()) {
+      emit(out, "stage", new AiDtos.StreamStage("notes", 0));
+      emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_VISION_FETCH));
+      emit(out, "done", new AiDtos.StreamDone(List.of()));
+      return;
+    }
     AiSettings.Stored stored = aiSettings.current();
     emit(out, "stage", new AiDtos.StreamStage("retrieve", 0));
     Retrieved found = retrieve(question, stored.retrieveLimit());
     List<AiDtos.Citation> citations = toCitations(found.posts());
     emit(out, "stage", new AiDtos.StreamStage("notes", found.posts().size()));
-    if (found.posts().isEmpty() && found.topics().isEmpty()) {
+    if (!hasImages && found.posts().isEmpty() && found.topics().isEmpty()) {
       emit(out, "delta", new AiDtos.StreamDelta(AiConstants.MSG_NO_NOTES));
       emit(out, "done", new AiDtos.StreamDone(List.of()));
       return;
     }
     emit(out, "stage", new AiDtos.StreamStage("write", found.posts().size()));
     String user = buildChatUser(question, found.posts(), found.topics(), stored.contextBodyMax());
+    String system = chatSystem(stored, hasImages);
     try {
       if (Boolean.TRUE.equals(stored.streamEnabled())) {
         llmClient.completeStream(
-            stored.chatSystem(),
+            system,
             user,
+            dataUrls,
             piece -> {
               try {
                 emit(out, "delta", new AiDtos.StreamDelta(piece));
@@ -168,7 +199,7 @@ public class AiService {
               }
             });
       } else {
-        String answer = llmClient.complete(stored.chatSystem(), user);
+        String answer = llmClient.completeChat(system, user, dataUrls);
         if (!StringUtils.hasText(answer)) {
           answer = AiConstants.MSG_NO_ANSWER;
         }
@@ -183,6 +214,28 @@ public class AiService {
       log.warn("ai stream failed", ex);
       emit(out, "error", new AiDtos.StreamError(AiConstants.MSG_NO_ANSWER));
     }
+  }
+
+  private static List<String> imageUrlsOf(AiDtos.ChatSpec spec) {
+    if (spec == null || spec.imageUrls() == null || spec.imageUrls().isEmpty()) {
+      return List.of();
+    }
+    List<String> out = new ArrayList<>();
+    for (String raw : spec.imageUrls()) {
+      if (!StringUtils.hasText(raw) || out.size() >= AiConstants.CHAT_IMAGE_MAX) {
+        continue;
+      }
+      out.add(raw.trim());
+    }
+    return List.copyOf(out);
+  }
+
+  private static String chatSystem(AiSettings.Stored stored, boolean hasImages) {
+    String system = stored.chatSystem() == null ? "" : stored.chatSystem();
+    if (!hasImages) {
+      return system;
+    }
+    return system + "\n\n" + AiConstants.CHAT_VISION_ADDON;
   }
 
   private void emit(OutputStream out, String event, Object payload) throws IOException {

@@ -534,12 +534,12 @@ public class OpsController {
     return aiClient.probe(internalToken, body);
   }
 
-  @PostMapping("/ai/review/probe")
-  public AiClient.OpsAiProbe probeReviewAi(
+  @PostMapping("/ai/vision/probe")
+  public AiClient.OpsAiProbe probeVisionAi(
       HttpServletRequest request, @RequestBody AiClient.OpsAiPatch body) {
     long userId = CurrentUser.requireUserId(request);
     staffGuard.requireStaff(userId);
-    return aiClient.reviewProbe(internalToken, body);
+    return aiClient.visionProbe(internalToken, body);
   }
 
   @PostMapping("/ai/review/try")

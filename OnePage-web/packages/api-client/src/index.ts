@@ -236,12 +236,12 @@ export type OpsAiConfig = {
   temperature: number
   maxTokens: number
   streamEnabled: boolean
+  visionLlmBaseUrl: string
+  visionLlmModel: string
+  visionLlmKeySet: boolean
+  visionLlmKeyMasked: string
   reviewEnabled: boolean
   reviewSystem: string
-  reviewLlmBaseUrl: string
-  reviewLlmModel: string
-  reviewLlmKeySet: boolean
-  reviewLlmKeyMasked: string
   reviewRiskLimit: number
 }
 
@@ -657,7 +657,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 async function chatStream(
-  body: { question: string; sessionId?: string },
+  body: { question: string; sessionId?: string; imageUrls?: string[] },
   onDelta: (text: string) => void,
   onStage?: (stage: string, n: number) => void,
   signal?: AbortSignal,
@@ -985,13 +985,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  aiChat: (body: { question: string; sessionId?: string }) =>
+  aiChat: (body: { question: string; sessionId?: string; imageUrls?: string[] }) =>
     request<AiChatResult>('/api/v1/ai/chat', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   aiChatStream: (
-    body: { question: string; sessionId?: string },
+    body: { question: string; sessionId?: string; imageUrls?: string[] },
     onDelta: (text: string) => void,
     onStage?: (stage: string, n: number) => void,
     signal?: AbortSignal,
@@ -1015,22 +1015,22 @@ export const api = {
     temperature?: number
     maxTokens?: number
     streamEnabled?: boolean
+    visionLlmBaseUrl?: string
+    visionLlmApiKey?: string
+    visionLlmModel?: string
+    clearVisionLlmKey?: boolean
     reviewEnabled?: boolean
     reviewSystem?: string
-    reviewLlmBaseUrl?: string
-    reviewLlmApiKey?: string
-    reviewLlmModel?: string
-    clearReviewLlmKey?: boolean
     reviewRiskLimit?: number
   }) => request<OpsAiConfig>('/api/v1/ops/ai', { method: 'POST', body: JSON.stringify(body) }),
   opsResetAiConfig: () => request<OpsAiConfig>('/api/v1/ops/ai/reset', { method: 'POST' }),
   opsProbeAi: (body: { llmBaseUrl?: string; llmApiKey?: string; llmModel?: string }) =>
     request<OpsAiProbe>('/api/v1/ops/ai/probe', { method: 'POST', body: JSON.stringify(body) }),
-  opsProbeReviewAi: (body: {
-    reviewLlmBaseUrl?: string
-    reviewLlmApiKey?: string
-    reviewLlmModel?: string
-  }) => request<OpsAiProbe>('/api/v1/ops/ai/review/probe', { method: 'POST', body: JSON.stringify(body) }),
+  opsProbeVisionAi: (body: {
+    visionLlmBaseUrl?: string
+    visionLlmApiKey?: string
+    visionLlmModel?: string
+  }) => request<OpsAiProbe>('/api/v1/ops/ai/vision/probe', { method: 'POST', body: JSON.stringify(body) }),
   opsTryReviewAi: (body: { title?: string; body?: string }) =>
     request<OpsAiReviewTry>('/api/v1/ops/ai/review/try', { method: 'POST', body: JSON.stringify(body) }),
   opsPolicy: () => request<CommunityPolicy>('/api/v1/ops/policy'),

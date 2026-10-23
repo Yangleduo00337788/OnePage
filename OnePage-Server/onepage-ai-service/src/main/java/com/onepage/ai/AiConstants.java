@@ -1,5 +1,6 @@
 package com.onepage.ai;
 
+import java.time.Duration;
 import java.util.List;
 
 /** 润色与问答用到的限额、文案。不要在业务里散落魔法值。 */
@@ -20,9 +21,18 @@ public final class AiConstants {
   public static final double TEMPERATURE_MAX = 2.0;
   public static final int MAX_TOKENS_CAP = 8192;
 
+  public static final int CHAT_IMAGE_MAX = 4;
+  public static final int CHAT_IMAGE_BYTES_MAX = 10 * 1024 * 1024;
+  public static final Duration IMAGE_FETCH_TIMEOUT = Duration.ofSeconds(10L);
+
   public static final String MSG_NO_ANSWER = "暂时不能回答";
   public static final String MSG_NO_NOTES = "暂时不能根据站内笔记回答";
+  public static final String MSG_NO_VISION = "暂时看不了图";
+  public static final String MSG_NO_VISION_FETCH = "暂时看不了这张图";
   public static final String MSG_NO_POLISH = "暂时不能润色";
+  public static final String CHAT_VISION_ADDON =
+      "用户附了图片。必须直接看这些图回答，不要说看不见图或只拿到了链接。"
+          + "没有站内笔记也可以只根据图片回答，不要说暂时不能根据站内笔记回答。";
   public static final String MODE_OPTIMIZE = "optimize";
   public static final String MODE_CONTINUE = "continue";
   public static final String REDIS_SETTINGS_KEY = "onepage:ai:settings";

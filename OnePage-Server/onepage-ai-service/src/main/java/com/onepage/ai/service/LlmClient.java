@@ -17,6 +17,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,20 +48,40 @@ public class LlmClient {
   }
 
   public boolean reviewConfigured() {
-    return AiSettings.reviewConfigured(aiSettings.current());
+    return AiSettings.textConfigured(aiSettings.current());
+  }
+
+  public boolean visionConfigured() {
+    return AiSettings.visionConfigured(aiSettings.current());
   }
 
   public String complete(String system, String user) {
+    return completeChat(system, user, List.of());
+  }
+
+  public String completeChat(String system, String user, List<String> imageDataUrls) {
     AiSettings.Stored stored = aiSettings.current();
-    return complete(stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, user);
+    Object content = userContent(user, imageDataUrls);
+    if (imageDataUrls != null && !imageDataUrls.isEmpty()) {
+      return complete(
+          stored.visionLlmBaseUrl(),
+          stored.visionLlmApiKey(),
+          stored.visionLlmModel(),
+          system,
+          content,
+          null,
+          null);
+    }
+    return complete(
+        stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, content, null, null);
   }
 
   public String completeReview(String system, String user) {
     AiSettings.Stored stored = aiSettings.current();
     return complete(
-        stored.reviewLlmBaseUrl(),
-        stored.reviewLlmApiKey(),
-        stored.reviewLlmModel(),
+        stored.llmBaseUrl(),
+        stored.llmApiKey(),
+        stored.llmModel(),
         system,
         user,
         AiConstants.REVIEW_TEMPERATURE,
@@ -98,10 +119,21 @@ public class LlmClient {
       String user,
       Double temperature,
       Integer maxTokens) {
+    return complete(baseUrl, apiKey, model, system, (Object) user, temperature, maxTokens);
+  }
+
+  public String complete(
+      String baseUrl,
+      String apiKey,
+      String model,
+      String system,
+      Object userContent,
+      Double temperature,
+      Integer maxTokens) {
     if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
-    Map<String, Object> body = chatBody(model, system, user, false, temperature, maxTokens);
+    Map<String, Object> body = chatBody(model, system, userContent, false, temperature, maxTokens);
     try {
       String raw = RestClient.builder()
           .baseUrl(baseUrl)
@@ -115,17 +147,34 @@ public class LlmClient {
           .retrieve()
           .body(String.class);
       JsonNode root = objectMapper.readTree(raw == null ? "{}" : raw);
-      JsonNode content = root.path("choices").path(0).path("message").path("content");
-      if (!content.isTextual() || content.asText().isBlank()) {
+      String answer = messageText(root.path("choices").path(0).path("message").path("content"));
+      if (!StringUtils.hasText(answer)) {
         throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
       }
-      return content.asText().trim();
+      return answer;
     } catch (BusinessException ex) {
       throw ex;
     } catch (Exception ex) {
       log.warn("llm complete failed", ex);
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
+  }
+
+  public void completeStream(String system, String user, List<String> imageDataUrls, Consumer<String> onDelta) {
+    AiSettings.Stored stored = aiSettings.current();
+    Object content = userContent(user, imageDataUrls);
+    if (imageDataUrls != null && !imageDataUrls.isEmpty()) {
+      completeStream(
+          stored.visionLlmBaseUrl(),
+          stored.visionLlmApiKey(),
+          stored.visionLlmModel(),
+          system,
+          content,
+          onDelta);
+      return;
+    }
+    completeStream(
+        stored.llmBaseUrl(), stored.llmApiKey(), stored.llmModel(), system, content, onDelta);
   }
 
   public void completeStream(
@@ -135,10 +184,20 @@ public class LlmClient {
       String system,
       String user,
       Consumer<String> onDelta) {
+    completeStream(baseUrl, apiKey, model, system, (Object) user, onDelta);
+  }
+
+  public void completeStream(
+      String baseUrl,
+      String apiKey,
+      String model,
+      String system,
+      Object userContent,
+      Consumer<String> onDelta) {
     if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl) || !StringUtils.hasText(model)) {
       throw BusinessException.configMissing(AiConstants.MSG_NO_ANSWER);
     }
-    Map<String, Object> body = chatBody(model, system, user, true, null, null);
+    Map<String, Object> body = chatBody(model, system, userContent, true, null, null);
     try {
       RestClient.builder()
           .baseUrl(baseUrl)
@@ -182,10 +241,31 @@ public class LlmClient {
     }
   }
 
+  private static Object userContent(String user, List<String> imageDataUrls) {
+    if (imageDataUrls == null || imageDataUrls.isEmpty()) {
+      return user == null ? "" : user;
+    }
+    List<Map<String, Object>> parts = new ArrayList<>();
+    Map<String, Object> text = new LinkedHashMap<>();
+    text.put("type", "text");
+    text.put("text", user == null ? "" : user);
+    parts.add(text);
+    for (String dataUrl : imageDataUrls) {
+      if (!StringUtils.hasText(dataUrl)) {
+        continue;
+      }
+      Map<String, Object> image = new LinkedHashMap<>();
+      image.put("type", "image_url");
+      image.put("image_url", Map.of("url", dataUrl));
+      parts.add(image);
+    }
+    return parts;
+  }
+
   private Map<String, Object> chatBody(
       String model,
       String system,
-      String user,
+      Object userContent,
       boolean stream,
       Double temperature,
       Integer maxTokens) {
@@ -206,8 +286,8 @@ public class LlmClient {
     body.put(
         "messages",
         List.of(
-            Map.of("role", "system", "content", system),
-            Map.of("role", "user", "content", user)));
+            Map.of("role", "system", "content", system == null ? "" : system),
+            Map.of("role", "user", "content", userContent == null ? "" : userContent)));
     return body;
   }
 
@@ -216,6 +296,27 @@ public class LlmClient {
       return null;
     }
     return line.substring(5).trim();
+  }
+
+  private static String messageText(JsonNode content) {
+    if (content == null || content.isMissingNode() || content.isNull()) {
+      return "";
+    }
+    if (content.isTextual()) {
+      return content.asText().trim();
+    }
+    if (!content.isArray()) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder();
+    for (JsonNode part : content) {
+      if (part.isTextual()) {
+        sb.append(part.asText());
+      } else if (part.path("text").isTextual()) {
+        sb.append(part.path("text").asText());
+      }
+    }
+    return sb.toString().trim();
   }
 
   private String deltaContent(String payload) {

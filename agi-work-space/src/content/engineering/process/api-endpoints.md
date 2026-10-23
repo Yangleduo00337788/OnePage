@@ -339,13 +339,13 @@ Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `
 
 ### POST `/api/v1/ai/chat`
 
-**Body**：`{ "question", "sessionId?" }`（`sessionId` 仅前端会话，服务端不落库）  
+**Body**：`{ "question", "sessionId?", "imageUrls?" }`（`sessionId` 仅前端会话，服务端不落库）。`imageUrls` 最多 4 条，须为本站媒体公网地址。  
 **Response 200**：`{ "answer", "citations": [{ "postId", "snippet", "title", "coverUrl", "nickname", "pageId" }] }`  
-先 `GET /search?type=all` 再生成（笔记 + 话题进上下文；引用胶囊仍只对笔记）。笔记与话题都无命中：`answer` 为「暂时不能根据站内笔记回答」。无密钥：仍 200，「暂时不能回答」，不查 ES。温度 / `max_tokens` 读运营配置；本接口始终整段返回。模型须归纳并标 `[1]`，禁止复述材料全文。
+先 `GET /search?type=all` 再生成（笔记 + 话题进上下文；引用胶囊仍只对笔记）。无图且笔记与话题都无命中：`answer` 为「暂时不能根据站内笔记回答」。有图则走看图模型，无命中也可回答。未配看图：「暂时看不了图」。拉图失败：「暂时看不了这张图」。无文字密钥：仍 200，「暂时不能回答」，不查 ES。温度 / `max_tokens` 读运营配置；本接口始终整段返回。模型须归纳并标 `[1]`，禁止复述材料全文。
 
 ### POST `/api/v1/ai/chat/stream`
 
-登录。**Body** 同 `/ai/chat`。**Response** `text/event-stream`：过程 `event: stage` 的 `data` 为 `{ "s": "retrieve"|"notes"|"write", "n" }`（`n` 为命中条数）；`event: delta` 的 `data` 为 `{ "t" }`；结束 `event: done` 的 `data` 为 `{ "citations": [{ "postId", "snippet", "title", "coverUrl", "nickname", "pageId" }] }`；失败 `event: error` 的 `data` 为 `{ "message" }`。运营打开流式则上游 `stream:true` 按片段推 `delta`；关闭则一次生成后只推一条 `delta`。ai-service 读上游 SSE 用 RestClient `exchange` 原样读流，不要 `retrieve().body(InputStream)`（没有 `text/event-stream` 转换器）。检索逻辑与 `/ai/chat` 相同。润色不走本接口。
+登录。**Body** 同 `/ai/chat`。**Response** `text/event-stream`：过程 `event: stage` 的 `data` 为 `{ "s": "retrieve"|"notes"|"write", "n" }`（`n` 为命中条数）；`event: delta` 的 `data` 为 `{ "t" }`；结束 `event: done` 的 `data` 为 `{ "citations": [{ "postId", "snippet", "title", "coverUrl", "nickname", "pageId" }] }`；失败 `event: error` 的 `data` 为 `{ "message" }`。运营打开流式则上游 `stream:true` 按片段推 `delta`；关闭则一次生成后只推一条 `delta`。ai-service 读上游 SSE 用 RestClient `exchange` 原样读流，不要 `retrieve().body(InputStream)`（没有 `text/event-stream` 转换器）。有图时本服务拉媒体转 data URL 再调看图模型。检索逻辑与 `/ai/chat` 相同。润色不走本接口。
 
 ---
 
@@ -770,11 +770,11 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### GET `/api/v1/ops/ai`
 
-员工。**Response**：对话模型字段 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewLlmBaseUrl` `reviewLlmModel` `reviewLlmKeySet` `reviewLlmKeyMasked` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿地址/密钥不回落到对话模型。`reviewRiskLimit` 默认 40：风险分低于此值自动过。内网 `POST /internal/ai/review` 只给 content 调。
+员工。**Response**：文字模型 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；看图模型 `visionLlmBaseUrl` `visionLlmModel` `visionLlmKeySet` `visionLlmKeyMasked`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿正文走文字模型。`reviewRiskLimit` 默认 40：风险分低于此值自动过。内网 `POST /internal/ai/review` 只给 content 调。
 
 ### POST `/api/v1/ops/ai`
 
-员工。**Body** 可只传本页字段（模型 / 耶耶 / 发帖 / 审稿），未传的保持原值。对话密钥 `llmApiKey?` `clearLlmKey?`；审稿密钥 `reviewLlmApiKey?` `clearReviewLlmKey?`；审稿阈值 `reviewRiskLimit?`（1–100，默认 40）。密钥留空不改。联想最多 6 条。Feign 写 Redis `onepage:ai:settings`。
+员工。**Body** 可只传本页字段（模型 / 耶耶 / 发帖 / 审稿），未传的保持原值。文字密钥 `llmApiKey?` `clearLlmKey?`；看图密钥 `visionLlmApiKey?` `clearVisionLlmKey?`；审稿阈值 `reviewRiskLimit?`（1–100，默认 40）。密钥留空不改。联想最多 6 条。Feign 写 Redis `onepage:ai:settings`。
 
 ### POST `/api/v1/ops/ai/reset`
 
@@ -782,15 +782,15 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### POST `/api/v1/ops/ai/probe`
 
-员工。探测**对话**模型（耶耶/润色）。密钥留空则用已保存的。**Response**：`{ "ok", "message" }`。连不上也是 200 + `ok=false`。
+员工。探测**文字**模型（耶耶/润色/审稿正文）。密钥留空则用已保存的。**Response**：`{ "ok", "message" }`。连不上也是 200 + `ok=false`。
 
-### POST `/api/v1/ops/ai/review/probe`
+### POST `/api/v1/ops/ai/vision/probe`
 
-员工。探测**审稿**模型，不走对话密钥。Body：`reviewLlmBaseUrl?` `reviewLlmApiKey?` `reviewLlmModel?`。**Response** 同 `/ops/ai/probe`。
+员工。探测**看图**模型。Body：`visionLlmBaseUrl?` `visionLlmApiKey?` `visionLlmModel?`。**Response** 同 `/ops/ai/probe`。未配则 `ok=false`。
 
 ### POST `/api/v1/ops/ai/review/try`
 
-员工。用已保存的审稿配置试审一段标题正文，不发帖。**Body**：`{ title?, body }`。**Response**：`{ verdict, reason, score }`。`verdict` 为 `pass`（低于阈值）/ `flag`（达到阈值）/ `skip`。`score` 为 0–100，skip 可空。
+员工。用已保存的文字模型和审稿提示词试审一段标题正文，不发帖。**Body**：`{ title?, body }`。**Response**：`{ verdict, reason, score }`。`verdict` 为 `pass`（低于阈值）/ `flag`（达到阈值）/ `skip`。`score` 为 0–100，skip 可空。
 
 ### GET `/api/v1/ops/policy`
 
