@@ -1709,6 +1709,10 @@ html[data-theme='dark'] .theme-tab.is-on {
   outline: 1px solid var(--line);
 }
 
+.yeh-composer.is-drop {
+  outline: 1px solid #3ecfbe;
+}
+
 .yeh-composer-slot .yeh-composer {
   position: absolute;
   top: 0;
@@ -1738,7 +1742,7 @@ html[data-theme='dark'] .theme-tab.is-on {
 }
 
 .yeh-composer-chat {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .yeh-textarea {
@@ -1870,24 +1874,142 @@ html[data-theme='dark'] .theme-tab.is-on {
   cursor: not-allowed;
 }
 
-.yeh-attach {
+.yeh-pending {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: #8a8a8a;
+  gap: 8px;
+  margin: 0 0 10px;
 }
 
-.yeh-chip {
+.yeh-thumb,
+.yeh-note-chip {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--fill);
+}
+
+.yeh-thumb {
+  width: 56px;
+  height: 56px;
+}
+
+.yeh-thumb img,
+.yeh-note-chip img,
+.yeh-note-ph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.yeh-thumb.is-wait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.yeh-thumb-x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  display: flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.yeh-note-chip {
+  display: flex;
   max-width: 180px;
+  height: 56px;
+  align-items: center;
+  padding-right: 26px;
+}
+
+.yeh-note-chip img,
+.yeh-note-ph {
+  width: 42px;
+  height: 56px;
+  flex: none;
+}
+
+.yeh-note-ph {
+  background: var(--hover);
+}
+
+.yeh-note-name {
+  padding: 0 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-radius: 999px;
-  background: var(--fill);
-  padding: 4px 10px;
+  font-size: 12px;
   color: var(--ink);
+}
+
+.yeh-user {
+  display: flex;
+  max-width: 72%;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.yeh-msg-pics,
+.yeh-msg-notes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.yeh-msg-pic {
+  width: 120px;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--fill);
+}
+
+.yeh-msg-pic img,
+.yeh-msg-note img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.yeh-msg-note {
+  display: flex;
+  max-width: 180px;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--hover);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.yeh-msg-note img {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+
+.yeh-msg-note span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .yeh-pick {
@@ -2028,7 +2150,7 @@ html[data-theme='dark'] .theme-tab.is-on {
 }
 
 .yeh-bubble {
-  max-width: 72%;
+  max-width: 100%;
   border-radius: 20px;
   background: var(--hover);
   padding: 10px 16px;

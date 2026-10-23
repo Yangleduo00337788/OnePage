@@ -14,9 +14,12 @@ export type YehProcess = {
   open: boolean
   openStep: YehStage | ''
 }
+export type YehNoteChip = { postId: string; title: string; coverUrl?: string }
 export type YehMsg = {
   role: YehRole
   text: string
+  imageUrls?: string[]
+  notes?: YehNoteChip[]
   citations?: AiCitation[]
   process?: YehProcess
 }
@@ -79,22 +82,34 @@ export const useYehYeh = defineStore('yehyeh', () => {
     persist()
   }
 
-  function ensureSession(userText: string): YehSession {
+  function sessionTitle(userText: string, hasImage: boolean) {
     const title = userText.replace(/\s+/g, ' ').trim().slice(0, 24)
+    if (title) return title
+    return hasImage ? '图片' : '新会话'
+  }
+
+  function ensureSession(userText: string, hasImage = false): YehSession {
     let session = current.value
     if (!session) {
-      session = { id: nid(), title, messages: [], updatedAt: Date.now() }
+      session = { id: nid(), title: sessionTitle(userText, hasImage), messages: [], updatedAt: Date.now() }
       sessions.value = [session, ...sessions.value]
       currentId.value = session.id
     }
     return session
   }
 
-  function appendUser(userText: string) {
-    const session = ensureSession(userText)
-    const title = userText.replace(/\s+/g, ' ').trim().slice(0, 24)
-    session.messages.push({ role: 'user', text: userText })
-    if (session.messages.filter((m) => m.role === 'user').length === 1) session.title = title
+  function appendUser(userText: string, imageUrls?: string[], notes?: YehNoteChip[]) {
+    const hasImage = Boolean(imageUrls?.length)
+    const session = ensureSession(userText, hasImage)
+    session.messages.push({
+      role: 'user',
+      text: userText,
+      imageUrls: hasImage ? imageUrls : undefined,
+      notes: notes?.length ? notes : undefined,
+    })
+    if (session.messages.filter((m) => m.role === 'user').length === 1) {
+      session.title = sessionTitle(userText, hasImage)
+    }
     touch(session)
   }
 

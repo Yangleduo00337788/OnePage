@@ -1,6 +1,6 @@
 <!--
   耶耶首页 + 对话。无顶搜、左上圆形展开、白底输入卡。
-  发送走 POST /ai/chat/stream（先检索再生成）；历史仍在本机 localStorage。
+  发送走 POST /ai/chat/stream（先检索再生成；附图走 imageUrls）；历史仍在本机 localStorage。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -10,7 +10,7 @@ import Icon from '../components/Icon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { useAuthModal } from '../stores/authModal'
 import { useNoteDetail } from '../stores/noteDetail'
-import { useYehYeh, type YehSession, type YehStage } from '../stores/yehyeh'
+import { useYehYeh, type YehNoteChip, type YehSession, type YehStage } from '../stores/yehyeh'
 import { renderYehAnswer } from '../yehFormat'
 
 const FALLBACK_PRESET = '帮我发现今天值得一看的生活方式笔记'
@@ -42,8 +42,10 @@ const chatLog = ref<HTMLElement | null>(null)
 const homeBox = ref<HTMLTextAreaElement | null>(null)
 const chatBox = ref<HTMLTextAreaElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
-const pendingImages = ref<{ url: string; name: string }[]>([])
-const pendingNotes = ref<{ postId: string; title: string }[]>([])
+type PendingPic = { id: string; name: string; preview: string; url: string; uploading: boolean }
+const pendingImages = ref<PendingPic[]>([])
+const pendingNotes = ref<YehNoteChip[]>([])
+const dropping = ref(false)
 const pickKind = ref<'fav' | 'like' | ''>('')
 const pickItems = ref<PostBrief[]>([])
 const pickBusy = ref(false)
@@ -97,7 +99,16 @@ async function waitStages() {
 }
 
 const inChat = computed(() => Boolean(yeh.current && yeh.current.messages.length))
-const homeReady = computed(() => editing.value && Boolean(draft.value.trim()))
+const uploading = computed(() => pendingImages.value.some((item) => item.uploading))
+const canSendAttach = computed(
+  () => pendingImages.value.some((item) => item.url) || pendingNotes.value.length > 0,
+)
+const homeReady = computed(
+  () => editing.value && Boolean(draft.value.trim() || canSendAttach.value) && !uploading.value,
+)
+const chatReady = computed(
+  () => Boolean(chatDraft.value.trim() || canSendAttach.value) && !uploading.value,
+)
 const showSuggests = computed(() => !inChat.value && editing.value && questions.value.length > 0)
 
 const greeting = computed(() => {
@@ -123,16 +134,24 @@ const groupedHistory = computed(() => {
   return buckets.filter((b) => b.items.length)
 })
 
-function payload(raw: string) {
-  const text = raw.trim() || preset.value
-  const pics = pendingImages.value.map((item) => item.url || item.name)
-  const notes = pendingNotes.value.map((item) => item.title)
+function clearPending() {
+  for (const pic of pendingImages.value) {
+    if (pic.preview.startsWith('blob:')) URL.revokeObjectURL(pic.preview)
+  }
   pendingImages.value = []
   pendingNotes.value = []
-  let out = text
-  if (pics.length) out += `（附图：${pics.join('、')}）`
-  if (notes.length) out += `（参考笔记：${notes.join('、')}）`
-  return out
+}
+
+function payload(raw: string) {
+  const pics = pendingImages.value.filter((item) => item.url).map((item) => item.url)
+  const notes = [...pendingNotes.value]
+  const text = raw.trim()
+  clearPending()
+  let question = text
+  if (!question && pics.length) question = '请看这些图'
+  if (!question) question = preset.value
+  if (notes.length) question += `\n参考笔记：${notes.map((item) => item.title).join('、')}`
+  return { question, display: text, imageUrls: pics, notes }
 }
 
 function fitBox(el: HTMLTextAreaElement | null, min: number, max: number) {
@@ -150,9 +169,19 @@ function stopChat() {
 }
 
 async function send(raw: string, reuse = false) {
-  if (sending.value) return
-  const text = reuse ? raw.trim() : payload(raw)
-  if (!text) return
+  if (sending.value || uploading.value) return
+  const lastUser = reuse
+    ? yeh.current?.messages.slice().reverse().find((item) => item.role === 'user')
+    : undefined
+  const packed = reuse
+    ? {
+        question: raw.trim() || (lastUser?.imageUrls?.length ? '请看这些图' : ''),
+        display: lastUser?.text || raw.trim(),
+        imageUrls: lastUser?.imageUrls || [],
+        notes: lastUser?.notes || [],
+      }
+    : payload(raw)
+  if (!packed.question && !packed.imageUrls.length) return
   composerOpen.value = false
   plusOpen.value = false
   editing.value = false
@@ -160,8 +189,8 @@ async function send(raw: string, reuse = false) {
   chatDraft.value = ''
   if (route.query.q) router.replace({ path: '/yehyeh' })
   if (reuse) yeh.dropLastAi()
-  else yeh.appendUser(text)
-  yeh.beginAi(text)
+  else yeh.appendUser(packed.display, packed.imageUrls, packed.notes)
+  yeh.beginAi(packed.question)
   stageQueue = []
   stagePlaying = false
   stage.value = 'retrieve'
@@ -173,7 +202,11 @@ async function send(raw: string, reuse = false) {
   chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight, behavior: 'smooth' })
   try {
     const res = await api.aiChatStream(
-      { question: text, sessionId: yeh.currentId || undefined },
+      {
+        question: packed.question,
+        sessionId: yeh.currentId || undefined,
+        imageUrls: packed.imageUrls.length ? packed.imageUrls : undefined,
+      },
       (delta) => {
         yeh.patchLastAi(delta)
         chatLog.value?.scrollTo({ top: chatLog.value.scrollHeight })
@@ -206,13 +239,13 @@ async function send(raw: string, reuse = false) {
 }
 
 function askHome() {
+  if (uploading.value) return
   if (!editing.value) {
     send(preset.value)
     return
   }
-  const text = draft.value.trim()
-  if (!text) return
-  send(text)
+  if (!draft.value.trim() && !canSendAttach.value) return
+  send(draft.value)
 }
 
 function startEdit() {
@@ -220,9 +253,9 @@ function startEdit() {
 }
 
 function askChat() {
-  const t = chatDraft.value.trim()
-  if (!t) return
-  send(t)
+  if (uploading.value) return
+  if (!chatDraft.value.trim() && !canSendAttach.value) return
+  send(chatDraft.value)
 }
 
 function pickQuestion(q: string) {
@@ -331,8 +364,7 @@ function newSession() {
   editing.value = false
   composerOpen.value = false
   plusOpen.value = false
-  pendingImages.value = []
-  pendingNotes.value = []
+  clearPending()
   pickKind.value = ''
 }
 
@@ -362,7 +394,10 @@ async function openPicker(kind: 'fav' | 'like') {
 
 function pickNote(item: PostBrief) {
   if (pendingNotes.value.some((row) => row.postId === item.postId)) return
-  pendingNotes.value = [...pendingNotes.value, { postId: item.postId, title: item.title || '笔记' }].slice(0, 6)
+  pendingNotes.value = [
+    ...pendingNotes.value,
+    { postId: item.postId, title: item.title || '笔记', coverUrl: item.coverUrl || '' },
+  ].slice(0, 6)
   pickKind.value = ''
 }
 
@@ -370,8 +405,40 @@ function dropNote(postId: string) {
   pendingNotes.value = pendingNotes.value.filter((row) => row.postId !== postId)
 }
 
-function dropImage(url: string) {
-  pendingImages.value = pendingImages.value.filter((row) => row.url !== url)
+function dropImage(id: string) {
+  const row = pendingImages.value.find((item) => item.id === id)
+  if (row?.preview.startsWith('blob:')) URL.revokeObjectURL(row.preview)
+  pendingImages.value = pendingImages.value.filter((item) => item.id !== id)
+}
+
+function picId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+async function addFiles(files: File[]) {
+  const room = 4 - pendingImages.value.length
+  if (room <= 0) return
+  for (const file of files.slice(0, room)) {
+    if (!IMAGE_MIMES.has(file.type) || file.size > IMAGE_MAX) continue
+    const id = picId()
+    const preview = URL.createObjectURL(file)
+    pendingImages.value = [...pendingImages.value, { id, name: file.name, preview, url: '', uploading: true }]
+    try {
+      const ticket = await api.presign(file.type, file.size, 'post_image')
+      await api.putObject(ticket.uploadUrl, file, file.type)
+      const done = await api.completeUpload(ticket.mediaId)
+      const url = done.url || ticket.uploadUrl
+      pendingImages.value = pendingImages.value.map((item) =>
+        item.id === id ? { ...item, url, uploading: false } : item,
+      )
+    } catch (err) {
+      dropImage(id)
+      if (err instanceof ApiError && err.status === 401) {
+        auth.show('login', '/yehyeh')
+        return
+      }
+    }
+  }
 }
 
 async function onFiles(e: Event) {
@@ -379,21 +446,30 @@ async function onFiles(e: Event) {
   const files = [...(input.files ?? [])]
   input.value = ''
   if (!files.length) return
-  for (const file of files.slice(0, 4)) {
-    if (!IMAGE_MIMES.has(file.type) || file.size > IMAGE_MAX) continue
-    try {
-      const ticket = await api.presign(file.type, file.size, 'post_image')
-      await api.putObject(ticket.uploadUrl, file, file.type)
-      const done = await api.completeUpload(ticket.mediaId)
-      const url = done.url || ticket.uploadUrl
-      pendingImages.value = [...pendingImages.value, { url, name: file.name }].slice(0, 4)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        auth.show('login', '/yehyeh')
-        return
-      }
-    }
-  }
+  await addFiles(files)
+}
+
+function onPaste(e: ClipboardEvent) {
+  const files = [...(e.clipboardData?.files ?? [])].filter((file) => IMAGE_MIMES.has(file.type))
+  if (!files.length) return
+  e.preventDefault()
+  void addFiles(files)
+}
+
+function onDragOver(e: DragEvent) {
+  if (![...(e.dataTransfer?.items ?? [])].some((item) => item.kind === 'file')) return
+  e.preventDefault()
+  dropping.value = true
+}
+
+function onDragLeave() {
+  dropping.value = false
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault()
+  dropping.value = false
+  void addFiles([...(e.dataTransfer?.files ?? [])])
 }
 
 function onDocPointer(e: PointerEvent) {
@@ -497,7 +573,35 @@ watch(
               <h1>{{ greeting }}</h1>
             </div>
             <div class="yeh-composer-slot">
-              <div ref="composerRoot" class="yeh-composer" :class="{ 'is-open': showSuggests, 'is-ready': homeReady }">
+              <div
+                ref="composerRoot"
+                class="yeh-composer"
+                :class="{ 'is-open': showSuggests, 'is-ready': homeReady, 'is-drop': dropping }"
+                @dragover="onDragOver"
+                @dragleave="onDragLeave"
+                @drop="onDrop"
+              >
+                <div v-if="pendingImages.length || pendingNotes.length" class="yeh-pending">
+                  <div
+                    v-for="pic in pendingImages"
+                    :key="pic.id"
+                    class="yeh-thumb"
+                    :class="{ 'is-wait': pic.uploading }"
+                  >
+                    <img :src="pic.preview || pic.url" :alt="pic.name" />
+                    <button type="button" class="yeh-thumb-x" aria-label="去掉图片" @click="dropImage(pic.id)">
+                      <Icon name="x" :size="10" :stroke="2.5" />
+                    </button>
+                  </div>
+                  <div v-for="note in pendingNotes" :key="note.postId" class="yeh-note-chip">
+                    <img v-if="note.coverUrl" :src="note.coverUrl" alt="" />
+                    <span v-else class="yeh-note-ph" />
+                    <span class="yeh-note-name">{{ note.title }}</span>
+                    <button type="button" class="yeh-thumb-x" aria-label="去掉笔记" @click="dropNote(note.postId)">
+                      <Icon name="x" :size="10" :stroke="2.5" />
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   ref="homeBox"
                   v-model="draft"
@@ -506,6 +610,7 @@ watch(
                   :placeholder="editing ? '' : preset"
                   @click="startEdit"
                   @focus="startEdit"
+                  @paste="onPaste"
                   @input="fitBox(homeBox, 56, 200)"
                 />
                 <div class="yeh-composer-bar">
@@ -532,32 +637,12 @@ watch(
                     type="button"
                     class="yeh-ask"
                     :class="homeReady ? 'is-ready' : ''"
-                    :disabled="sending"
+                    :disabled="sending || uploading"
                     @mousedown.prevent
                     @click="askHome"
                   >
                     <Icon :name="homeReady ? 'arrow-right' : 'message-circle-heart'" :size="14" :stroke="2" />
                     问耶耶
-                  </button>
-                </div>
-                <div v-if="pendingImages.length || pendingNotes.length" class="yeh-attach">
-                  <button
-                    v-for="pic in pendingImages"
-                    :key="pic.url"
-                    type="button"
-                    class="yeh-chip"
-                    @click="dropImage(pic.url)"
-                  >
-                    图 {{ pic.name }}
-                  </button>
-                  <button
-                    v-for="note in pendingNotes"
-                    :key="note.postId"
-                    type="button"
-                    class="yeh-chip"
-                    @click="dropNote(note.postId)"
-                  >
-                    {{ note.title }}
                   </button>
                 </div>
                 <div class="yeh-expand">
@@ -584,7 +669,33 @@ watch(
         </header>
         <div ref="chatLog" class="yeh-chat-log">
           <div v-for="(msg, i) in yeh.current?.messages" :key="i" class="yeh-msg" :class="msg.role === 'user' ? 'is-user' : 'is-ai'">
-            <div v-if="msg.role === 'user'" class="yeh-bubble">{{ msg.text }}</div>
+            <div v-if="msg.role === 'user'" class="yeh-user">
+              <div v-if="msg.imageUrls?.length" class="yeh-msg-pics">
+                <a
+                  v-for="url in msg.imageUrls"
+                  :key="url"
+                  class="yeh-msg-pic"
+                  :href="url"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img :src="url" alt="" />
+                </a>
+              </div>
+              <div v-if="msg.notes?.length" class="yeh-msg-notes">
+                <button
+                  v-for="note in msg.notes"
+                  :key="note.postId"
+                  type="button"
+                  class="yeh-msg-note"
+                  @click="openCite({ postId: note.postId, snippet: '', title: note.title, coverUrl: note.coverUrl || '', nickname: '', pageId: '' })"
+                >
+                  <img v-if="note.coverUrl" :src="note.coverUrl" alt="" />
+                  <span>{{ note.title }}</span>
+                </button>
+              </div>
+              <div v-if="msg.text" class="yeh-bubble">{{ msg.text }}</div>
+            </div>
             <div v-else>
               <ol v-if="liveAi(i)" class="yeh-steps" aria-label="回答过程">
                 <li class="yeh-step" :class="stepState('retrieve')">
@@ -693,7 +804,34 @@ watch(
           </div>
         </div>
         <div class="yeh-chat-foot">
-          <div class="yeh-composer yeh-composer-chat">
+          <div
+            class="yeh-composer yeh-composer-chat"
+            :class="{ 'is-drop': dropping }"
+            @dragover="onDragOver"
+            @dragleave="onDragLeave"
+            @drop="onDrop"
+          >
+            <div v-if="pendingImages.length || pendingNotes.length" class="yeh-pending">
+              <div
+                v-for="pic in pendingImages"
+                :key="pic.id"
+                class="yeh-thumb"
+                :class="{ 'is-wait': pic.uploading }"
+              >
+                <img :src="pic.preview || pic.url" :alt="pic.name" />
+                <button type="button" class="yeh-thumb-x" aria-label="去掉图片" @click="dropImage(pic.id)">
+                  <Icon name="x" :size="10" :stroke="2.5" />
+                </button>
+              </div>
+              <div v-for="note in pendingNotes" :key="note.postId" class="yeh-note-chip">
+                <img v-if="note.coverUrl" :src="note.coverUrl" alt="" />
+                <span v-else class="yeh-note-ph" />
+                <span class="yeh-note-name">{{ note.title }}</span>
+                <button type="button" class="yeh-thumb-x" aria-label="去掉笔记" @click="dropNote(note.postId)">
+                  <Icon name="x" :size="10" :stroke="2.5" />
+                </button>
+              </div>
+            </div>
             <textarea
               ref="chatBox"
               v-model="chatDraft"
@@ -701,6 +839,7 @@ watch(
               rows="1"
               placeholder="搜索或者输入任何问题"
               @keydown.enter.exact.prevent="askChat"
+              @paste="onPaste"
               @input="fitBox(chatBox, 56, 200)"
             />
             <div class="yeh-composer-bar">
@@ -737,31 +876,12 @@ watch(
                 v-else
                 type="button"
                 class="yeh-ask"
-                :class="chatDraft.trim() ? 'is-ready' : ''"
+                :class="chatReady ? 'is-ready' : ''"
+                :disabled="uploading"
                 @click="askChat"
               >
-                <Icon :name="chatDraft.trim() ? 'arrow-right' : 'message-circle-heart'" :size="14" :stroke="2" />
+                <Icon :name="chatReady ? 'arrow-right' : 'message-circle-heart'" :size="14" :stroke="2" />
                 问耶耶
-              </button>
-            </div>
-            <div v-if="pendingImages.length || pendingNotes.length" class="yeh-attach">
-              <button
-                v-for="pic in pendingImages"
-                :key="pic.url"
-                type="button"
-                class="yeh-chip"
-                @click="dropImage(pic.url)"
-              >
-                图 {{ pic.name }}
-              </button>
-              <button
-                v-for="note in pendingNotes"
-                :key="note.postId"
-                type="button"
-                class="yeh-chip"
-                @click="dropNote(note.postId)"
-              >
-                {{ note.title }}
               </button>
             </div>
           </div>
