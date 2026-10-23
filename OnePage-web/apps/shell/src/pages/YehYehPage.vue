@@ -620,15 +620,15 @@ watch(
                     </button>
                     <div v-show="plusOpen" class="yeh-plus-menu">
                       <button type="button" @click="onPlusPick('image')">
-                        <Icon name="image" :size="20" />
+                        <span class="yeh-menu-ico is-image"><Icon name="image" :size="20" /></span>
                         上传图片
                       </button>
                       <button type="button" @click="onPlusPick('fav')">
-                        <Icon name="bookmark" :size="20" />
+                        <span class="yeh-menu-ico is-bookmark"><Icon name="bookmark" :size="20" /></span>
                         我的收藏
                       </button>
                       <button type="button" @click="onPlusPick('like')">
-                        <Icon name="heart" :size="20" />
+                        <span class="yeh-menu-ico is-heart"><Icon name="heart" :size="20" /></span>
                         我的点赞
                       </button>
                     </div>
@@ -849,15 +849,15 @@ watch(
                 </button>
                 <div v-show="plusOpen" class="yeh-plus-menu yeh-plus-menu-up">
                   <button type="button" @click="onPlusPick('image')">
-                    <Icon name="image" :size="20" />
+                    <span class="yeh-menu-ico is-image"><Icon name="image" :size="20" /></span>
                     上传图片
                   </button>
                   <button type="button" @click="onPlusPick('fav')">
-                    <Icon name="bookmark" :size="20" />
+                    <span class="yeh-menu-ico is-bookmark"><Icon name="bookmark" :size="20" /></span>
                     我的收藏
                   </button>
                   <button type="button" @click="onPlusPick('like')">
-                    <Icon name="heart" :size="20" />
+                    <span class="yeh-menu-ico is-heart"><Icon name="heart" :size="20" /></span>
                     我的点赞
                   </button>
                 </div>

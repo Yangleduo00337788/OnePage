@@ -1829,6 +1829,32 @@ html[data-theme='dark'] .theme-tab.is-on {
   border-radius: 20px;
 }
 
+.yeh-menu-ico {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.yeh-menu-ico svg {
+  display: block;
+  flex: none;
+}
+
+.yeh-menu-ico.is-image svg {
+  transform: scale(0.92);
+}
+
+.yeh-menu-ico.is-bookmark svg {
+  transform: scale(0.96);
+}
+
+.yeh-menu-ico.is-heart svg {
+  transform: scale(1.14);
+}
+
 .yeh-plus-menu button:hover {
   background: var(--hover);
 }
