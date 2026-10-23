@@ -82,7 +82,7 @@ public interface AiClient {
 
   record OpsAiProbe(boolean ok, String message) {}
 
-  record ReviewSpec(String postId, String title, String body) {}
+  record ReviewSpec(String postId, String title, String body, List<String> imageUrls) {}
 
   record ReviewResult(String verdict, String reason, Integer score) {}
 }

@@ -44,40 +44,107 @@ public class AiService {
   public AiDtos.ReviewResult review(AiDtos.ReviewSpec spec) {
     String title = spec == null || spec.title() == null ? "" : spec.title().trim();
     String body = spec == null || spec.body() == null ? "" : spec.body().trim();
-    if (!StringUtils.hasText(title) && !StringUtils.hasText(body)) {
-      return skip("无标题正文，图视频下一步再审");
+    List<String> imageUrls = reviewImageUrls(spec);
+    boolean hasText = StringUtils.hasText(title) || StringUtils.hasText(body);
+    boolean hasImages = !imageUrls.isEmpty();
+    if (!hasText && !hasImages) {
+      return skip("无标题正文或图片");
     }
     AiSettings.Stored stored = aiSettings.current();
-    if (!AiSettings.reviewOn(stored.reviewEnabled()) || !llmClient.reviewConfigured()) {
+    if (!AiSettings.reviewOn(stored.reviewEnabled())) {
       return skip("未开启机审或未配置文字模型");
     }
-    if (body.length() > AiConstants.REVIEW_BODY_MAX) {
-      body = body.substring(0, AiConstants.REVIEW_BODY_MAX);
+    if (hasText && !llmClient.reviewConfigured()) {
+      return skip("未开启机审或未配置文字模型");
     }
-    String user = "title: " + title + "\nbody:\n" + body;
-    try {
-      String raw = llmClient.completeReview(stored.reviewSystem(), user);
-      JsonNode node = readObjectQuiet(raw);
-      Integer score = readScore(node);
-      if (score == null) {
-        return skip("模型返回无法解析");
-      }
-      String reason = textOf(node, "reason");
-      if (reason.length() > AiConstants.REVIEW_REASON_MAX) {
-        reason = reason.substring(0, AiConstants.REVIEW_REASON_MAX);
-      }
-      int limit = AiSettings.clampRiskLimit(stored.reviewRiskLimit());
-      if (score < limit) {
-        return new AiDtos.ReviewResult(AiConstants.VERDICT_PASS, reason, score);
-      }
-      if (!StringUtils.hasText(reason)) {
-        reason = "风险分 " + score + "，需人工复核";
-      }
-      return new AiDtos.ReviewResult(AiConstants.VERDICT_FLAG, reason, score);
-    } catch (RuntimeException ex) {
-      log.warn("ai review failed");
-      return skip("模型暂时不可用");
+    if (!hasText && !llmClient.visionConfigured()) {
+      return skip("未配置看图模型");
     }
+    Integer textScore = null;
+    String textReason = "";
+    if (hasText) {
+      if (body.length() > AiConstants.REVIEW_BODY_MAX) {
+        body = body.substring(0, AiConstants.REVIEW_BODY_MAX);
+      }
+      String user = "title: " + title + "\nbody:\n" + body;
+      try {
+        String raw = llmClient.completeReview(stored.reviewSystem(), user);
+        JsonNode node = readObjectQuiet(raw);
+        textScore = readScore(node);
+        if (textScore == null) {
+          return skip("模型返回无法解析");
+        }
+        textReason = clipReason(textOf(node, "reason"));
+      } catch (RuntimeException ex) {
+        log.warn("ai review failed");
+        return skip("模型暂时不可用");
+      }
+    }
+    Integer visionScore = null;
+    String visionReason = "";
+    if (hasImages && llmClient.visionConfigured()) {
+      List<String> dataUrls = mediaImageLoader.toDataUrls(imageUrls);
+      if (dataUrls.isEmpty()) {
+        return skip(AiConstants.MSG_NO_VISION_FETCH);
+      }
+      String visionUser = StringUtils.hasText(title) ? "笔记标题：" + title : "请只根据附图打分。";
+      try {
+        String raw = llmClient.completeReviewVision(
+            AiConstants.REVIEW_VISION_SYSTEM, visionUser, dataUrls);
+        JsonNode node = readObjectQuiet(raw);
+        visionScore = readScore(node);
+        if (visionScore == null) {
+          return skip("看图返回无法解析");
+        }
+        visionReason = clipReason(textOf(node, "reason"));
+      } catch (RuntimeException ex) {
+        log.warn("ai vision review failed");
+        return skip("看图模型暂时不可用");
+      }
+    }
+    int score;
+    String reason;
+    if (visionScore != null && (textScore == null || visionScore > textScore)) {
+      score = visionScore;
+      reason = visionReason;
+    } else if (textScore != null) {
+      score = textScore;
+      reason = textReason;
+    } else {
+      return skip("模型返回无法解析");
+    }
+    int limit = AiSettings.clampRiskLimit(stored.reviewRiskLimit());
+    if (score < limit) {
+      return new AiDtos.ReviewResult(AiConstants.VERDICT_PASS, reason, score);
+    }
+    if (!StringUtils.hasText(reason)) {
+      reason = "风险分 " + score + "，需人工复核";
+    }
+    return new AiDtos.ReviewResult(AiConstants.VERDICT_FLAG, reason, score);
+  }
+
+  private static List<String> reviewImageUrls(AiDtos.ReviewSpec spec) {
+    if (spec == null || spec.imageUrls() == null || spec.imageUrls().isEmpty()) {
+      return List.of();
+    }
+    List<String> out = new ArrayList<>();
+    for (String raw : spec.imageUrls()) {
+      if (!StringUtils.hasText(raw) || out.size() >= AiConstants.REVIEW_IMAGE_MAX) {
+        continue;
+      }
+      out.add(raw.trim());
+    }
+    return List.copyOf(out);
+  }
+
+  private static String clipReason(String reason) {
+    if (reason == null) {
+      return "";
+    }
+    if (reason.length() > AiConstants.REVIEW_REASON_MAX) {
+      return reason.substring(0, AiConstants.REVIEW_REASON_MAX);
+    }
+    return reason;
   }
 
   public AiDtos.PolishResult polish(AiDtos.PolishSpec spec) {

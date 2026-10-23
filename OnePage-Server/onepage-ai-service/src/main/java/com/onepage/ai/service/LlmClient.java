@@ -88,6 +88,18 @@ public class LlmClient {
         AiConstants.REVIEW_MAX_TOKENS);
   }
 
+  public String completeReviewVision(String system, String user, List<String> imageDataUrls) {
+    AiSettings.Stored stored = aiSettings.current();
+    return complete(
+        stored.visionLlmBaseUrl(),
+        stored.visionLlmApiKey(),
+        stored.visionLlmModel(),
+        system,
+        userContent(user, imageDataUrls),
+        AiConstants.REVIEW_TEMPERATURE,
+        AiConstants.REVIEW_MAX_TOKENS);
+  }
+
   public void completeStream(String system, String user, Consumer<String> onDelta) {
     AiSettings.Stored stored = aiSettings.current();
     completeStream(

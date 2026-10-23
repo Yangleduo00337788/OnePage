@@ -14,7 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 
-/** 公开待审笔记文字机审。低风险分自动上架；达到阈值或失败留给人审，不自动驳回。 */
+/** 公开待审笔记机审。文字+图片取高分；低分自动上架，达阈值或失败留给人审，不自动驳回。 */
 @Service
 public class PostReviewService {
   private static final Logger log = LoggerFactory.getLogger(PostReviewService.class);
@@ -59,7 +59,11 @@ public class PostReviewService {
     try {
       result = aiClient.review(
           internalToken,
-          new AiClient.ReviewSpec(String.valueOf(postId), blank(post.getTitle()), blank(post.getBody())));
+          new AiClient.ReviewSpec(
+              String.valueOf(postId),
+              blank(post.getTitle()),
+              blank(post.getBody()),
+              postService.listReviewImageUrls(postId)));
     } catch (RuntimeException ex) {
       log.warn("post ai review call {} failed", postId, ex);
       mark(postId, VERDICT_SKIP, "模型暂时不可用", null);

@@ -81,7 +81,7 @@ public final class AiDtos {
 
   public record StreamStage(String s, int n) {}
 
-  public record ReviewSpec(String postId, String title, String body) {}
+  public record ReviewSpec(String postId, String title, String body, List<String> imageUrls) {}
 
   public record ReviewResult(String verdict, String reason, Integer score) {}
 }

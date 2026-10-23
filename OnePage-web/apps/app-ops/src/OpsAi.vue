@@ -23,7 +23,7 @@ const titles = {
   },
   review: {
     h1: '审稿',
-    lead: '文字机审共用「模型」页的文字模型，只改开关、阈值和提示词。先保存再试审。图视频等配好看图模型后再接。',
+    lead: '文字走文字模型，图文画面走看图模型，两套分数取高再比阈值。视频抽帧下一步。先保存再试审。',
   },
 } as const
 
@@ -63,6 +63,7 @@ const visionLlmKeyMasked = ref('')
 const tryScore = ref<number | null>(null)
 const tryTitle = ref('周末去海边')
 const tryBody = ref('今天天气很好，拍了几张日落。')
+const tryImageUrls = ref('')
 const trying = ref(false)
 const tryVerdict = ref('')
 const tryReason = ref('')
@@ -246,9 +247,15 @@ async function tryReview() {
   tryReason.value = ''
   tryScore.value = null
   try {
+    const imageUrls = tryImageUrls.value
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 4)
     const res = await api.opsTryReviewAi({
       title: tryTitle.value.trim(),
       body: tryBody.value.trim(),
+      imageUrls: imageUrls.length ? imageUrls : undefined,
     })
     tryVerdict.value = res.verdict || ''
     tryReason.value = res.reason || ''
@@ -505,8 +512,8 @@ onMounted(() => load())
             <span class="knob" />
           </button>
           <div>
-            <p class="switch-title">公开笔记文字机审</p>
-            <p class="hint">共用「模型」页文字模型打 0–100 风险分。低于阈值自动上架；达到或超过阈值、模型挂了则进人审，不自动驳回。只看标题正文。</p>
+            <p class="switch-title">公开笔记机审</p>
+            <p class="hint">标题正文走文字模型，图文画面走看图模型，分数取高再比阈值。低于阈值自动上架；达阈值或模型挂了进人审，不自动驳回。视频抽帧下一步。</p>
           </div>
         </div>
         <label>
@@ -519,7 +526,7 @@ onMounted(() => load())
           审稿提示词
           <textarea v-model="reviewSystem" rows="5" maxlength="4000" />
         </label>
-        <p class="hint">试审不发帖、不进队列，用「模型」页已保存的文字模型和本页提示词。改了提示词请先点保存。</p>
+        <p class="hint">试审不发帖、不进队列。文字用本页提示词，画面用内置看图审稿。附图须是本站媒体地址，每行一条，最多 4 张。改了提示词请先保存。</p>
         <label>
           试审标题
           <input v-model="tryTitle" maxlength="80" placeholder="随便写一条会过或不过的标题" />
@@ -528,11 +535,20 @@ onMounted(() => load())
           试审正文
           <textarea v-model="tryBody" rows="4" maxlength="2000" placeholder="例如加微信、发票，或正常生活记录" />
         </label>
+        <label>
+          试审附图地址
+          <textarea
+            v-model="tryImageUrls"
+            rows="3"
+            maxlength="2000"
+            placeholder="每行一条本站图片地址，可空"
+          />
+        </label>
         <div class="actions start">
           <button
             type="button"
             class="go"
-            :disabled="trying || saving || (!tryTitle.trim() && !tryBody.trim())"
+            :disabled="trying || saving || (!tryTitle.trim() && !tryBody.trim() && !tryImageUrls.trim())"
             @click="tryReview"
           >
             {{ trying ? '试审中…' : '试审' }}

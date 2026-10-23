@@ -770,7 +770,7 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### GET `/api/v1/ops/ai`
 
-员工。**Response**：文字模型 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；看图模型 `visionLlmBaseUrl` `visionLlmModel` `visionLlmKeySet` `visionLlmKeyMasked`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿正文走文字模型。`reviewRiskLimit` 默认 40：风险分低于此值自动过。内网 `POST /internal/ai/review` 只给 content 调。
+员工。**Response**：文字模型 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；看图模型 `visionLlmBaseUrl` `visionLlmModel` `visionLlmKeySet` `visionLlmKeyMasked`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿正文走文字模型，图文画面走看图模型，分数取高。`reviewRiskLimit` 默认 40：风险分低于此值自动过。内网 `POST /internal/ai/review` 只给 content 调，Body 含 `title` `body` `imageUrls?`（最多 4 张本站图）。
 
 ### POST `/api/v1/ops/ai`
 
@@ -790,7 +790,7 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### POST `/api/v1/ops/ai/review/try`
 
-员工。用已保存的文字模型和审稿提示词试审一段标题正文，不发帖。**Body**：`{ title?, body }`。**Response**：`{ verdict, reason, score }`。`verdict` 为 `pass`（低于阈值）/ `flag`（达到阈值）/ `skip`。`score` 为 0–100，skip 可空。
+员工。用已保存配置试审，不发帖。**Body**：`{ title?, body, imageUrls? }`，`imageUrls` 最多 4 条本站媒体地址。文字走审稿提示词，画面走看图模型，分数取高。**Response**：`{ verdict, reason, score }`。`verdict` 为 `pass`（低于阈值）/ `flag`（达到阈值）/ `skip`。`score` 为 0–100，skip 可空。
 
 ### GET `/api/v1/ops/policy`
 

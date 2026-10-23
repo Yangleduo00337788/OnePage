@@ -1038,6 +1038,33 @@ public class PostService {
     return gallery;
   }
 
+  /** 图文机审用：笔记里的图片公网地址，最多 4 张。视频不送。 */
+  public List<String> listReviewImageUrls(long postId) {
+    List<PostMedia> links = postMediaMapper.selectList(
+        Wrappers.<PostMedia>lambdaQuery()
+            .eq(PostMedia::getPostId, postId)
+            .orderByAsc(PostMedia::getSortOrder));
+    List<String> out = new ArrayList<>();
+    for (PostMedia link : links) {
+      if (out.size() >= 4) {
+        break;
+      }
+      MediaAsset asset = mediaAssetMapper.selectById(link.getMediaId());
+      if (asset == null || asset.getBlockedAt() != null) {
+        continue;
+      }
+      String mime = asset.getMimeType() == null ? "" : asset.getMimeType();
+      if (!mime.startsWith("image/")) {
+        continue;
+      }
+      String url = publicUrl(asset.getObjectKey());
+      if (StringUtils.hasText(url)) {
+        out.add(url);
+      }
+    }
+    return List.copyOf(out);
+  }
+
   private static String excerpt(String body) {
     if (body == null || body.isBlank()) {
       return "";

@@ -1031,7 +1031,7 @@ export const api = {
     visionLlmApiKey?: string
     visionLlmModel?: string
   }) => request<OpsAiProbe>('/api/v1/ops/ai/vision/probe', { method: 'POST', body: JSON.stringify(body) }),
-  opsTryReviewAi: (body: { title?: string; body?: string }) =>
+  opsTryReviewAi: (body: { title?: string; body?: string; imageUrls?: string[] }) =>
     request<OpsAiReviewTry>('/api/v1/ops/ai/review/try', { method: 'POST', body: JSON.stringify(body) }),
   opsPolicy: () => request<CommunityPolicy>('/api/v1/ops/policy'),
   opsSavePolicy: (body: CommunityPolicy) =>

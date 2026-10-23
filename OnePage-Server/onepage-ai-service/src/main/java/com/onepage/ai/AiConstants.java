@@ -52,6 +52,7 @@ public final class AiConstants {
           + "只输出一个 JSON 对象，键为 title 与 body。title 必须原样返回。"
           + "body 是「原文 + 续写」的完整正文。不要 Markdown、不要解释。不要编造事实。";
 
+  public static final int REVIEW_IMAGE_MAX = 4;
   public static final int REVIEW_BODY_MAX = 4000;
   public static final int REVIEW_REASON_MAX = 200;
   public static final int REVIEW_RISK_LIMIT = 40;
@@ -71,9 +72,16 @@ public final class AiConstants {
   public static final String REVIEW_SYSTEM =
       "你是一页社区笔记预审员。只根据标题和正文给风险分，0 最低、100 最高。"
           + "正常生活记录 0–20；擦边广告或含糊引流 30–50；明显违法、色情、暴力、诈骗、仇恨 80–100。"
-          + "吃不准给 50 以上。不要因为提到图片或视频就加分。"
+          + "吃不准给 50 以上。不要因为提到图片或视频就加分，画面另有看图模型。"
           + "只输出一个 JSON 对象，键为 score（0 到 100 的整数）与 reason（短中文）。"
-          + "不要 Markdown、不要解释。本期不看画面。";
+          + "不要 Markdown、不要解释。";
+
+  public static final String REVIEW_VISION_SYSTEM =
+      "你是一页社区笔记预审员。只根据附图画面给风险分，0 最低、100 最高。"
+          + "正常生活照片 0–20；画面里微信、二维码、发票、广告引流 30–50；色情、暴力、违禁 80–100。"
+          + "看不清给 50。不要根据标题编造画面里没有的内容。"
+          + "只输出一个 JSON 对象，键为 score（0 到 100 的整数）与 reason（短中文）。"
+          + "不要 Markdown、不要解释。";
 
   public static final String PROBE_SYSTEM = "You are a health check. Reply with the single word ok.";
   public static final String PROBE_USER = "ping";
