@@ -74,7 +74,8 @@ public final class ModerationDtos {
       String rejectReason,
       String aiReview,
       String aiReviewReason,
-      Integer aiReviewScore) {}
+      Integer aiReviewScore,
+      String aiReviewLabels) {}
 
   public record ContentMedia(String mediaId, String url, String mimeType, String role) {}
 
@@ -114,7 +115,8 @@ public final class ModerationDtos {
       String rejectReason,
       String aiReview,
       String aiReviewReason,
-      Integer aiReviewScore) {}
+      Integer aiReviewScore,
+      String aiReviewLabels) {}
 
   public record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 

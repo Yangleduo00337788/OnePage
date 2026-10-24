@@ -382,7 +382,8 @@ public class PostService {
         blankToEmpty(post.getRejectReason()),
         blankToEmpty(post.getAiReview()),
         blankToEmpty(post.getAiReviewReason()),
-        post.getAiReviewScore());
+        post.getAiReviewScore(),
+        blankToEmpty(post.getAiReviewLabels()));
   }
 
   /** 运营下架：不校验作者，已删则当作成功。 */
@@ -488,6 +489,29 @@ public class PostService {
     searchIndexer.sync(postId);
   }
 
+  /** 已上架笔记被举报后打回待审，不进 Feed，等人审。已下架或非公开在线则不动。 */
+  @Transactional
+  public void recallForReport(long postId) {
+    Post post = postMapper.selectById(postId);
+    if (post == null || post.getDeletedAt() != null) {
+      return;
+    }
+    if (!STATUS_PUBLISHED.equals(post.getStatus())) {
+      return;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    postMapper.update(
+        null,
+        Wrappers.<Post>lambdaUpdate()
+            .eq(Post::getId, postId)
+            .eq(Post::getStatus, STATUS_PUBLISHED)
+            .set(Post::getStatus, STATUS_PENDING)
+            .set(Post::getAiReview, "flag")
+            .set(Post::getAiReviewReason, "用户举报召回")
+            .set(Post::getUpdatedAt, now));
+    searchIndexer.sync(postId);
+  }
+
   /** 运营笔记列表。taken=live 已通过在线，pending 待审，rejected 未通过，down 已下架。 */
   public FeedDtos.OpsPostPage opsPage(String q, String taken, String cursor, Integer limit) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
@@ -512,8 +536,13 @@ public class PostService {
         }
       });
     }
-    applyCursor(query, cursor);
-    query.orderByDesc(Post::getPublishedAt).orderByDesc(Post::getId).last("LIMIT " + (size + 1));
+    if ("pending".equals(taken)) {
+      query.last(
+          "ORDER BY ai_review_score IS NULL, ai_review_score DESC, id DESC LIMIT " + (size + 1));
+    } else {
+      applyCursor(query, cursor);
+      query.orderByDesc(Post::getPublishedAt).orderByDesc(Post::getId).last("LIMIT " + (size + 1));
+    }
     List<Post> rows = postMapper.selectList(query);
     boolean hasMore = rows.size() > size;
     if (hasMore) {
@@ -533,7 +562,8 @@ public class PostService {
           blankToEmpty(post.getRejectReason()),
           blankToEmpty(post.getAiReview()),
           blankToEmpty(post.getAiReviewReason()),
-          post.getAiReviewScore()));
+          post.getAiReviewScore(),
+          blankToEmpty(post.getAiReviewLabels())));
     }
     String next = null;
     if (hasMore && !rows.isEmpty()) {

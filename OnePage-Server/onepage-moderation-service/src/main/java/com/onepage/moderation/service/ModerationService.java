@@ -112,6 +112,13 @@ public class ModerationService {
     row.setStatus(STATUS_PENDING);
     row.setCreatedAt(LocalDateTime.now());
     mapper.insert(row);
+    if ("post".equals(type)) {
+      try {
+        contentClient.recallReview(internalToken, targetId);
+      } catch (RuntimeException ex) {
+        log.warn("recall post {} after report failed", targetId, ex);
+      }
+    }
     return new ModerationDtos.CreateReportResult(String.valueOf(id));
   }
 
@@ -221,7 +228,8 @@ public class ModerationService {
         raw.rejectReason() == null ? "" : raw.rejectReason(),
         raw.aiReview() == null ? "" : raw.aiReview(),
         raw.aiReviewReason() == null ? "" : raw.aiReviewReason(),
-        raw.aiReviewScore());
+        raw.aiReviewScore(),
+        raw.aiReviewLabels() == null ? "" : raw.aiReviewLabels());
   }
 
   public ModerationDtos.OpsPostPage opsPosts(String q, String taken, String cursor, Integer limit) {
@@ -246,7 +254,8 @@ public class ModerationService {
           row.rejectReason() == null ? "" : row.rejectReason(),
           row.aiReview() == null ? "" : row.aiReview(),
           row.aiReviewReason() == null ? "" : row.aiReviewReason(),
-          row.aiReviewScore()));
+          row.aiReviewScore(),
+          row.aiReviewLabels() == null ? "" : row.aiReviewLabels()));
     }
     return new ModerationDtos.OpsPostPage(items, page.nextCursor(), page.hasMore());
   }

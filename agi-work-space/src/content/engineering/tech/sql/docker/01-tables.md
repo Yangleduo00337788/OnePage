@@ -80,6 +80,10 @@ CREATE TABLE IF NOT EXISTS media_asset (
   status TINYINT NOT NULL DEFAULT 0 COMMENT '0 上传中 1 就绪 2 失败',
   created_at DATETIME(3) NOT NULL COMMENT '创建时间',
   blocked_at DATETIME(3) NULL COMMENT '运营隐藏时间，空则对用户可见',
+  ai_review VARCHAR(16) NULL COMMENT '空=未跑；pass/flag/reject/skip',
+  ai_review_reason VARCHAR(200) NULL COMMENT '机审原因',
+  ai_review_score INT NULL COMMENT '机审风险分 0-100',
+  ai_review_labels VARCHAR(64) NULL COMMENT '逗号分隔标签',
   KEY idx_owner (owner_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='媒体对象';
 
@@ -99,6 +103,7 @@ CREATE TABLE IF NOT EXISTS post (
   ai_review VARCHAR(16) NULL COMMENT '空=未跑；pass 低分自动过；flag 达阈值进人审；skip 未跑或失败',
   ai_review_reason VARCHAR(200) NULL COMMENT '机审未过或跳过原因',
   ai_review_score INT NULL COMMENT '机审风险分 0-100，空则未打分',
+  ai_review_labels VARCHAR(64) NULL COMMENT '汇总标签',
   visibility TINYINT NOT NULL DEFAULT 0 COMMENT '0 公开 1 仅自己',
   published_at DATETIME(3) NULL COMMENT '首次公开时间',
   created_at DATETIME(3) NOT NULL COMMENT '创建时间',

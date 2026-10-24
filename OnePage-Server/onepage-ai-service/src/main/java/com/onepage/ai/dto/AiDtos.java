@@ -83,5 +83,5 @@ public final class AiDtos {
 
   public record ReviewSpec(String postId, String title, String body, List<String> imageUrls) {}
 
-  public record ReviewResult(String verdict, String reason, Integer score) {}
+  public record ReviewResult(String verdict, String reason, Integer score, List<String> labels) {}
 }

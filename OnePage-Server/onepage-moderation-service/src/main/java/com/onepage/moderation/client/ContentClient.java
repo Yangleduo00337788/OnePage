@@ -36,6 +36,11 @@ public interface ContentClient {
       @RequestParam(value = "reason", required = false) String reason,
       @RequestParam(value = "handlerId", required = false) Long handlerId);
 
+  @PostMapping("/internal/posts/{postId}/recall-review")
+  void recallReview(
+      @RequestHeader("X-Internal-Token") String token,
+      @PathVariable("postId") long postId);
+
   @GetMapping("/internal/posts/{postId}/ops")
   OpsPostView opsPost(
       @RequestHeader("X-Internal-Token") String token,
@@ -190,7 +195,8 @@ public interface ContentClient {
       String rejectReason,
       String aiReview,
       String aiReviewReason,
-      Integer aiReviewScore) {}
+      Integer aiReviewScore,
+      String aiReviewLabels) {}
 
   record OpsPostPage(List<OpsPostRow> items, String nextCursor, boolean hasMore) {}
 
@@ -289,5 +295,6 @@ public interface ContentClient {
       String rejectReason,
       String aiReview,
       String aiReviewReason,
-      Integer aiReviewScore) {}
+      Integer aiReviewScore,
+      String aiReviewLabels) {}
 }

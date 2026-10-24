@@ -62,6 +62,7 @@ public class AiService {
     }
     Integer textScore = null;
     String textReason = "";
+    List<String> textLabels = List.of();
     if (hasText) {
       if (body.length() > AiConstants.REVIEW_BODY_MAX) {
         body = body.substring(0, AiConstants.REVIEW_BODY_MAX);
@@ -75,6 +76,7 @@ public class AiService {
           return skip("模型返回无法解析");
         }
         textReason = clipReason(textOf(node, "reason"));
+        textLabels = readLabels(node);
       } catch (RuntimeException ex) {
         log.warn("ai review failed");
         return skip("模型暂时不可用");
@@ -82,6 +84,7 @@ public class AiService {
     }
     Integer visionScore = null;
     String visionReason = "";
+    List<String> visionLabels = List.of();
     if (hasImages && llmClient.visionConfigured()) {
       List<String> dataUrls = mediaImageLoader.toDataUrls(imageUrls);
       if (dataUrls.isEmpty()) {
@@ -97,6 +100,7 @@ public class AiService {
           return skip("看图返回无法解析");
         }
         visionReason = clipReason(textOf(node, "reason"));
+        visionLabels = readLabels(node);
       } catch (RuntimeException ex) {
         log.warn("ai vision review failed");
         return skip("看图模型暂时不可用");
@@ -104,6 +108,7 @@ public class AiService {
     }
     int score;
     String reason;
+    List<String> labels;
     if (visionScore != null && (textScore == null || visionScore > textScore)) {
       score = visionScore;
       reason = visionReason;
@@ -113,14 +118,8 @@ public class AiService {
     } else {
       return skip("模型返回无法解析");
     }
-    int limit = AiSettings.clampRiskLimit(stored.reviewRiskLimit());
-    if (score < limit) {
-      return new AiDtos.ReviewResult(AiConstants.VERDICT_PASS, reason, score);
-    }
-    if (!StringUtils.hasText(reason)) {
-      reason = "风险分 " + score + "，需人工复核";
-    }
-    return new AiDtos.ReviewResult(AiConstants.VERDICT_FLAG, reason, score);
+    labels = mergeLabels(textLabels, visionLabels);
+    return decide(score, labels, reason, AiSettings.clampRiskLimit(stored.reviewRiskLimit()));
   }
 
   private static List<String> reviewImageUrls(AiDtos.ReviewSpec spec) {
@@ -395,8 +394,88 @@ public class AiService {
     return sb.toString();
   }
 
+  private static AiDtos.ReviewResult decide(
+      int score, List<String> labels, String reason, int riskLimit) {
+    List<String> safeLabels = labels == null || labels.isEmpty() ? List.of(AiConstants.LABEL_NORMAL) : labels;
+    String note = reason;
+    if (hasHardLabel(safeLabels) || score >= AiConstants.REVIEW_REJECT_LIMIT) {
+      if (!StringUtils.hasText(note)) {
+        note = "风险分 " + score + "，高置信违规";
+      }
+      return new AiDtos.ReviewResult(AiConstants.VERDICT_REJECT, note, score, safeLabels);
+    }
+    if (hasGrayLabel(safeLabels) || score >= riskLimit) {
+      if (!StringUtils.hasText(note)) {
+        note = "风险分 " + score + "，需人工复核";
+      }
+      return new AiDtos.ReviewResult(AiConstants.VERDICT_FLAG, note, score, safeLabels);
+    }
+    return new AiDtos.ReviewResult(AiConstants.VERDICT_PASS, note, score, safeLabels);
+  }
+
+  private static boolean hasHardLabel(List<String> labels) {
+    return labels.contains(AiConstants.LABEL_PORN) || labels.contains(AiConstants.LABEL_VIOLENCE);
+  }
+
+  private static boolean hasGrayLabel(List<String> labels) {
+    return labels.contains(AiConstants.LABEL_AD);
+  }
+
+  private static List<String> readLabels(JsonNode node) {
+    if (node == null) {
+      return List.of(AiConstants.LABEL_NORMAL);
+    }
+    List<String> out = new ArrayList<>();
+    JsonNode labels = node.path("labels");
+    if (labels.isArray()) {
+      for (JsonNode item : labels) {
+        addLabel(out, item.asText(""));
+      }
+    } else if (labels.isTextual()) {
+      for (String part : labels.asText("").split("[,，]")) {
+        addLabel(out, part);
+      }
+    }
+    if (out.isEmpty()) {
+      return List.of(AiConstants.LABEL_NORMAL);
+    }
+    return List.copyOf(out);
+  }
+
+  private static void addLabel(List<String> out, String raw) {
+    String label = raw == null ? "" : raw.trim().toLowerCase();
+    if (!AiConstants.REVIEW_LABELS.contains(label) || out.contains(label)) {
+      return;
+    }
+    if (AiConstants.LABEL_NORMAL.equals(label) && !out.isEmpty()) {
+      return;
+    }
+    if (!AiConstants.LABEL_NORMAL.equals(label)) {
+      out.remove(AiConstants.LABEL_NORMAL);
+    }
+    out.add(label);
+  }
+
+  private static List<String> mergeLabels(List<String> left, List<String> right) {
+    List<String> out = new ArrayList<>();
+    if (left != null) {
+      for (String item : left) {
+        addLabel(out, item);
+      }
+    }
+    if (right != null) {
+      for (String item : right) {
+        addLabel(out, item);
+      }
+    }
+    if (out.isEmpty()) {
+      return List.of(AiConstants.LABEL_NORMAL);
+    }
+    return List.copyOf(out);
+  }
+
   private static AiDtos.ReviewResult skip(String reason) {
-    return new AiDtos.ReviewResult(AiConstants.VERDICT_SKIP, reason, null);
+    return new AiDtos.ReviewResult(AiConstants.VERDICT_SKIP, reason, null, List.of());
   }
 
   private static Integer readScore(JsonNode node) {

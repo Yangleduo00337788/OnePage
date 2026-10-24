@@ -84,5 +84,5 @@ public interface AiClient {
 
   record ReviewSpec(String postId, String title, String body, List<String> imageUrls) {}
 
-  record ReviewResult(String verdict, String reason, Integer score) {}
+  record ReviewResult(String verdict, String reason, Integer score, List<String> labels) {}
 }

@@ -93,14 +93,18 @@ function reviewLabel(status?: string) {
 }
 
 function aiLabel(row: OpsPostRow) {
-  if (row.reviewStatus !== 'pending') {
-    return row.aiReviewScore != null ? `风险 ${row.aiReviewScore}` : ''
-  }
+  const tags = row.aiReviewLabels && row.aiReviewLabels !== 'normal' ? ` · ${row.aiReviewLabels}` : ''
   const score = row.aiReviewScore != null ? `风险 ${row.aiReviewScore}` : ''
-  if (row.aiReview === 'flag') return score ? `进人审 · ${score}` : '进人审'
+  if (row.reviewStatus === 'rejected' && row.aiReview === 'reject') {
+    return score ? `机审驳回 · ${score}${tags}` : `机审驳回${tags}`
+  }
+  if (row.reviewStatus !== 'pending') {
+    return score ? `${score}${tags}` : ''
+  }
+  if (row.aiReview === 'flag') return score ? `进人审 · ${score}${tags}` : `进人审${tags}`
   if (row.aiReview === 'skip') return '待人审'
   if (!row.aiReview) return '机审中'
-  return score
+  return score ? `${score}${tags}` : ''
 }
 
 function openReject(row: OpsPostRow) {

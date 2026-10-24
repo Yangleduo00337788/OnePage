@@ -25,6 +25,7 @@ public class Post {
   private String aiReview;
   private String aiReviewReason;
   private Integer aiReviewScore;
+  private String aiReviewLabels;
   private Integer visibility;
   private LocalDateTime publishedAt;
   private LocalDateTime createdAt;
@@ -61,6 +62,8 @@ public class Post {
   public void setAiReviewReason(String aiReviewReason) { this.aiReviewReason = aiReviewReason; }
   public Integer getAiReviewScore() { return aiReviewScore; }
   public void setAiReviewScore(Integer aiReviewScore) { this.aiReviewScore = aiReviewScore; }
+  public String getAiReviewLabels() { return aiReviewLabels; }
+  public void setAiReviewLabels(String aiReviewLabels) { this.aiReviewLabels = aiReviewLabels; }
   public Integer getVisibility() { return visibility; }
   public void setVisibility(Integer visibility) { this.visibility = visibility; }
   public LocalDateTime getPublishedAt() { return publishedAt; }

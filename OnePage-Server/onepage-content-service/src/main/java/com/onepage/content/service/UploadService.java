@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.common.tx.AfterCommit;
 import com.onepage.content.client.UserClient;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.MediaAsset;
@@ -15,6 +16,7 @@ import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -50,6 +52,7 @@ public class UploadService {
   private final int expirySec;
   private final String mediaPublicBase;
   private final String internalToken;
+  private final PostReviewService postReviewService;
 
   public UploadService(
       MediaAssetMapper mapper,
@@ -58,6 +61,7 @@ public class UploadService {
       AuthorLookup authorLookup,
       UserClient userClient,
       CommunityPolicyCache policyCache,
+      @Lazy PostReviewService postReviewService,
       @Value("${onepage.minio.bucket}") String bucket,
       @Value("${onepage.minio.presign-expiry-sec}") int expirySec,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
@@ -72,6 +76,7 @@ public class UploadService {
     this.expirySec = expirySec;
     this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
     this.internalToken = internalToken;
+    this.postReviewService = postReviewService;
   }
 
   /**
@@ -144,6 +149,7 @@ public class UploadService {
     }
     asset.setStatus(1);
     mapper.updateById(asset);
+    AfterCommit.run(() -> postReviewService.enqueueMedia(mediaId));
     String url = mediaPublicBase.isEmpty() || asset.getObjectKey() == null
         ? ""
         : mediaPublicBase + "/" + asset.getObjectKey();

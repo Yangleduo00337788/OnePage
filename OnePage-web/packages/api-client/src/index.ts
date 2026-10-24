@@ -254,6 +254,7 @@ export type OpsAiReviewTry = {
   verdict: string
   reason: string
   score?: number | null
+  labels?: string[] | null
 }
 
 export type CommunityPolicy = {
@@ -405,6 +406,7 @@ export type OpsPostView = {
   aiReview?: string | null
   aiReviewReason?: string | null
   aiReviewScore?: number | null
+  aiReviewLabels?: string | null
 }
 
 export type OpsUser = {
@@ -431,6 +433,7 @@ export type OpsPostRow = {
   aiReview?: string | null
   aiReviewReason?: string | null
   aiReviewScore?: number | null
+  aiReviewLabels?: string | null
 }
 
 export type OpsCommentRow = {

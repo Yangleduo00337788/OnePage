@@ -16,3 +16,4 @@
 | local | 011_platform_notice_comments.sql | 修正 `platform_notice` 中文 COMMENT |
 | local | 012_post_ai_review.sql | post.ai_review / ai_review_reason：公开笔记文字机审 |
 | local | 013_post_ai_review_score.sql | post.ai_review_score：机审风险分 0–100 |
+| local | 014_media_ai_review.sql | media_asset 机审字段；post.ai_review_labels |

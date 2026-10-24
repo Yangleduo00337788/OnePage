@@ -23,6 +23,10 @@ public class MediaAsset {
   private Integer status;
   private LocalDateTime createdAt;
   private LocalDateTime blockedAt;
+  private String aiReview;
+  private String aiReviewReason;
+  private Integer aiReviewScore;
+  private String aiReviewLabels;
 
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
@@ -44,4 +48,12 @@ public class MediaAsset {
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
   public LocalDateTime getBlockedAt() { return blockedAt; }
   public void setBlockedAt(LocalDateTime blockedAt) { this.blockedAt = blockedAt; }
+  public String getAiReview() { return aiReview; }
+  public void setAiReview(String aiReview) { this.aiReview = aiReview; }
+  public String getAiReviewReason() { return aiReviewReason; }
+  public void setAiReviewReason(String aiReviewReason) { this.aiReviewReason = aiReviewReason; }
+  public Integer getAiReviewScore() { return aiReviewScore; }
+  public void setAiReviewScore(Integer aiReviewScore) { this.aiReviewScore = aiReviewScore; }
+  public String getAiReviewLabels() { return aiReviewLabels; }
+  public void setAiReviewLabels(String aiReviewLabels) { this.aiReviewLabels = aiReviewLabels; }
 }

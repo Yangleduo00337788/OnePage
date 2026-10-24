@@ -23,7 +23,7 @@ const titles = {
   },
   review: {
     h1: '审稿',
-    lead: '文字走文字模型，图文画面走看图模型，两套分数取高再比阈值。视频抽帧下一步。先保存再试审。',
+    lead: '文字和图片分别打标签。色情/暴力或分≥80 自动驳回；广告码等灰区进人审；低风险上架。图在上传完成就审。视频抽帧未做。先保存再试审。',
   },
 } as const
 
@@ -67,6 +67,7 @@ const tryImageUrls = ref('')
 const trying = ref(false)
 const tryVerdict = ref('')
 const tryReason = ref('')
+const tryLabels = ref('')
 
 const questionHint = computed(() => {
   const n = questions.value.filter((item) => item.trim()).length
@@ -236,6 +237,7 @@ async function probe(which: 'text' | 'vision') {
 function tryLabel(verdict: string) {
   if (verdict === 'pass') return '会自动上架'
   if (verdict === 'flag') return '会进人审'
+  if (verdict === 'reject') return '会自动驳回'
   if (verdict === 'skip') return '未跑机审'
   return verdict
 }
@@ -243,9 +245,10 @@ function tryLabel(verdict: string) {
 async function tryReview() {
   trying.value = true
   failed.value = ''
-  tryVerdict.value = ''
-  tryReason.value = ''
-  tryScore.value = null
+    tryVerdict.value = ''
+    tryReason.value = ''
+    tryScore.value = null
+    tryLabels.value = ''
   try {
     const imageUrls = tryImageUrls.value
       .split('\n')
@@ -260,6 +263,7 @@ async function tryReview() {
     tryVerdict.value = res.verdict || ''
     tryReason.value = res.reason || ''
     tryScore.value = res.score ?? null
+    tryLabels.value = (res.labels || []).filter(Boolean).join('、')
     flash(tryLabel(tryVerdict.value))
   } catch (e) {
     failed.value = e instanceof ApiError ? e.message : '试审失败'
@@ -513,14 +517,14 @@ onMounted(() => load())
           </button>
           <div>
             <p class="switch-title">公开笔记机审</p>
-            <p class="hint">标题正文走文字模型，图文画面走看图模型，分数取高再比阈值。低于阈值自动上架；达阈值或模型挂了进人审，不自动驳回。视频抽帧下一步。</p>
+            <p class="hint">文字和图片分别打标签。色情/暴力或分≥80 自动驳回并通知作者；广告码等灰区或失败进人审；低风险上架。图在上传完成就审。视频未抽帧，带视频的公开帖进人审。约二十分之一自动过的会抽检。</p>
           </div>
         </div>
         <label>
           进人审的风险分阈值（1–100）
           <input v-model.number="reviewRiskLimit" type="number" min="1" max="100" step="1" />
         </label>
-        <p class="hint">分数低于此值自动过；大于等于此值推给人。默认 40。改完请保存。</p>
+        <p class="hint">分数低于此值且无广告/色情/暴力标签才自动过；大于等于此值进人审。色情/暴力或分≥80 自动驳回。默认 40。改完请保存。</p>
         <p class="hint">以 system 角色注入审稿模型。留空保存则回到内置文案。</p>
         <label>
           审稿提示词
@@ -557,6 +561,7 @@ onMounted(() => load())
         <p v-if="tryVerdict" class="hint">
           结论：{{ tryLabel(tryVerdict)
           }}{{ tryScore != null ? ` · 风险 ${tryScore}` : ''
+          }}{{ tryLabels ? ` · ${tryLabels}` : ''
           }}{{ tryReason ? ` · ${tryReason}` : '' }}
         </p>
         </template>

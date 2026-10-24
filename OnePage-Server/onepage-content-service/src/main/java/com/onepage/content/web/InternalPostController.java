@@ -174,6 +174,12 @@ public class InternalPostController {
     postService.opsReject(postId, reason, handlerId);
   }
 
+  @PostMapping("/posts/{postId}/recall-review")
+  public void recallReview(HttpServletRequest request, @PathVariable("postId") long postId) {
+    assertInternal(request);
+    postService.recallForReport(postId);
+  }
+
   private void assertInternal(HttpServletRequest request) {
     String token = request.getHeader(GatewayHeaders.INTERNAL_TOKEN);
     if (token == null || !token.equals(expectedToken)) {
