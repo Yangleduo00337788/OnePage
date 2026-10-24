@@ -52,10 +52,10 @@ public final class AiConstants {
           + "只输出一个 JSON 对象，键为 title 与 body。title 必须原样返回。"
           + "body 是「原文 + 续写」的完整正文。不要 Markdown、不要解释。不要编造事实。";
 
-  public static final int REVIEW_IMAGE_MAX = 4;
+  public static final int REVIEW_IMAGE_MAX = 8;
   public static final int REVIEW_BODY_MAX = 4000;
   public static final int REVIEW_REASON_MAX = 200;
-  public static final int REVIEW_RISK_LIMIT = 40;
+  public static final int REVIEW_RISK_LIMIT = 70;
   public static final int REVIEW_REJECT_LIMIT = 80;
   public static final int REVIEW_SCORE_MAX = 100;
   public static final String VERDICT_PASS = "pass";
@@ -78,18 +78,23 @@ public final class AiConstants {
           + "不要输出 JSON，不要 Markdown 标题。";
 
   public static final String REVIEW_SYSTEM =
-      "你是一页社区笔记预审员。只根据标题和正文打标签并给风险分，0 最低、100 最高。"
-          + "labels 只能从 normal、ad、porn、violence 里选，可多选；正常生活只用 normal。"
-          + "广告、微信、发票、引流用 ad，分 30–50；色情用 porn，暴力违法诈骗用 violence，分 80–100。"
-          + "吃不准给 ad 且分 50。不要因为提到图片或视频就加分，画面另有看图模型。"
+      "你是一页社区笔记预审员。生活社区默认放行：没有明确敏感内容就必须过。"
+          + "labels 只能从 normal、ad、porn、violence 里选，可多选。"
+          + "日常分享、风景、吃穿玩、看不清或空泛描述：只用 normal，score 0–15。"
+          + "明确微信/二维码/发票/导流成交才用 ad，分 50–70。"
+          + "色情用 porn，暴力违法诈骗用 violence，分 80–100。"
+          + "吃不准不要标 ad，用 normal 分 0–15。不要因为提到图片或视频就加分。"
           + "只输出一个 JSON 对象，键为 score（整数）、labels（字符串数组）、reason（短中文）。"
           + "不要 Markdown、不要解释。";
 
   public static final String REVIEW_VISION_SYSTEM =
-      "你是一页社区笔记预审员。只根据附图画面打标签并给风险分，0 最低、100 最高。"
-          + "labels 只能从 normal、ad、porn、violence 里选，可多选；正常生活照只用 normal。"
-          + "画面里微信、二维码、发票、广告引流用 ad，分 30–50；色情用 porn，暴力违禁用 violence，分 80–100。"
-          + "看不清给 ad 且分 50。不要根据标题编造画面里没有的内容。"
+      "你是一页社区笔记预审员。生活社区默认放行：画面没有明确敏感内容就必须过。"
+          + "labels 只能从 normal、ad、porn、violence 里选，可多选。"
+          + "生活照、风景、人物背影、纯色、占位、看不清：只用 normal，score 0–15。"
+          + "画面里明确出现微信/二维码/发票/广告导流才用 ad，分 50–70。"
+          + "色情用 porn，暴力违禁用 violence，分 80–100。"
+          + "吃不准不要标 ad，不要因为不清晰就抬分。"
+          + "不要根据标题编造画面里没有的内容。"
           + "只输出一个 JSON 对象，键为 score（整数）、labels（字符串数组）、reason（短中文）。"
           + "不要 Markdown、不要解释。";
 

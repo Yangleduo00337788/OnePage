@@ -24,7 +24,7 @@ import java.util.Set;
 
 /**
  * 公开待审笔记机审。图在 complete 后先审；发帖汇总文字+媒体。
- * 高置信自动驳回，灰区人审，低风险上架；失败或视频未抽帧进人审。
+ * 高置信自动驳回，灰区人审，低风险上架；失败或视频抽不出帧进人审。
  */
 @Service
 public class PostReviewService {
@@ -46,6 +46,7 @@ public class PostReviewService {
   private final MediaAssetMapper mediaAssetMapper;
   private final PostService postService;
   private final AiClient aiClient;
+  private final VideoFrameExtractor videoFrameExtractor;
   private final String internalToken;
   private final String mediaPublicBase;
 
@@ -55,6 +56,7 @@ public class PostReviewService {
       MediaAssetMapper mediaAssetMapper,
       @Lazy PostService postService,
       AiClient aiClient,
+      VideoFrameExtractor videoFrameExtractor,
       @Value("${onepage.internal-token}") String internalToken,
       @Value("${onepage.media-public-base}") String mediaPublicBase) {
     this.postMapper = postMapper;
@@ -62,6 +64,7 @@ public class PostReviewService {
     this.mediaAssetMapper = mediaAssetMapper;
     this.postService = postService;
     this.aiClient = aiClient;
+    this.videoFrameExtractor = videoFrameExtractor;
     this.internalToken = internalToken;
     this.mediaPublicBase = mediaPublicBase == null ? "" : mediaPublicBase.replaceAll("/+$", "");
   }
@@ -147,7 +150,7 @@ public class PostReviewService {
         continue;
       }
       if (images >= 4) {
-        break;
+        continue;
       }
       images++;
       Hit hit = reviewMedia(asset.getId());
@@ -163,14 +166,13 @@ public class PostReviewService {
     if (asset == null || asset.getStatus() == null || asset.getStatus() != 1) {
       return null;
     }
-    if (StringUtils.hasText(asset.getAiReview())) {
+    if (StringUtils.hasText(asset.getAiReview()) && !VERDICT_SKIP.equals(asset.getAiReview())) {
       return new Hit(asset.getAiReview(), blank(asset.getAiReviewReason()),
           asset.getAiReviewScore(), blank(asset.getAiReviewLabels()));
     }
     String key = asset.getObjectKey() == null ? "" : asset.getObjectKey();
     if (key.startsWith(PREFIX_VIDEO)) {
-      markMedia(mediaId, VERDICT_SKIP, "视频抽帧未做", null, "");
-      return new Hit(VERDICT_SKIP, "视频抽帧未做", null, "");
+      return reviewVideo(asset);
     }
     if (!key.startsWith(PREFIX_IMAGE)) {
       return null;
@@ -180,11 +182,28 @@ public class PostReviewService {
       markMedia(mediaId, VERDICT_SKIP, "没有可审的图片地址", null, "");
       return new Hit(VERDICT_SKIP, "没有可审的图片地址", null, "");
     }
+    return callVision(mediaId, List.of(url));
+  }
+
+  private Hit reviewVideo(MediaAsset asset) {
+    List<String> frames = videoFrameExtractor.extractAndPublish(asset);
+    if (frames.isEmpty()) {
+      markMedia(asset.getId(), VERDICT_SKIP, "视频抽帧失败", null, "");
+      return new Hit(VERDICT_SKIP, "视频抽帧失败", null, "");
+    }
+    try {
+      return callVision(asset.getId(), frames);
+    } finally {
+      videoFrameExtractor.deletePublished(frames);
+    }
+  }
+
+  private Hit callVision(long mediaId, List<String> imageUrls) {
     AiClient.ReviewResult result;
     try {
       result = aiClient.review(
           internalToken,
-          new AiClient.ReviewSpec("", "", "", List.of(url)));
+          new AiClient.ReviewSpec("", "", "", imageUrls));
     } catch (RuntimeException ex) {
       log.warn("media ai review call {} failed", mediaId, ex);
       markMedia(mediaId, VERDICT_SKIP, "模型暂时不可用", null, "");

@@ -217,7 +217,7 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 ### POST `/api/v1/uploads/complete`
 
 **Body**：`mediaId`  
-**Response 200**：`{ "mediaId", "status": "ready", "url" }`。`url` 为 `MEDIA_PUBLIC_BASE` + objectKey，运营活动封面等可直接写入。`post_image` 完成后异步机审，结论写 `media_asset`；`post_video` 记 skip（抽帧未做）。
+**Response 200**：`{ "mediaId", "status": "ready", "url" }`。`url` 为 `MEDIA_PUBLIC_BASE` + objectKey，运营活动封面等可直接写入。`post_image` / `post_video` 完成后异步机审，结论写 `media_asset`。视频约每 5 秒一帧、最多 6 帧，看图按帧取最差；抽不出则 skip，下次可再试。
 
 浏览器读文件用返回的 `url`（MinIO），不要调 `GET /api/v1/media/{id}`：公网没有这条。归属核验走内网 `GET /internal/media/{id}`。网关也不再转发 `/api/v1/media/**`。
 
@@ -245,7 +245,7 @@ Query：`cursor`, `limit` → `CursorPage<UserBrief>`。GET 公开；已登录�
 
 标题/正文命中运营违禁词 **400**「含有不允许的内容」（草稿同样拦）。
 
-**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`draft` / `pending` / `published`）。公开笔记先待审，不进 Feed。图在 complete 后已异步机审。发帖再审标题正文并汇总媒体：低风险自动 `published`；广告等灰区或失败/`skip` 留 `pending`；色情暴力或分≥80 自动 `rejected` 并通知作者。仅自己与好友可见直接 `published`。好友可见出现在关注者的关注流，不进发现流。
+**Response 201**：`{ "postId", "publishedAt", "reviewStatus" }`（`draft` / `pending` / `published`）。公开笔记先待审，不进 Feed。图和视频在 complete 后已异步机审。发帖再审标题正文并汇总媒体：低风险自动 `published`；广告等灰区或失败/`skip` 留 `pending`；色情暴力或分≥80 自动 `rejected` 并通知作者。仅自己与好友可见直接 `published`。好友可见出现在关注者的关注流，不进发现流。
 
 Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=public`；关注流公开 + 好友可见。仅自己对非作者详情/赞评视为不存在。活动标题由服务端目录写入，不信任客户端。分类须为启用中的 `post_category.name`（`GET /catalog`）。
 
@@ -770,11 +770,11 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### GET `/api/v1/ops/ai`
 
-员工。**Response**：文字模型 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；看图模型 `visionLlmBaseUrl` `visionLlmModel` `visionLlmKeySet` `visionLlmKeyMasked`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿输出 `score` 与 `labels`（normal/ad/porn/violence）。分≥80 或 porn/violence → `reject`；ad 或达 `reviewRiskLimit`（默认 40）→ `flag`；否则 `pass`。内网 `POST /internal/ai/review` 给 content 调，Body 含 `title` `body` `imageUrls?`。单张图可只传 `imageUrls`。
+员工。**Response**：文字模型 `llmBaseUrl` `llmModel` `llmKeySet` `llmKeyMasked` `temperature` `maxTokens` `streamEnabled`；看图模型 `visionLlmBaseUrl` `visionLlmModel` `visionLlmKeySet` `visionLlmKeyMasked`；耶耶/发帖 `yehPreset` `yehQuestions` `chatEnabled` `polishEnabled` `chatSystem` `polishSystem` `continueSystem` `retrieveLimit` `contextBodyMax`；审稿 `reviewEnabled` `reviewSystem` `reviewRiskLimit`。密钥不回全文。`persisted=false` 表示尚未写入 Redis。审稿输出 `score` 与 `labels`（normal/ad/porn/violence）。分≥80 或 porn/violence → `reject`；`ad` → `flag`；标签纯 `normal` 一律 `pass`（不看阈值）。阈值 `reviewRiskLimit`（默认 70）只在标签不是纯 normal 时生效。内网 `POST /internal/ai/review` 给 content 调，Body 含 `title` `body` `imageUrls?`（最多 8 条，多图/多帧按张取最高分）。单张图可只传 `imageUrls`。
 
 ### POST `/api/v1/ops/ai`
 
-员工。**Body** 可只传本页字段（模型 / 耶耶 / 发帖 / 审稿），未传的保持原值。文字密钥 `llmApiKey?` `clearLlmKey?`；看图密钥 `visionLlmApiKey?` `clearVisionLlmKey?`；审稿阈值 `reviewRiskLimit?`（1–100，默认 40）。密钥留空不改。联想最多 6 条。Feign 写 Redis `onepage:ai:settings`。
+员工。**Body** 可只传本页字段（模型 / 耶耶 / 发帖 / 审稿），未传的保持原值。文字密钥 `llmApiKey?` `clearLlmKey?`；看图密钥 `visionLlmApiKey?` `clearVisionLlmKey?`；审稿阈值 `reviewRiskLimit?`（1–100，默认 70）。密钥留空不改。联想最多 6 条。Feign 写 Redis `onepage:ai:settings`。
 
 ### POST `/api/v1/ops/ai/reset`
 
@@ -790,7 +790,7 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 
 ### POST `/api/v1/ops/ai/review/try`
 
-员工。用已保存配置试审，不发帖。**Body**：`{ title?, body, imageUrls? }`，`imageUrls` 最多 4 条本站媒体地址。**Response**：`{ verdict, reason, score, labels }`。`verdict` 为 `pass` / `flag` / `reject` / `skip`。`labels` 为 `normal`/`ad`/`porn`/`violence`。`score` 为 0–100，skip 可空。
+员工。用已保存配置试审，不发帖。**Body**：`{ title?, body, imageUrls? }`，`imageUrls` 最多 8 条本站媒体地址（多图按帧/张取最高分）。**Response**：`{ verdict, reason, score, labels }`。`verdict` 为 `pass` / `flag` / `reject` / `skip`。`labels` 为 `normal`/`ad`/`porn`/`violence`。`score` 为 0–100，skip 可空。
 
 ### GET `/api/v1/ops/policy`
 

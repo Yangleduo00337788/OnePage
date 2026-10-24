@@ -86,24 +86,31 @@ public class AiService {
     String visionReason = "";
     List<String> visionLabels = List.of();
     if (hasImages && llmClient.visionConfigured()) {
-      List<String> dataUrls = mediaImageLoader.toDataUrls(imageUrls);
+      List<String> dataUrls = mediaImageLoader.toDataUrls(imageUrls, AiConstants.REVIEW_IMAGE_MAX);
       if (dataUrls.isEmpty()) {
         return skip(AiConstants.MSG_NO_VISION_FETCH);
       }
-      String visionUser = StringUtils.hasText(title) ? "笔记标题：" + title : "请只根据附图打分。";
-      try {
-        String raw = llmClient.completeReviewVision(
-            AiConstants.REVIEW_VISION_SYSTEM, visionUser, dataUrls);
-        JsonNode node = readObjectQuiet(raw);
-        visionScore = readScore(node);
-        if (visionScore == null) {
-          return skip("看图返回无法解析");
+      String visionUser = StringUtils.hasText(title) ? "笔记标题：" + title : "请只根据这一帧打分。";
+      for (String dataUrl : dataUrls) {
+        try {
+          String raw = llmClient.completeReviewVision(
+              AiConstants.REVIEW_VISION_SYSTEM, visionUser, List.of(dataUrl));
+          JsonNode node = readObjectQuiet(raw);
+          Integer frameScore = readScore(node);
+          if (frameScore == null) {
+            continue;
+          }
+          visionLabels = mergeLabels(visionLabels, readLabels(node));
+          if (visionScore == null || frameScore > visionScore) {
+            visionScore = frameScore;
+            visionReason = clipReason(textOf(node, "reason"));
+          }
+        } catch (RuntimeException ex) {
+          log.warn("ai vision review one frame failed");
         }
-        visionReason = clipReason(textOf(node, "reason"));
-        visionLabels = readLabels(node);
-      } catch (RuntimeException ex) {
-        log.warn("ai vision review failed");
-        return skip("看图模型暂时不可用");
+      }
+      if (visionScore == null) {
+        return skip("看图返回无法解析");
       }
     }
     int score;
@@ -403,6 +410,10 @@ public class AiService {
         note = "风险分 " + score + "，高置信违规";
       }
       return new AiDtos.ReviewResult(AiConstants.VERDICT_REJECT, note, score, safeLabels);
+    }
+    boolean onlySafe = !hasHardLabel(safeLabels) && !hasGrayLabel(safeLabels);
+    if (onlySafe) {
+      return new AiDtos.ReviewResult(AiConstants.VERDICT_PASS, note, score, safeLabels);
     }
     if (hasGrayLabel(safeLabels) || score >= riskLimit) {
       if (!StringUtils.hasText(note)) {

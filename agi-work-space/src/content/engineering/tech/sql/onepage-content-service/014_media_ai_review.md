@@ -6,7 +6,7 @@ order: 14
 
 对应 `OnePage-Server/onepage-content-service/db/sql/014_media_ai_review.sql`。已有 `onepage_content` 必须执行。列已存在时报 Duplicate column，可忽略。Windows 用 `mysql --default-character-set=utf8mb4`，不要 PowerShell 管道。
 
-笔记图在 `uploads/complete` 后异步机审，结论写在 `media_asset`。发帖只汇总文字分与媒体结论：高置信（色情/暴力或分≥80）自动驳回；广告码等灰区进人审；全低风险才上架。视频抽帧未做，视频媒体记 `skip`，帖进人审。
+笔记图和视频在 `uploads/complete` 后异步机审，结论写在 `media_asset`。发帖只汇总文字分与媒体结论：高置信（色情/暴力或分≥80）自动驳回；广告码等灰区进人审；全低风险才上架。视频约每 5 秒一帧、最多 6 帧，看图按帧取最差；抽不出记 `skip`，下次可再试。
 
 ## SQL
 

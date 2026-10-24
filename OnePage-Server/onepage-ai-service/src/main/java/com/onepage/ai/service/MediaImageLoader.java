@@ -27,12 +27,17 @@ public class MediaImageLoader {
   }
 
   public List<String> toDataUrls(List<String> urls) {
+    return toDataUrls(urls, AiConstants.CHAT_IMAGE_MAX);
+  }
+
+  public List<String> toDataUrls(List<String> urls, int max) {
     if (urls == null || urls.isEmpty() || !StringUtils.hasText(mediaPublicBase)) {
       return List.of();
     }
+    int cap = max < 1 ? 1 : max;
     List<String> out = new ArrayList<>();
     for (String raw : urls) {
-      if (out.size() >= AiConstants.CHAT_IMAGE_MAX) {
+      if (out.size() >= cap) {
         break;
       }
       String dataUrl = loadOne(raw);

@@ -23,7 +23,7 @@ const titles = {
   },
   review: {
     h1: '审稿',
-    lead: '文字和图片分别打标签。色情/暴力或分≥80 自动驳回；广告码等灰区进人审；低风险上架。图在上传完成就审。视频抽帧未做。先保存再试审。',
+    lead: '没有明确敏感内容就过。黄暴或分≥80 自动驳；明确广告进人审；日常分享自动上架。图和视频上传完成就审。先保存再试审。',
   },
 } as const
 
@@ -54,7 +54,7 @@ const maxTokens = ref(0)
 const streamEnabled = ref(false)
 const reviewEnabled = ref(true)
 const reviewSystem = ref('')
-const reviewRiskLimit = ref(40)
+const reviewRiskLimit = ref(70)
 const visionLlmBaseUrl = ref('')
 const visionLlmModel = ref('')
 const visionLlmApiKey = ref('')
@@ -104,7 +104,7 @@ function apply(data: OpsAiConfig) {
   streamEnabled.value = data.streamEnabled
   reviewEnabled.value = data.reviewEnabled !== false
   reviewSystem.value = data.reviewSystem || ''
-  reviewRiskLimit.value = data.reviewRiskLimit || 40
+  reviewRiskLimit.value = data.reviewRiskLimit || 70
   visionLlmBaseUrl.value = data.visionLlmBaseUrl || ''
   visionLlmModel.value = data.visionLlmModel || ''
   visionLlmKeySet.value = data.visionLlmKeySet
@@ -517,20 +517,20 @@ onMounted(() => load())
           </button>
           <div>
             <p class="switch-title">公开笔记机审</p>
-            <p class="hint">文字和图片分别打标签。色情/暴力或分≥80 自动驳回并通知作者；广告码等灰区或失败进人审；低风险上架。图在上传完成就审。视频未抽帧，带视频的公开帖进人审。约二十分之一自动过的会抽检。</p>
+            <p class="hint">没有明确敏感内容就过。色情/暴力或分≥80 自动驳回；明确广告码进人审；日常风景、人物、占位图自动上架。图和视频上传完成就审（视频抽帧、按帧取最差）。失败进人审。约二十分之一自动过会抽检。</p>
           </div>
         </div>
         <label>
           进人审的风险分阈值（1–100）
           <input v-model.number="reviewRiskLimit" type="number" min="1" max="100" step="1" />
         </label>
-        <p class="hint">分数低于此值且无广告/色情/暴力标签才自动过；大于等于此值进人审。色情/暴力或分≥80 自动驳回。默认 40。改完请保存。</p>
+        <p class="hint">纯 normal 的笔记一律自动过，不受此阈值影响。打了广告标签，或标签不是纯 normal 且分达阈值，才进人审。黄暴或分≥80 自动驳。默认 70。改完请保存。</p>
         <p class="hint">以 system 角色注入审稿模型。留空保存则回到内置文案。</p>
         <label>
           审稿提示词
           <textarea v-model="reviewSystem" rows="5" maxlength="4000" />
         </label>
-        <p class="hint">试审不发帖、不进队列。文字用本页提示词，画面用内置看图审稿。附图须是本站媒体地址，每行一条，最多 4 张。改了提示词请先保存。</p>
+        <p class="hint">试审不发帖、不进队列。文字用本页提示词，画面用内置看图审稿。附图须是本站媒体地址，每行一条，最多 8 张。改了提示词请先保存。</p>
         <label>
           试审标题
           <input v-model="tryTitle" maxlength="80" placeholder="随便写一条会过或不过的标题" />
