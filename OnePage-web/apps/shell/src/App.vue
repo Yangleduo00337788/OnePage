@@ -15,13 +15,16 @@ import { useMoreMenu } from './stores/moreMenu'
 import { useTheme } from './stores/theme'
 import { useNoteDetail } from './stores/noteDetail'
 import { noteFromPost } from './data/home'
-import { openCreatorSite } from './creatorSite'
+import { CREATOR_OPEN_BLOCKED, openCreatorSite } from './creatorSite'
 import Icon from './components/Icon.vue'
 import BrandLogo from './components/BrandLogo.vue'
 import SearchBox from './components/SearchBox.vue'
 import AuthModal from './components/AuthModal.vue'
 import MoreMenu from './components/MoreMenu.vue'
 import NoteDetailModal from './components/NoteDetailModal.vue'
+import FeatureHint from './components/FeatureHint.vue'
+import DemoModeTag from './components/DemoModeTag.vue'
+import SiteFooter from '@onepage/site-footer'
 
 const session = useSession()
 const imSocket = useImSocket()
@@ -32,9 +35,20 @@ const detail = useNoteDetail()
 const route = useRoute()
 const router = useRouter()
 const oauthToast = ref('')
+function flashToast(msg: string, ms = 5000) {
+  oauthToast.value = msg
+  window.setTimeout(() => {
+    if (oauthToast.value === msg) oauthToast.value = ''
+  }, ms)
+}
+
 onMounted(() => {
   session.refresh()
   theme.init()
+  window.addEventListener(CREATOR_OPEN_BLOCKED, (ev) => {
+    const url = (ev as CustomEvent<{ url: string }>).detail?.url || ''
+    flashToast(url ? `请允许浏览器弹窗，或手动打开创作者中心：${url}` : '请允许浏览器弹窗后重试')
+  })
 })
 
 watch(
@@ -122,6 +136,19 @@ const meNav = { to: '/me', label: '我的', icon: 'smile', match: ['/me'] }
 
 const about = { to: '/about', label: '关于我们', icon: 'info' }
 const moreBtn = ref<HTMLButtonElement | null>(null)
+const publishGuide = ref<InstanceType<typeof FeatureHint> | InstanceType<typeof FeatureHint>[] | null>(
+  null,
+)
+
+function dismissPublishGuide() {
+  const g = publishGuide.value
+  if (!g) return
+  if (Array.isArray(g)) {
+    for (const h of g) h?.dismiss?.()
+  } else {
+    g.dismiss?.()
+  }
+}
 
 function active(item: { to?: string; match: string[] }) {
   if (item.to === '/live') {
@@ -135,7 +162,10 @@ function openLogin() {
 }
 
 function onNav(item: { creator?: boolean }) {
-  if (item.creator) openCreatorSite()
+  if (item.creator) {
+    dismissPublishGuide()
+    openCreatorSite()
+  }
 }
 
 const yehShell = computed(() => route.path === '/yehyeh')
@@ -174,44 +204,65 @@ const pageGutter = computed(() => {
   <div class="min-h-screen text-[var(--ink)]" :class="liveRoom ? 'bg-black' : 'bg-[var(--bg)]'">
     <aside
       v-if="!liveRoom"
-      class="fixed inset-y-0 left-0 z-20 flex w-[var(--sidebar)] flex-col items-center bg-[var(--sidebar-bg)] px-2.5 py-5"
+      class="fixed inset-y-0 left-0 z-20 flex w-[var(--sidebar)] flex-col items-center overflow-visible bg-[var(--sidebar-bg)] px-2.5 py-5"
     >
       <RouterLink to="/" class="mb-5 inline-flex" aria-label="ONEPAGE"><BrandLogo /></RouterLink>
 
       <nav class="flex w-full flex-col items-center space-y-1 text-[16px] font-medium text-[var(--ink)]">
-        <RouterLink
-          v-for="item in nav"
-          :key="item.label"
-          :to="item.to"
-          class="nav-pill flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
-          :class="active(item) ? 'is-on' : ''"
-          @click="onNav(item)"
-        >
-          <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
-            <Icon :name="item.icon" :size="24" :stroke="1.75" class="shrink-0" />
-            <span class="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
-              {{ item.label }}
-              <span
-                v-if="item.ai"
-                class="rounded-full bg-[#ff2442] px-1.5 py-0.5 text-[10px] font-medium leading-none text-white"
-              >
-                AI
+        <template v-for="item in nav" :key="item.label">
+          <FeatureHint
+            v-if="item.creator"
+            ref="publishGuide"
+            placement="right"
+            title="去创作者中心"
+            description="点「发布」可发布图文、视频，并管理笔记、直播与数据。"
+            class="w-full"
+          >
+            <RouterLink
+              :to="item.to"
+              class="nav-pill flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
+              :class="active(item) ? 'is-on' : ''"
+              @click.prevent="onNav(item)"
+            >
+              <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
+                <Icon :name="item.icon" :size="24" :stroke="1.75" class="shrink-0" />
+                <span class="shrink-0 whitespace-nowrap">{{ item.label }}</span>
               </span>
-              <span
-                v-else-if="item.notify && session.unreadNotify > 0"
-                class="min-w-[16px] rounded-full bg-[#ff2442] px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
-              >
-                {{ session.unreadNotify > 99 ? '99+' : session.unreadNotify }}
-              </span>
-              <span
-                v-else-if="item.im && session.unreadIm > 0"
-                class="min-w-[16px] rounded-full bg-[#ff2442] px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
-              >
-                {{ session.unreadIm > 99 ? '99+' : session.unreadIm }}
+            </RouterLink>
+          </FeatureHint>
+          <RouterLink
+            v-else
+            :to="item.to"
+            class="nav-pill flex w-[var(--nav-pill)] items-center justify-center overflow-visible rounded-full py-2.5"
+            :class="active(item) ? 'is-on' : ''"
+            @click="onNav(item)"
+          >
+            <span class="flex w-[68px] min-w-[68px] max-w-[68px] items-center gap-3 overflow-visible">
+              <Icon :name="item.icon" :size="24" :stroke="1.75" class="shrink-0" />
+              <span class="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                {{ item.label }}
+                <span
+                  v-if="item.ai"
+                  class="rounded-full bg-[#ff2442] px-1.5 py-0.5 text-[10px] font-medium leading-none text-white"
+                >
+                  AI
+                </span>
+                <span
+                  v-else-if="item.notify && session.unreadNotify > 0"
+                  class="min-w-[16px] rounded-full bg-[#ff2442] px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
+                >
+                  {{ session.unreadNotify > 99 ? '99+' : session.unreadNotify }}
+                </span>
+                <span
+                  v-else-if="item.im && session.unreadIm > 0"
+                  class="min-w-[16px] rounded-full bg-[#ff2442] px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
+                >
+                  {{ session.unreadIm > 99 ? '99+' : session.unreadIm }}
+                </span>
               </span>
             </span>
-          </span>
-        </RouterLink>
+          </RouterLink>
+        </template>
         <!-- 未登录显示红「登录」；已登录才是「我的」。loaded 防止刷新瞬间闪一下错误项。 -->
         <button v-if="session.loaded && !session.me" type="button" class="nav-login" @click="openLogin">登录</button>
         <RouterLink
@@ -250,6 +301,10 @@ const pageGutter = computed(() => {
             <span class="shrink-0 whitespace-nowrap">{{ about.label }}</span>
           </span>
         </RouterLink>
+        <div class="mt-3 flex w-full flex-col items-center gap-2 px-1">
+          <SiteFooter class="shell-footer" />
+          <DemoModeTag />
+        </div>
       </nav>
     </aside>
 

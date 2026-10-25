@@ -87,11 +87,24 @@ function tryPlay() {
     })
 }
 
+function isProgressiveVideo(url: string) {
+  const path = url.split('?')[0].toLowerCase()
+  return path.endsWith('.mp4') || path.endsWith('.m4v') || path.endsWith('.webm')
+}
+
 function startPlayer(url: string) {
   stopPlayer()
   if (ended.value) return
   const el = player.value
   if (!el || !url) return
+  if (isProgressiveVideo(url)) {
+    levels.value = [{ id: -1, label: '自动' }]
+    el.src = url
+    nativeOnError = () => markFail('主播暂时没有推流，稍后再试')
+    el.addEventListener('error', nativeOnError)
+    tryPlay()
+    return
+  }
   if (Hls.isSupported()) {
     hls = new Hls({ enableWorker: true })
     hls.loadSource(url)

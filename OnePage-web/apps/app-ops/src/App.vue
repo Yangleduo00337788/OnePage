@@ -20,6 +20,8 @@ import OpsMessages from './OpsMessages.vue'
 import OpsMedia from './OpsMedia.vue'
 import OpsAi from './OpsAi.vue'
 import OpsPolicy from './OpsPolicy.vue'
+import DemoModeTag from './DemoModeTag.vue'
+import SiteFooter from '@onepage/site-footer'
 
 export type PageId =
   | 'home'
@@ -85,8 +87,12 @@ const groups: NavGroup[] = [
   },
 ]
 
+function defaultOpenGroups() {
+  return Object.fromEntries(groups.map((g) => [g.id, true])) as Record<string, boolean>
+}
+
 const page = ref<PageId>('home')
-const openGroups = ref<Record<string, boolean>>({})
+const openGroups = ref<Record<string, boolean>>(defaultOpenGroups())
 const collapsed = ref(localStorage.getItem('onepage.ops.navCollapsed') === '1')
 const me = ref<UserProfile | null>(null)
 const ready = ref(false)
@@ -141,7 +147,11 @@ function toggleGroup(id: string) {
 function setCollapsed(next: boolean) {
   collapsed.value = next
   localStorage.setItem('onepage.ops.navCollapsed', next ? '1' : '0')
-  if (next) openGroups.value = {}
+  if (next) {
+    openGroups.value = {}
+  } else {
+    openGroups.value = defaultOpenGroups()
+  }
 }
 
 async function logout() {
@@ -224,38 +234,44 @@ function onLoggedIn(profile: UserProfile) {
 
     <div class="main">
       <header class="bar">
-        <div ref="userWrap" class="user-wrap">
-          <button type="button" class="user" @click="menuOpen = !menuOpen">
-            <span class="avatar">
-              <img v-if="me?.avatarUrl" :src="me.avatarUrl" alt="" />
-              <span v-else>{{ initial }}</span>
-            </span>
-            <span class="name">{{ nickname }}</span>
-            <Icon name="chevron-down" :size="14" class="chev" :class="{ 'is-open': menuOpen }" />
-          </button>
-          <div v-if="menuOpen" class="menu">
-            <button type="button" class="menu-item" @click="logout">退出登录</button>
+        <div class="bar-tools">
+          <div ref="userWrap" class="user-wrap">
+            <button type="button" class="user" @click="menuOpen = !menuOpen">
+              <span class="avatar">
+                <img v-if="me?.avatarUrl" :src="me.avatarUrl" alt="" />
+                <span v-else>{{ initial }}</span>
+              </span>
+              <span class="name">{{ nickname }}</span>
+              <Icon name="chevron-down" :size="14" class="chev" :class="{ 'is-open': menuOpen }" />
+            </button>
+            <div v-if="menuOpen" class="menu">
+              <button type="button" class="menu-item" @click="logout">退出登录</button>
+            </div>
           </div>
+          <DemoModeTag class="demo-mode-bar" />
         </div>
       </header>
-      <OpsHome v-if="page === 'home'" :nickname="nickname" @open="openPage($event as PageId)" />
-      <OpsReports v-else-if="page === 'reports'" />
-      <OpsSupport v-else-if="page === 'support'" />
-      <OpsUsers v-else-if="page === 'users'" />
-      <OpsPolicy v-else-if="page === 'policy'" />
-      <OpsMessages v-else-if="page === 'im'" />
-      <OpsPosts v-else-if="page === 'posts'" />
-      <OpsComments v-else-if="page === 'comments'" />
-      <OpsMedia v-else-if="page === 'media'" />
-      <OpsCategories v-else-if="page === 'categories'" />
-      <OpsCampaigns v-else-if="page === 'campaigns'" />
-      <OpsTopics v-else-if="page === 'topics'" />
-      <OpsNotices v-else-if="page === 'notices'" />
-      <OpsFaqs v-else-if="page === 'faqs'" />
-      <OpsAi v-else-if="page === 'ai-model'" kind="model" />
-      <OpsAi v-else-if="page === 'ai-yeh'" kind="yeh" />
-      <OpsAi v-else-if="page === 'ai-polish'" kind="polish" />
-      <OpsAi v-else-if="page === 'ai-review'" kind="review" />
+      <div class="main-body">
+        <OpsHome v-if="page === 'home'" :nickname="nickname" @open="openPage($event as PageId)" />
+        <OpsReports v-else-if="page === 'reports'" />
+        <OpsSupport v-else-if="page === 'support'" />
+        <OpsUsers v-else-if="page === 'users'" />
+        <OpsPolicy v-else-if="page === 'policy'" />
+        <OpsMessages v-else-if="page === 'im'" />
+        <OpsPosts v-else-if="page === 'posts'" />
+        <OpsComments v-else-if="page === 'comments'" />
+        <OpsMedia v-else-if="page === 'media'" />
+        <OpsCategories v-else-if="page === 'categories'" />
+        <OpsCampaigns v-else-if="page === 'campaigns'" />
+        <OpsTopics v-else-if="page === 'topics'" />
+        <OpsNotices v-else-if="page === 'notices'" />
+        <OpsFaqs v-else-if="page === 'faqs'" />
+        <OpsAi v-else-if="page === 'ai-model'" kind="model" />
+        <OpsAi v-else-if="page === 'ai-yeh'" kind="yeh" />
+        <OpsAi v-else-if="page === 'ai-polish'" kind="polish" />
+        <OpsAi v-else-if="page === 'ai-review'" kind="review" />
+      </div>
+      <SiteFooter layout="bar" />
     </div>
   </div>
 </template>
@@ -428,6 +444,12 @@ button {
   color: #666;
 }
 
+.main-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -445,6 +467,16 @@ button {
   height: 52px;
   padding: 0 20px 0 0;
   background: rgb(248, 248, 248);
+}
+
+.bar-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.demo-mode-bar {
+  margin-right: 4px;
 }
 
 .user-wrap {

@@ -2,9 +2,11 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
+import DemoLoginCreds from '@onepage/demo-login-hints'
+import { communityOrigin } from '@onepage/site-urls'
 import BrandLogo from './BrandLogo.vue'
 
-const community = import.meta.env.VITE_COMMUNITY_ORIGIN || 'http://localhost:5174'
+const community = communityOrigin()
 
 const emit = defineEmits<{ done: [UserProfile] }>()
 
@@ -94,6 +96,7 @@ async function sendCode() {
           <button type="button" class="tab" :class="{ 'is-on': loginTab === 'sms' }" @click="loginTab = 'sms'">验证码</button>
           <button type="button" class="tab" :class="{ 'is-on': loginTab === 'password' }" @click="loginTab = 'password'">密码</button>
         </div>
+        <DemoLoginCreds site="creator" layout="form" class="demo-creds-panel" />
         <template v-if="loginTab === 'password'">
           <input v-model="account" placeholder="手机号或邮箱" />
           <input v-model="password" type="password" placeholder="密码" />
@@ -157,6 +160,11 @@ async function sendCode() {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.12em;
+}
+
+.demo-creds-panel {
+  align-self: stretch;
+  width: 100%;
 }
 
 .en {

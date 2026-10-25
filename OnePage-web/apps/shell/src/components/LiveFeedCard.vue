@@ -17,6 +17,7 @@ const emit = defineEmits<{ click: [] }>()
         :src="item.coverUrl"
         alt=""
         class="pointer-events-none h-full w-full object-cover"
+        referrerpolicy="no-referrer"
       />
       <div v-else class="flex h-full items-center justify-center px-5">
         <p class="line-clamp-4 text-center text-[26px] font-extrabold leading-[1.28] text-white">

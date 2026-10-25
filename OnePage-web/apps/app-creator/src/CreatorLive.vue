@@ -3,10 +3,11 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { api, ApiError, type LiveStart } from '@onepage/api-client'
 import ImageCropDialog from '@onepage/image-crop'
+import { communityOrigin } from '@onepage/site-urls'
 import Icon from './Icon.vue'
 
 const CATEGORIES = ['游戏', '才艺直播', '生活分享', '兴趣爱好', '科技新闻', '运动户外']
-const community = import.meta.env.VITE_COMMUNITY_ORIGIN || 'http://localhost:5174'
+const community = communityOrigin()
 
 const GUIDE = [
   {

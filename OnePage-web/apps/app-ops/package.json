@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@onepage/api-client": "workspace:*",
+    "@onepage/demo-login-hints": "workspace:*",
     "@onepage/image-crop": "workspace:*",
+    "@onepage/site-footer": "workspace:*",
     "echarts": "^5.6.0",
     "vue": "^3.5.13"
   },

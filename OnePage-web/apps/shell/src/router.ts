@@ -25,7 +25,7 @@ import SettingsPage from './pages/SettingsPage.vue'
 import { useAuthModal } from './stores/authModal'
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', component: HomePage },
     { path: '/search', component: SearchPage },

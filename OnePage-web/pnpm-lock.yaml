@@ -13,9 +13,18 @@ importers:
       '@onepage/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@onepage/demo-login-hints':
+        specifier: workspace:*
+        version: link:../../packages/demo-login-hints
       '@onepage/image-crop':
         specifier: workspace:*
         version: link:../../packages/image-crop
+      '@onepage/site-footer':
+        specifier: workspace:*
+        version: link:../../packages/site-footer
+      '@onepage/site-urls':
+        specifier: workspace:*
+        version: link:../../packages/site-urls
       vue:
         specifier: ^3.5.13
         version: 3.5.43(typescript@5.9.3)
@@ -38,9 +47,15 @@ importers:
       '@onepage/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@onepage/demo-login-hints':
+        specifier: workspace:*
+        version: link:../../packages/demo-login-hints
       '@onepage/image-crop':
         specifier: workspace:*
         version: link:../../packages/image-crop
+      '@onepage/site-footer':
+        specifier: workspace:*
+        version: link:../../packages/site-footer
       echarts:
         specifier: ^5.6.0
         version: 5.6.0
@@ -66,9 +81,18 @@ importers:
       '@onepage/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@onepage/demo-login-hints':
+        specifier: workspace:*
+        version: link:../../packages/demo-login-hints
       '@onepage/image-crop':
         specifier: workspace:*
         version: link:../../packages/image-crop
+      '@onepage/site-footer':
+        specifier: workspace:*
+        version: link:../../packages/site-footer
+      '@onepage/site-urls':
+        specifier: workspace:*
+        version: link:../../packages/site-urls
       hls.js:
         specifier: ^1.7.3
         version: 1.7.3
@@ -103,7 +127,27 @@ importers:
 
   packages/api-client: {}
 
+  packages/demo-login-hints:
+    dependencies:
+      '@onepage/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.43(typescript@5.9.3)
+
   packages/image-crop: {}
+
+  packages/site-footer:
+    dependencies:
+      '@onepage/site-urls':
+        specifier: workspace:*
+        version: link:../site-urls
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.43(typescript@5.9.3)
+
+  packages/site-urls: {}
 
 packages:
 

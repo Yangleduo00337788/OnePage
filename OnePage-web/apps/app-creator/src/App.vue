@@ -1,12 +1,16 @@
 <!-- 创作者后台：带图标的左栏、数据报表子菜单、可收起；右上角铃铛创作消息 + 头像退出。 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { api, type UserProfile } from '@onepage/api-client'
+import { openOpsSite, showOpsEntry } from '@onepage/site-urls'
 import Icon from './Icon.vue'
 import BrandLogo from './BrandLogo.vue'
 import CreatorHome, { type PageId, type PublishKind } from './CreatorHome.vue'
 import CreatorInbox from './CreatorInbox.vue'
 import CreatorLogin from './CreatorLogin.vue'
+import FeatureHint from './FeatureHint.vue'
+import DemoModeTag from './DemoModeTag.vue'
+import SiteFooter from '@onepage/site-footer'
 
 const STAT_PAGES: PageId[] = ['account', 'content', 'fans']
 
@@ -20,6 +24,7 @@ const me = ref<UserProfile | null>(null)
 const ready = ref(false)
 const menuOpen = ref(false)
 const userWrap = ref<HTMLElement | null>(null)
+const opsGuide = ref<InstanceType<typeof FeatureHint> | null>(null)
 
 const statsKids: { id: PageId; label: string }[] = [
   { id: 'account', label: '账号概览' },
@@ -30,6 +35,13 @@ const statsKids: { id: PageId; label: string }[] = [
 const statsOn = computed(() => STAT_PAGES.includes(page.value))
 const initial = computed(() => (me.value?.nickname || '创作者').slice(0, 1))
 const nickname = computed(() => me.value?.nickname || '未登录')
+const opsEntry = showOpsEntry()
+
+function goOps() {
+  menuOpen.value = false
+  opsGuide.value?.dismiss()
+  openOpsSite()
+}
 
 onMounted(async () => {
   document.addEventListener('click', onDocClick)
@@ -44,6 +56,10 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+})
+
+watch(menuOpen, (open) => {
+  if (open) opsGuide.value?.dismiss()
 })
 
 function onDocClick(e: MouseEvent) {
@@ -226,7 +242,23 @@ function goEdit(postId: string) {
         <div class="bar-tools">
           <CreatorInbox @edit="goEdit" />
           <div ref="userWrap" class="user-wrap">
-            <button type="button" class="user" @click="menuOpen = !menuOpen">
+            <FeatureHint
+              v-if="opsEntry"
+              ref="opsGuide"
+              placement="bottom"
+              title="运营工作台"
+              description="点头像，在菜单里选「运营工作台」，进入运营后台。"
+            >
+              <button type="button" class="user" @click="menuOpen = !menuOpen">
+                <span class="avatar">
+                  <img v-if="me?.avatarUrl" :src="me.avatarUrl" alt="" />
+                  <span v-else>{{ initial }}</span>
+                </span>
+                <span class="name">{{ nickname }}</span>
+                <Icon name="chevron-down" :size="14" class="chev" :class="{ 'is-open': menuOpen }" />
+              </button>
+            </FeatureHint>
+            <button v-else type="button" class="user" @click="menuOpen = !menuOpen">
               <span class="avatar">
                 <img v-if="me?.avatarUrl" :src="me.avatarUrl" alt="" />
                 <span v-else>{{ initial }}</span>
@@ -235,25 +267,30 @@ function goEdit(postId: string) {
               <Icon name="chevron-down" :size="14" class="chev" :class="{ 'is-open': menuOpen }" />
             </button>
             <div v-if="menuOpen" class="menu">
+              <button v-if="opsEntry" type="button" class="menu-item" @click="goOps">运营工作台</button>
               <button type="button" class="menu-item" @click="logout">退出登录</button>
             </div>
           </div>
+          <DemoModeTag class="demo-mode-bar" />
         </div>
       </header>
-      <CreatorHome
-        :page="page"
-        :me="me"
-        :publish-kind="publishKind"
-        :edit-post-id="editPostId"
-        :notes-focus="notesFocus"
-        @update:publish-kind="publishKind = $event"
-        @publish="goPublish"
-        @edit="goEdit"
-        @open-stats="openPage('account')"
-        @open-notes="(tab?: string) => openPage('notes', tab || '')"
-        @open-events="openPage('events')"
-        @open-live="openPage('live')"
-      />
+      <div class="main-body">
+        <CreatorHome
+          :page="page"
+          :me="me"
+          :publish-kind="publishKind"
+          :edit-post-id="editPostId"
+          :notes-focus="notesFocus"
+          @update:publish-kind="publishKind = $event"
+          @publish="goPublish"
+          @edit="goEdit"
+          @open-stats="openPage('account')"
+          @open-notes="(tab?: string) => openPage('notes', tab || '')"
+          @open-events="openPage('events')"
+          @open-live="openPage('live')"
+        />
+      </div>
+      <SiteFooter layout="bar" />
     </div>
   </div>
 </template>
@@ -470,6 +507,12 @@ button {
   color: #666;
 }
 
+.main-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -499,6 +542,8 @@ button {
 
 .user-wrap {
   position: relative;
+  z-index: 30;
+  overflow: visible;
 }
 
 .user {
@@ -567,5 +612,9 @@ button {
 
 .menu-item:hover {
   background: #f2f2f2;
+}
+
+.demo-mode-bar {
+  margin-right: 4px;
 }
 </style>

@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@onepage/api-client": "workspace:*",
+    "@onepage/demo-login-hints": "workspace:*",
     "@onepage/image-crop": "workspace:*",
+    "@onepage/site-footer": "workspace:*",
+    "@onepage/site-urls": "workspace:*",
     "hls.js": "^1.7.3",
     "pinia": "^3.0.3",
     "vue": "^3.5.13",

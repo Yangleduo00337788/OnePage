@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from 'vue'
 import { api, ApiError, type UserProfile } from '@onepage/api-client'
+import DemoLoginCreds from '@onepage/demo-login-hints'
 import BrandLogo from './BrandLogo.vue'
 
 const emit = defineEmits<{ done: [UserProfile] }>()
@@ -95,6 +96,7 @@ async function sendCode() {
             密码
           </button>
         </div>
+        <DemoLoginCreds site="ops" layout="form" class="demo-creds-panel" />
         <template v-if="loginTab === 'password'">
           <input v-model="account" placeholder="手机号或邮箱" />
           <input v-model="password" type="password" placeholder="密码" />
@@ -143,6 +145,11 @@ async function sendCode() {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.12em;
+}
+
+.demo-creds-panel {
+  align-self: stretch;
+  width: 100%;
 }
 
 .en {

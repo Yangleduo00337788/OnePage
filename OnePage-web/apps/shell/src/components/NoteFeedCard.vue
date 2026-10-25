@@ -1,4 +1,4 @@
-<!-- 瀑布流一张卡：图用 img，视频用 video 首帧，纯文字把正文铺在封面上。 -->
+<!-- 瀑布流一张卡：图文/视频均用封面图；纯文字把正文铺在封面上。 -->
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from './Icon.vue'
@@ -14,12 +14,7 @@ function open(e: MouseEvent) {
   noteDetail.show(props.note, e.currentTarget)
 }
 
-const videoSrc = computed(() => {
-  const url = props.note.image
-  if (!url) return ''
-  return url.includes('#') ? url : `${url}#t=0.1`
-})
-const isText = computed(() => !props.note.video && !props.note.image)
+const isText = computed(() => !props.note.image)
 </script>
 
 <template>
@@ -29,19 +24,12 @@ const isText = computed(() => !props.note.video && !props.note.image)
     @click="open"
   >
     <div class="group relative h-[360px] overflow-hidden rounded-2xl bg-[var(--fill)]">
-      <video
-        v-if="note.video && note.image"
-        :src="videoSrc"
-        class="pointer-events-none h-full w-full object-cover"
-        muted
-        playsinline
-        preload="metadata"
-      />
       <img
-        v-else-if="note.image && !note.video"
+        v-if="note.image"
         :src="note.image"
         :alt="note.title"
         class="pointer-events-none h-full w-full object-cover"
+        referrerpolicy="no-referrer"
       />
       <TextNoteCover v-else size="feed" :title="note.title" :body="note.body" />
       <span
@@ -66,6 +54,7 @@ const isText = computed(() => !props.note.video && !props.note.image)
             :src="note.avatarUrl"
             alt=""
             class="h-7 w-7 rounded-full object-cover"
+            referrerpolicy="no-referrer"
           />
           <span v-else class="block h-7 w-7 rounded-full bg-[#d9d9d9]" />
           <IdentityBadges size="sm" :live-host="note.liveHost" :verified="note.verified" :official="note.official" />
