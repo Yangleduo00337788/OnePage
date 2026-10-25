@@ -629,10 +629,38 @@ export function setApiAudience(audience?: 'ops') {
 }
 
 /**
+ * 静态站点把网络换成内存数据。只由 OnePage-demo 在入口注入；产品三端默认不走这里。
+ */
+export type DemoBridge = {
+  request: <T>(path: string, init: RequestInit, audience?: 'ops') => Promise<T>
+  chatStream: (
+    body: { question: string; sessionId?: string; imageUrls?: string[] },
+    onDelta: (text: string) => void,
+    onStage?: (stage: string, n: number) => void,
+    signal?: AbortSignal,
+  ) => Promise<AiChatResult>
+  putObject: (uploadUrl: string, body: Blob, mimeType: string) => Promise<void>
+}
+
+let demoBridge: DemoBridge | undefined
+
+export function installDemoBridge(bridge: DemoBridge) {
+  demoBridge = bridge
+}
+
+/** 静态站 / OnePage-demo 注入内存 API 时为 true */
+export function isDemoMode() {
+  return demoBridge !== undefined
+}
+
+/**
  * 相对路径请求。开发时由 Vite 代理到网关。
  * 204 无 body；其余当 JSON。HTTP 非 2xx 抛 ApiError，不要当成功。
  */
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (demoBridge) {
+    return demoBridge.request<T>(path, init, apiAudience)
+  }
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -665,6 +693,9 @@ async function chatStream(
   onStage?: (stage: string, n: number) => void,
   signal?: AbortSignal,
 ): Promise<AiChatResult> {
+  if (demoBridge) {
+    return demoBridge.chatStream(body, onDelta, onStage, signal)
+  }
   const headers = new Headers()
   headers.set('Content-Type', 'application/json')
   if (apiAudience === 'ops') {
@@ -836,6 +867,10 @@ export const api = {
    * 开发时改成当前源路径，由 Vite 把 `/onepage-media` 转到 9000，Host 仍是 localhost:9000，签名对得上。
    */
   putObject: async (uploadUrl: string, body: Blob, mimeType: string) => {
+    if (demoBridge) {
+      await demoBridge.putObject(uploadUrl, body, mimeType)
+      return
+    }
     const res = await fetch(localMinioPutUrl(uploadUrl), {
       method: 'PUT',
       body,
