@@ -11,6 +11,7 @@ FE 维护。
 | 工程 | 说明 |
 | --- | --- |
 | **OnePage-web** | 用户产品；pnpm monorepo（社区壳 + 创作者独立站；P5 运营后台 `app-ops`；其余子应用待拆） |
+| **OnePage-demo** | 静态站点：复用三端页面，请求走内存数据，不启网关。社区 **5274**、创作者 **5275**、运营 **5276** |
 | **agi-work-space**（本仓） | 文档工作空间；单 Vite SPA |
 
 产品路由与状态以下表为准；本仓路由见 [工作空间写回约定](/engineering/process/workspace-writeback)。PC 壳视觉见 [视觉规范](/design/system/specs)。
@@ -37,6 +38,8 @@ apps/app-im/          私信（规划）
 apps/app-live/        直播（P4）
 packages/ui/          shadcn-vue（待抽）
 packages/api-client/  fetch + Cookie
+packages/site-footer/ 三端侧栏版权 + GitHub/Gitee 链（`@onepage/site-urls` 常量）
+packages/site-urls/   多站点跳转与仓库地址
 ```
 
 ## 路由（产品）
@@ -76,6 +79,38 @@ packages/api-client/  fetch + Cookie
 | 主题/语言 | 壳 | localStorage |
 
 子应用不跨 import 业务页面，只使用 `packages/*`。
+
+## 静态站点（OnePage-demo）
+
+给展示全站功能用，**不启 Java / MySQL / Redis**。页面就是产品三端，交互照常走 `api.*`，由 `installDemoBridge` 在入口换成内存库（覆盖范围见 [OnePage-demo Mock 专文](/engineering/tech/onepage-demo-mock)）。演示站三端固定显示 **当前模式：**（灰）+ **演示模式**（`#ff2442`，`isDemoMode()`）。其它文案仍不出现「模拟 / Mock」字样；开发环境验证码提示会在这套 Vite 里剥掉。
+
+本机（在 `OnePage-demo/`）：
+
+```bash
+npm install
+npm run dev
+```
+
+| 站 | 地址 |
+| --- | --- |
+| 社区 | http://localhost:5274 |
+| 创作者 | http://localhost:5275 |
+| 运营 | http://localhost:5276 |
+
+打开即为已登录：社区/创作者是林舟（`linzhou` / `13800138000`），运营是苏晚（`13900139000`）。账密与任意 4～8 位短信码都能进。数据在 `localStorage` 键 `onepage.web.db`（`seedVer` 变更会自动重种），清它也可恢复种子。笔记种子 **50 条图文 + 50 条视频**（另含少量剧情/草稿/审核样例），**50 路在播**。封面优先读 `src/media-index.json`，值为本站路径如 `/media/covers/{id}.jpg`（文件在 `OnePage-demo/public/media/covers/`，`npm run build` 会打进 `dist/site/media/`）。缺索引时回落主题池（`media-assets.ts`）。**拉取本地图**：`npm run build:media`（百度搜图并下载，需几分钟；可提交 `public/media` + `media-index.json` 供 Cloudflare 直部署）。视频仍用 `videoForNote` 的百度 MP4；HTML 注入 `referrer: no-referrer`。
+
+**Cloudflare Pages（单域名）**
+
+```bash
+cd OnePage-demo
+npm run build
+```
+
+产物在 `OnePage-demo/dist/site/`：根路径社区、`/creator/` 创作者、`/ops/` 运营。`_redirects` 已写好 SPA 回退。控制台新建 Pages 项目，构建命令填上面的 `npm run build`，**输出目录**填 `dist/site`（若整仓根目录是 `OnePage/` 则填 `OnePage-demo/dist/site`）。绑定你的域名即可。生产环境变量见 `OnePage-demo/.env.production`（路径前缀，无 5276 端口）。
+
+创作者右上角头像菜单有 **运营工作台**（仅当配置了 `VITE_OPS_ORIGIN` 时出现），新开 `/ops/`。
+
+`packages/api-client` 的桥只在这套入口注入；产品 5174–5176 仍打网关。
 
 ## 本地怎么起
 

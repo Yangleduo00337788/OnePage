@@ -8,10 +8,10 @@ order: 1
 
 ## 先分清两个「前端」
 
-| | agi-work-space（本仓） | OnePage-web（产品） |
+| | agi-work-space（本仓） | OnePage-web（产品） | OnePage-demo（静态站点） |
 | --- | --- | --- |
-| 给谁 | 团队看文档、改 MD | 真实用户逛社区 |
-| 技术 | Vue + Vite 文档壳 | Vue 微前端 + 业务 API |
+| 给谁 | 团队看文档、改 MD | 真实用户逛社区 | 展示全站功能，不启后端 |
+| 技术 | Vue + Vite 文档壳 | Vue 微前端 + 业务 API | 同一套页面 + 内存 API |
 
 下面「前端技术栈」指 **OnePage-web**，除非特别说明。
 

@@ -17,6 +17,7 @@ ONEPAGE 的技术总览：三个仓库怎么分工、服务怎么拆、MVP 分�
 | --- | --- |
 | **agi-work-space**（你现在打开的） | 项目文档 + 本文工作空间 |
 | **OnePage-web** | 产品前端（社区 + 创作者；P5 再加运营后台） |
+| **OnePage-demo** | 静态站点（复用三端页面，请求走内存；见 [前端结构](/engineering/frontend)） |
 | **OnePage-Server** | 后端微服务 |
 
 三个文件夹在同一父目录下（例如 `OnePage/`）。**业务功能不要写进 agi-work-space 的 Vue 里**。
