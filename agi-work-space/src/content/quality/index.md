@@ -12,5 +12,6 @@ order: 50
 | --- | --- |
 | [测试计划](/quality/plan) | [测试与质量](/quality/plan/testing) |
 | [执行记录](/quality/run) | [测试用例](/quality/run/cases)、[执行证据](/quality/run/evidence)、[缺陷记录](/quality/run/defects) |
+| [压测](/quality/loadtest) | 读路径阶梯加压与 [压测缺陷](/quality/loadtest/bugs) |
 
 需求变更走产品文档；是否放行走本组门禁。发布动作在 [运维与交付](/delivery/ops)。

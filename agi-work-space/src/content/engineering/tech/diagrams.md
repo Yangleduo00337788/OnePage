@@ -5,7 +5,7 @@ order: 3
 ---
 
 用图说明系统边界、微服务拆分和关键流程。下文部分图含规划中的 ES / RocketMQ / SRS，**未建的不要当成已上线**。文字细节见 [技术架构](/engineering/tech/architecture)、[路线图](/engineering/tech/mvp-roadmap)。  
-本工作空间 `npm run dev` 预览下 Mermaid 会自动渲染。建议顺序：**系统全景 → 微服务 → 登录 → 发帖**。  
+本工作空间 `npm run dev` 预览下 Mermaid 会自动渲染。建议顺序：**系统全景 → 微服务 → 登录 → 发帖**。发现页的流程、架构、时序在 [第 12 节](#12-发现流)。  
 登录/注册/短信开户/设密/找回的完整架构、流程、时序见 **[登录注册流程](/engineering/tech/auth-flows)**（P0 实况）。
 
 ## 1. 系统上下文（谁连着谁）
@@ -373,6 +373,69 @@ flowchart LR
   MinIO[(MinIO_Media)]
   ES[(ES_Search_Vector)]
   RMQ[(RocketMQ_Events)]
+```
+
+## 12. 发现流
+
+发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。笔记在内容库，昵称和头像在用户库，所以内容服务返回网关之前，用 Feign 按作者 ID 再问用户服务。Feign 不经过网关。
+
+### 流程图
+
+```mermaid
+flowchart TD
+  A["浏览器或k6 请求发现流"] --> B["网关 8080 按路径判定内容服务"]
+  B --> C["网关向 Nacos 要内容服务地址"]
+  C --> D["网关把这一次请求转到内容服务 8083"]
+  D --> E["内容服务查内容库 最多20条笔记"]
+  E --> F["每条笔记用 Feign 向 Nacos 要用户服务地址"]
+  F --> G["Feign 直连用户服务 8082 拉作者摘要"]
+  G --> H["用户服务查用户库 昵称和头像"]
+  H --> I["作者资料回到内容服务"]
+  I --> J["内容服务拼好整页返回网关"]
+  J --> K["网关响应浏览器或k6"]
+```
+
+### 架构图
+
+```mermaid
+flowchart TD
+  client["浏览器或k6"] --> gw["网关 Gateway 8080"]
+  gw -->|"转发这一次"| content["内容 Content 8083"]
+  content -->|"Feign 直连 最多20次"| user["用户 User 8082"]
+  gw -.-> nacos["Nacos 只提供地址"]
+  content -.-> nacos
+  content --> dbC[("MySQL 内容库")]
+  user --> dbU[("MySQL 用户库")]
+```
+
+### 时序图
+
+```mermaid
+sequenceDiagram
+  participant FE as 浏览器或k6
+  participant GW as 网关8080
+  participant NC as Nacos
+  participant CT as 内容服务8083
+  participant CDB as 内容库
+  participant US as 用户服务8082
+  participant UDB as 用户库
+
+  FE->>GW: GET /api/v1/feeds/explore
+  GW->>NC: 内容服务在哪
+  NC-->>GW: 端口8083
+  GW->>CT: 转发这一次请求
+  CT->>CDB: 查最多20条笔记
+  CDB-->>CT: 笔记和authorId
+  loop 每条笔记一次
+    CT->>NC: 用户服务在哪
+    NC-->>CT: 端口8082
+    CT->>US: Feign拉作者摘要
+    US->>UDB: 查昵称和头像
+    UDB-->>US: 作者资料
+    US-->>CT: 返回给Feign
+  end
+  CT-->>GW: 拼好的发现流
+  GW-->>FE: HTTP 200
 ```
 
 ## 图例与约定
