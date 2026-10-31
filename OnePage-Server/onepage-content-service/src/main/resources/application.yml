@@ -28,6 +28,13 @@ spring:
     loadbalancer:
       nacos:
         enabled: true
+    openfeign:
+      httpclient:
+        hc5:
+          enabled: true
+        # 同一目标最多留这么多条连接反复用；满了排队，不再一请求一连接。DEC-078
+        max-connections: ${FEIGN_MAX_CONNECTIONS:200}
+        max-connections-per-route: ${FEIGN_MAX_CONNECTIONS_PER_ROUTE:200}
 
 onepage:
   internal-token: ${INTERNAL_TOKEN}

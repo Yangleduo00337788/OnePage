@@ -70,7 +70,7 @@ ONEPAGE：C 端 Cookie `ONEPAGE_SESSION`、运营 Cookie `ONEPAGE_OPS_SESSION`�
 | 推荐 | 接口保持小而稳；不要为「以后可能」加空方法 |
 | 允许 | MyBatis-Plus 实体保留 setter，与现有代码一致 |
 
-ONEPAGE：Controller 只做参数与鉴权头读取，业务在 `service`。Feign 接口放 `client`。Feign 默认 JDK 客户端不能发 PATCH，内网更新用 POST（对外 `/api/v1/ops` 仍可 PATCH）。
+ONEPAGE：Controller 只做参数与鉴权头读取，业务在 `service`。Feign 接口放 `client`。除内容服务外，Feign 仍是 JDK 客户端，不能发 PATCH，内网更新用 POST（对外 `/api/v1/ops` 仍可 PATCH）。内容服务用 HttpClient 5 连接池复用连接（DEC-078），内网更新仍用 POST。
 
 ### 1.5 日期时间
 

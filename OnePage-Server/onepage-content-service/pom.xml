@@ -51,6 +51,11 @@
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-openfeign</artifactId>
     </dependency>
+    <!-- HttpClient 5 连接池。默认 JDK 客户端问完即关，发现流按条问作者会打满临时端口。DEC-078 -->
+    <dependency>
+      <groupId>io.github.openfeign</groupId>
+      <artifactId>feign-hc5</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-loadbalancer</artifactId>
