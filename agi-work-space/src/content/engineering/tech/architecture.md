@@ -79,7 +79,7 @@ Java 包分层：`web` HTTP、`service` 编排、`client` Feign、`mapper`/`enti
 | Redis | **8.0** | Session + 验证码 + 私信 WS 路由；P0 已用 |
 | MinIO | **RELEASE.2025-02-07T23-21-09Z** | 桶 `onepage-media`。content 启动写公开读；PutBucketCors 在这版常报 NotImplemented，不挡启动。浏览器直传靠 MinIO 环境变量 `MINIO_API_CORS_ALLOW_ORIGIN`（须含 5173 文档、5174 社区、5175 创作者、5176 运营） |
 | Elasticsearch | **9.5.4** | P3 全局搜索已用；Java API Client **8.17.4** 走 REST，不要 TransportClient |
-| RocketMQ | **5.5.0** | P1 只写 Outbox，暂不消费 |
+| RocketMQ | **5.5.0** | 只选定版本。发帖写 MySQL `outbox_event`，不消费。扫码登录和礼物一并先不做（DEC-080） |
 
 ## 数据怎么走（四条线）
 
