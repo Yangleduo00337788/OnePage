@@ -377,7 +377,7 @@ flowchart LR
 
 ## 12. 发现流
 
-发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。笔记在内容库，昵称和头像在用户库，所以内容服务返回网关之前，用 Feign 按作者 ID 再问用户服务。Feign 不经过网关。
+发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。笔记在内容库，昵称和头像在用户库，所以内容服务返回网关之前，用 Feign 按作者 ID 再问用户服务。Feign 不经过网关。一百个并发下这些短连接来不及释放，见 [LT-001](/quality/loadtest/bugs/lt-001)。
 
 ### 流程图
 
