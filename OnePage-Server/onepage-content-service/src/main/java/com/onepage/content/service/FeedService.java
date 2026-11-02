@@ -30,6 +30,7 @@ public class FeedService {
   private final PostMapper postMapper;
   private final PostService postService;
   private final CoverShowRecorder coverShowRecorder;
+  private final ContentReadGate contentReadGate;
   private final UserClient userClient;
   private final String internalToken;
 
@@ -37,11 +38,13 @@ public class FeedService {
       PostMapper postMapper,
       PostService postService,
       CoverShowRecorder coverShowRecorder,
+      ContentReadGate contentReadGate,
       UserClient userClient,
       @Value("${onepage.internal-token}") String internalToken) {
     this.postMapper = postMapper;
     this.postService = postService;
     this.coverShowRecorder = coverShowRecorder;
+    this.contentReadGate = contentReadGate;
     this.userClient = userClient;
     this.internalToken = internalToken;
   }
@@ -68,6 +71,11 @@ public class FeedService {
   }
 
   private FeedDtos.CursorPage page(
+      Long viewerId, String cursor, Integer limit, String category, List<Long> authorIds) {
+    return contentReadGate.call(() -> loadPage(viewerId, cursor, limit, category, authorIds));
+  }
+
+  private FeedDtos.CursorPage loadPage(
       Long viewerId, String cursor, Integer limit, String category, List<Long> authorIds) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()

@@ -9,13 +9,16 @@ server:
 spring:
   application:
     name: onepage-content-service
+  threads:
+    virtual:
+      enabled: ${CONTENT_VIRTUAL_THREADS:true}
   datasource:
     url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_CONTENT_DB}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
     hikari:
-      # 发现流一页改成几次查询之后再开到 20，不要只靠默认约 10 条硬扛。LT-003
-      maximum-pool-size: ${CONTENT_DB_POOL_SIZE:20}
+      # 读路径有许可上限后，池子留给评论/发帖和 Outbox。不要加到几百。LT-003
+      maximum-pool-size: ${CONTENT_DB_POOL_SIZE:40}
   cloud:
     nacos:
       server-addr: "${NACOS_SERVER_ADDR}"
@@ -43,6 +46,7 @@ onepage:
   internal-token: ${INTERNAL_TOKEN}
   media-public-base: ${MEDIA_PUBLIC_BASE}
   frontend-url: ${FRONTEND_URL}
+  feed-read-permits: ${CONTENT_FEED_READ_PERMITS:16}
   minio:
     endpoint: ${MINIO_ENDPOINT}
     access-key: ${MINIO_ACCESS_KEY}
