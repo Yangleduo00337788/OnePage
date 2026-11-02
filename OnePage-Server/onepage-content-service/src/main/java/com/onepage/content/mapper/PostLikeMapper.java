@@ -1,6 +1,7 @@
 package com.onepage.content.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.onepage.content.dto.CountHit;
 import com.onepage.content.dto.InteractionHit;
 import com.onepage.content.dto.ReceivedActorHit;
 import com.onepage.content.entity.PostLike;
@@ -63,4 +64,18 @@ public interface PostLikeMapper extends BaseMapper<PostLike> {
       @Param("cursorPostId") Long cursorPostId,
       @Param("cursorUserId") Long cursorUserId,
       @Param("limit") int limit);
+
+  @Lang(XMLLanguageDriver.class)
+  @Select("""
+      <script>
+      SELECT post_id AS postId, COUNT(*) AS cnt
+      FROM post_like
+      WHERE post_id IN
+      <foreach item="id" collection="postIds" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+      GROUP BY post_id
+      </script>
+      """)
+  List<CountHit> countByPostIds(@Param("postIds") List<Long> postIds);
 }

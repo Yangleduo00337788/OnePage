@@ -14,6 +14,11 @@ import java.util.List;
 /** 拉作者摘要与关注的人。name 必须等于 user 服务在 Nacos 里的应用名。 */
 @FeignClient(name = "onepage-user-service")
 public interface UserClient {
+  @GetMapping("/internal/users/briefs")
+  List<UserSummary> briefs(
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestParam("ids") List<Long> ids);
+
   @GetMapping("/internal/profiles/{userId}/summary")
   UserSummary summary(
       @RequestHeader("X-Internal-Token") String token,

@@ -7,6 +7,7 @@ import com.onepage.content.client.UserClient;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.Post;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.common.tx.AfterCommit;
 import com.onepage.content.mapper.PostCoverShowMapper;
 import com.onepage.content.mapper.PostMapper;
 import org.slf4j.Logger;
@@ -92,14 +93,13 @@ public class FeedService {
     if (hasMore) {
       rows = rows.subList(0, size);
     }
-    List<FeedDtos.PostBrief> items = new ArrayList<>();
+    List<FeedDtos.PostBrief> items = postService.toBriefs(rows);
     List<PostCoverShowMapper.ShowRow> shows = new ArrayList<>();
     LocalDateTime now = LocalDateTime.now();
     for (Post post : rows) {
-      items.add(postService.toBrief(post));
       shows.add(new PostCoverShowMapper.ShowRow(IdGenerator.nextId(), viewerId, post.getId(), now));
     }
-    recordShows(shows);
+    AfterCommit.run(() -> recordShows(shows));
     String next = null;
     if (hasMore && !rows.isEmpty()) {
       Post last = rows.getLast();

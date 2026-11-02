@@ -9,6 +9,8 @@ import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
 import com.onepage.content.client.ImClient;
 import com.onepage.content.client.UserClient;
+import com.onepage.content.dto.CountHit;
+import com.onepage.content.dto.CoverHit;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.dto.InteractionHit;
 import com.onepage.content.dto.ReceivedActorHit;
@@ -44,6 +46,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -818,10 +821,7 @@ public class PostService {
     if (hasMore) {
       rows = rows.subList(0, size);
     }
-    List<FeedDtos.PostBrief> items = new ArrayList<>();
-    for (Post post : rows) {
-      items.add(toBrief(post, postViewMapper.countByPostId(post.getId())));
-    }
+    List<FeedDtos.PostBrief> items = toBriefs(rows);
     String next = null;
     if (hasMore && !rows.isEmpty()) {
       next = String.valueOf(rows.getLast().getId());
@@ -834,32 +834,108 @@ public class PostService {
   }
 
   public FeedDtos.PostBrief toBrief(Post post, long viewCount) {
-    String cover = firstCoverUrl(post.getId());
-    long likes = likeMapper.selectCount(Wrappers.<PostLike>lambdaQuery().eq(PostLike::getPostId, post.getId()));
-    long favs = favoriteMapper.selectCount(Wrappers.<PostFavorite>lambdaQuery().eq(PostFavorite::getPostId, post.getId()));
-    long comments = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
-        .eq(Comment::getPostId, post.getId())
-        .eq(Comment::getStatus, 0));
+    List<FeedDtos.PostBrief> items = toBriefs(List.of(post));
+    if (items.isEmpty()) {
+      throw BusinessException.validation("笔记不存在");
+    }
+    FeedDtos.PostBrief row = items.getFirst();
+    if (viewCount == 0L) {
+      return row;
+    }
     return new FeedDtos.PostBrief(
-        String.valueOf(post.getId()),
-        authorLookup.brief(post.getAuthorId()),
-        post.getTitle() == null ? "" : post.getTitle(),
-        excerpt(post.getBody()),
-        cover,
-        post.getPostType(),
-        post.getCategory() == null ? "" : post.getCategory(),
-        originalOf(post),
-        blankToEmpty(post.getContentKind()),
-        blankToEmpty(post.getEventId()),
-        blankToEmpty(post.getEventTitle()),
-        visLabel(post.getVisibility()),
-        likes,
-        favs,
-        comments,
+        row.postId(),
+        row.author(),
+        row.title(),
+        row.body(),
+        row.coverUrl(),
+        row.postType(),
+        row.category(),
+        row.original(),
+        row.contentKind(),
+        row.eventId(),
+        row.eventTitle(),
+        row.visibility(),
+        row.likeCount(),
+        row.favoriteCount(),
+        row.commentCount(),
         viewCount,
-        iso(post.getPublishedAt()),
-        reviewStatusOf(post),
-        blankToEmpty(post.getRejectReason()));
+        row.publishedAt(),
+        row.reviewStatus(),
+        row.rejectReason());
+  }
+
+  /** 一页封面、赞藏评、作者各查一次。空列表不打库。 */
+  public List<FeedDtos.PostBrief> toBriefs(List<Post> posts) {
+    if (posts == null || posts.isEmpty()) {
+      return List.of();
+    }
+    List<Long> postIds = new ArrayList<>(posts.size());
+    List<Long> authorIds = new ArrayList<>(posts.size());
+    for (Post post : posts) {
+      if (post.getId() != null) {
+        postIds.add(post.getId());
+      }
+      if (post.getAuthorId() != null) {
+        authorIds.add(post.getAuthorId());
+      }
+    }
+    Map<Long, String> covers = firstCoverUrls(postIds);
+    Map<Long, Long> likes = toCountMap(likeMapper.countByPostIds(postIds));
+    Map<Long, Long> favs = toCountMap(favoriteMapper.countByPostIds(postIds));
+    Map<Long, Long> comments = toCountMap(commentMapper.countVisibleByPostIds(postIds));
+    Map<Long, FeedDtos.UserBrief> authors = authorLookup.briefs(authorIds);
+    List<FeedDtos.PostBrief> items = new ArrayList<>(posts.size());
+    for (Post post : posts) {
+      Long id = post.getId();
+      items.add(new FeedDtos.PostBrief(
+          String.valueOf(id),
+          authors.getOrDefault(post.getAuthorId(), authorLookup.brief(post.getAuthorId())),
+          post.getTitle() == null ? "" : post.getTitle(),
+          excerpt(post.getBody()),
+          covers.getOrDefault(id, ""),
+          post.getPostType(),
+          post.getCategory() == null ? "" : post.getCategory(),
+          originalOf(post),
+          blankToEmpty(post.getContentKind()),
+          blankToEmpty(post.getEventId()),
+          blankToEmpty(post.getEventTitle()),
+          visLabel(post.getVisibility()),
+          likes.getOrDefault(id, 0L),
+          favs.getOrDefault(id, 0L),
+          comments.getOrDefault(id, 0L),
+          0L,
+          iso(post.getPublishedAt()),
+          reviewStatusOf(post),
+          blankToEmpty(post.getRejectReason())));
+    }
+    return items;
+  }
+
+  private Map<Long, String> firstCoverUrls(List<Long> postIds) {
+    Map<Long, String> covers = new HashMap<>();
+    if (postIds.isEmpty()) {
+      return covers;
+    }
+    for (CoverHit hit : postMediaMapper.listImageCovers(postIds)) {
+      if (hit.getPostId() == null || covers.containsKey(hit.getPostId())) {
+        continue;
+      }
+      covers.put(hit.getPostId(), publicUrl(hit.getObjectKey()));
+    }
+    return covers;
+  }
+
+  private static Map<Long, Long> toCountMap(List<CountHit> rows) {
+    Map<Long, Long> out = new HashMap<>();
+    if (rows == null) {
+      return out;
+    }
+    for (CountHit row : rows) {
+      if (row.getPostId() != null) {
+        out.put(row.getPostId(), row.getCnt() == null ? 0L : row.getCnt());
+      }
+    }
+    return out;
   }
 
   private enum InteractionKind {
