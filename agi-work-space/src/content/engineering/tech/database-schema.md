@@ -481,7 +481,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 ## Outbox 表（各服务相同）
 
-需要发 MQ 的服务（如 content、social、user）各建一张 `outbox_event`：
+需要发 MQ 的服务（如 content、social、user）各建一张 `outbox_event`。发帖事件仍不消费 MQ。发现流曝光 `feed.cover_shown` 由内容服务写入 `post_cover_show` 后把 `status` 置 1（DEC-085）。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |

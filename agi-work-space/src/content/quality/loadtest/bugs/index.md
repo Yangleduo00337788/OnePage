@@ -10,4 +10,4 @@ order: 1
 | --- | --- | --- | --- | --- |
 | [LT-001](/quality/loadtest/bugs/lt-001) | 内容服务按卡片 Feign 拉作者，Windows 临时端口耗尽 | 2026-10-30 `read-ramp.js` | P1 | 已验收 |
 | [LT-002](/quality/loadtest/bugs/lt-002) | 网关按客户端 IP、按路由每秒放行约 50 次，单一地址的阶梯加压在进服务前被拒绝 | 2026-10-31 `read-ramp.js` | P1 | 已验收 |
-| [LT-003](/quality/loadtest/bugs/lt-003) | 发现流按卡片查封面和计数，默认约 10 条数据库连接被挤满 | 2026-11-01 `mix-ramp.js` | P1 | 已改代码，待压测验收 |
+| [LT-003](/quality/loadtest/bugs/lt-003) | 发现流按卡片查封面和计数，默认约 10 条数据库连接被挤满 | 2026-11-01 `mix-ramp.js` | P1 | 已改批量查询和 Outbox 曝光，待复跑 |

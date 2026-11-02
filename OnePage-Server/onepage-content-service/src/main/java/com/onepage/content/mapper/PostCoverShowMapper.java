@@ -14,7 +14,7 @@ public interface PostCoverShowMapper {
   @Lang(XMLLanguageDriver.class)
   @Insert("""
       <script>
-      INSERT INTO post_cover_show (id, viewer_id, post_id, created_at) VALUES
+      INSERT IGNORE INTO post_cover_show (id, viewer_id, post_id, created_at) VALUES
       <foreach item="row" collection="rows" separator=",">
         (#{row.id}, #{row.viewerId}, #{row.postId}, #{row.createdAt})
       </foreach>

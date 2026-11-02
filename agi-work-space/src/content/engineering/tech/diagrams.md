@@ -377,7 +377,7 @@ flowchart LR
 
 ## 12. 发现流
 
-发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。笔记在内容库，昵称和头像在用户库，所以内容服务返回网关之前，用 Feign 按作者 ID 再问用户服务。Feign 不经过网关。一百个并发下这些短连接来不及释放，见 [LT-001](/quality/loadtest/bugs/lt-001)。
+发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。笔记在内容库，昵称和头像在用户库，所以内容服务返回网关之前，用 Feign 一次 `GET /internal/users/briefs?ids=` 问用户服务。封面、赞、藏、评各查一次（DEC-083）。曝光先写 Outbox 再返回，随后写入曝光表（DEC-085）。Feign 不经过网关。
 
 ### 流程图
 
@@ -387,12 +387,15 @@ flowchart TD
   B --> C["网关向 Nacos 要内容服务地址"]
   C --> D["网关把这一次请求转到内容服务 8083"]
   D --> E["内容服务查内容库 最多20条笔记"]
-  E --> F["每条笔记用 Feign 向 Nacos 要用户服务地址"]
-  F --> G["Feign 直连用户服务 8082 拉作者摘要"]
+  E --> F["封面赞藏评各查一次"]
+  F --> G["Feign 一次 briefs 问用户服务"]
   G --> H["用户服务查用户库 昵称和头像"]
   H --> I["作者资料回到内容服务"]
-  I --> J["内容服务拼好整页返回网关"]
+  I --> L["写入 outbox_event 一条"]
+  L --> J["内容服务返回整页给网关"]
   J --> K["网关响应浏览器或k6"]
+  L -.-> M["稍后写入 post_cover_show"]
+  M --> N[("MySQL 内容库")]
 ```
 
 ### 架构图
@@ -401,7 +404,7 @@ flowchart TD
 flowchart TD
   client["浏览器或k6"] --> gw["网关 Gateway 8080"]
   gw -->|"转发这一次"| content["内容 Content 8083"]
-  content -->|"Feign 直连 最多20次"| user["用户 User 8082"]
+  content -->|"Feign 一次 briefs"| user["用户 User 8082"]
   gw -.-> nacos["Nacos 只提供地址"]
   content -.-> nacos
   content --> dbC[("MySQL 内容库")]
@@ -426,16 +429,19 @@ sequenceDiagram
   GW->>CT: 转发这一次请求
   CT->>CDB: 查最多20条笔记
   CDB-->>CT: 笔记和authorId
-  loop 每条笔记一次
-    CT->>NC: 用户服务在哪
-    NC-->>CT: 端口8082
-    CT->>US: Feign拉作者摘要
-    US->>UDB: 查昵称和头像
-    UDB-->>US: 作者资料
-    US-->>CT: 返回给Feign
-  end
+  CT->>CDB: 封面赞藏评各一次
+  CDB-->>CT: 计数和封面
+  CT->>NC: 用户服务在哪
+  NC-->>CT: 端口8082
+  CT->>US: Feign GET /internal/users/briefs
+  US->>UDB: 按 ids 查昵称和头像
+  UDB-->>US: 作者资料
+  US-->>CT: 一次返回
+  CT->>CDB: 写入 outbox_event 一条
+  CDB-->>CT: 已落盘
   CT-->>GW: 拼好的发现流
   GW-->>FE: HTTP 200
+  CT--)CDB: 补写入 post_cover_show
 ```
 
 ## 图例与约定

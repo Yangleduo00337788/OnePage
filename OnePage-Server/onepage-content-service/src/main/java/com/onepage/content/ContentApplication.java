@@ -5,6 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 内容服务（默认 8083）。上传 + P1 笔记/Feed/赞藏评。
@@ -12,6 +13,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @EnableDiscoveryClient
 @EnableFeignClients
+@EnableScheduling
 @MapperScan("com.onepage.content.mapper")
 @SpringBootApplication(scanBasePackages = "com.onepage")
 public class ContentApplication {

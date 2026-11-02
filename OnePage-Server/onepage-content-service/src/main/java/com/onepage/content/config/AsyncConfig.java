@@ -8,7 +8,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
-/** 发帖机审不挡发布接口。 */
+/** 发帖机审不挡发布。曝光加速写入已落盘的 outbox，满了交给定时任务，不许丢任务。 */
 @Configuration
 @EnableAsync
 public class AsyncConfig {
@@ -20,6 +20,18 @@ public class AsyncConfig {
     pool.setQueueCapacity(200);
     pool.setThreadNamePrefix("post-review-");
     pool.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
+    pool.initialize();
+    return pool;
+  }
+
+  @Bean(name = "coverShowExecutor")
+  public Executor coverShowExecutor() {
+    ThreadPoolTaskExecutor pool = new ThreadPoolTaskExecutor();
+    pool.setCorePoolSize(2);
+    pool.setMaxPoolSize(4);
+    pool.setQueueCapacity(500);
+    pool.setThreadNamePrefix("cover-show-");
+    pool.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
     pool.initialize();
     return pool;
   }
