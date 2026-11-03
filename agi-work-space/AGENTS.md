@@ -20,7 +20,7 @@
 
 **你要做的：** 按用户请求改 **文档** 或 **文档壳** 代码，遵循 `src/content` 中的范围与 [接口契约](/engineering/process/contracts)（产品 API）及 [工作空间写回约定](/engineering/process/workspace-writeback)。写 MD 时遵守 [文档怎么写](/engineering/process/doc-style)（开头直接写作用，先短段再表格）。**知识空间目标：** 用 Agent 开发产品时，架构 / 功能 / 接口 / 表 / 视觉 / 决策 / 阶段必须同一轮沉淀进 `src/content`。若干年后人或 Agent 先读工作空间即可掌握项目全貌；聊天不是事实源。
 
-**你不要做的：** 在本仓实现 ONEPAGE 业务后端/发帖 API；不要把用户产品整站塞进本仓路由。
+**你不要做的：** 在本仓实现 ONEPAGE 业务后端/发帖 API；不要把用户产品整站塞进本仓路由。**禁止为过压测牺牲上线行为：** 不能对正常用户返回发现流「服务繁忙」、不能少记曝光、不能丢掉赞评通知；容量用缓存、连接池、Outbox、多实例。见 `java-alibaba.md` §8。
 
 ## 1b. 可携带约束（换机）
 

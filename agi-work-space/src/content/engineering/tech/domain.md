@@ -12,7 +12,7 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 | --- | --- | --- |
 | 身份 | onepage-auth-service | 凭证、OAuth 绑定、Session |
 | 用户 | onepage-user-service | 用户、资料、一页号、关注边 |
-| 内容 | onepage-content-service | 笔记、媒体、草稿、浏览历史 |
+| 内容 | onepage-content-service | 笔记、媒体、草稿、浏览历史、话题热度 `post_count`、发现流短缓存 |
 | 社交 | onepage-social-service | 赞、藏、评论、分享 |
 | 私信 | onepage-message-service | 会话、消息；运营隐藏用 `deleted_at` |
 | 通知 | onepage-notification-service | 通知收件箱 |
@@ -44,6 +44,8 @@ RD 维护。服务边界以 [架构与 MVP 路线图](/engineering/tech/mvp-road
 - 本人收藏/点赞/浏览列表只出仍可见的已发布帖（他人仅自己可见不出现）。
 - 私信与通知数据不混表。通知按 `(user_id, aggregate_key)` 合并；不能给自己发通知。
 - 帖子删除后社交动作不可新增（可读历史策略 PM 定）。
+- 公开发现流首页约 1 秒内可以同一页；曝光仍按观看人记账，落盘可以晚于 HTTP。
+- 话题热度是大约值，目录读 `topic.post_count`，公开成稿发帖时 +1，删帖不立刻减。
 
 ## 工作空间对象
 

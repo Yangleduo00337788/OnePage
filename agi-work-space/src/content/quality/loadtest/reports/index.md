@@ -4,7 +4,7 @@ description: 按业界口径整理的通过轮次
 order: 2
 ---
 
-每份报告按业界口径写：QPS（吞吐量）、TPS（每秒事务数）、RT（响应时间）的 P50 / P90 / P95 / Max（最大值）、Error Rate（错误率）、CPU（处理器）和 Memory（内存）。QPS（吞吐量）是全程平均，含 Ramp-up（爬升）。k6 汇总没有 P99（99 分位）。
+每份报告按业界口径写：QPS（吞吐量）、TPS（每秒事务数）、RT（响应时间）的 P50 / P90 / P95 / Max（最大值）、Error Rate（错误率）、CPU（处理器）和 Memory（内存）。QPS（吞吐量）是全程平均，含 Ramp-up（爬升）。混合 1000 这一轮 k6 汇总含 P99（99 分位）。
 
 | 报告 | Concurrency（并发数） | QPS（吞吐量） | Error Rate（错误率） |
 | --- | --- | --- | --- |
@@ -16,4 +16,4 @@ order: 2
 | [50 并发互动](/quality/loadtest/reports/r-react) | 50 | 点赞、收藏、评论各 219 | 0 |
 | [50 并发私信](/quality/loadtest/reports/r-im) | 50 | 建会话和发消息各 375 | 0 |
 | [50 并发直播](/quality/loadtest/reports/r-live) | 50 | 列表、进房、聊天各 692 | 0 |
-| [混合 1000](/quality/loadtest/reports/r-mix) | 1000 | 总请求约 1642；评论 64、发笔记 47 | 0.00% |
+| [混合 1000](/quality/loadtest/reports/r-mix) | 1000 | 总请求约 369；发现流/详情各 161；评论 8、发笔记 6 | 0.00% |

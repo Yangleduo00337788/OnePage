@@ -377,7 +377,7 @@ flowchart LR
 
 ## 12. 发现流
 
-发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。笔记在内容库，昵称和头像在用户库，所以内容服务返回网关之前，用 Feign 一次 `GET /internal/users/briefs?ids=` 问用户服务。封面、赞、藏、评各查一次（DEC-083）。读许可只包住查卡片；拿不到立刻 429（DEC-089）。许可释放后写入 Outbox，再把整页返回（DEC-087）。随后写入曝光表（DEC-085）。Feign 不经过网关。
+发现页一次请求是 `GET /api/v1/feeds/explore?limit=20`。网关按路径只转发到内容服务这一次。公开首页约 1 秒 Redis 缓存（DEC-092）。同一缓存键只允许一次回源，其余请求等这一页（DEC-093）。未命中时笔记在内容库，走 `idx_feed_explore`（DEC-094）；昵称和头像在用户库，内容服务返回前用 Feign 一次 `GET /internal/users/briefs?ids=` 问用户服务。封面、赞、藏、评各查一次（DEC-083）。命中与未命中都把曝光丢进内存队列，定时批量写 Outbox（DEC-085 / DEC-092）。Feign 不经过网关。不挡成 429。
 
 ### 流程图
 
@@ -386,18 +386,20 @@ flowchart TD
   A["浏览器或k6 请求发现流"] --> B["网关 8080 按路径判定内容服务"]
   B --> C["网关向 Nacos 要内容服务地址"]
   C --> D["网关把这一次请求转到内容服务 8083"]
-  D --> P{"读许可还有空位"}
-  P -->|没有| Q["立刻 429 服务繁忙"]
-  P -->|有| E["内容服务查内容库 最多20条笔记"]
+  D --> P{"Redis 首页缓存还有效"}
+  P -->|有效| S["曝光入内存队列"]
+  S --> J["内容服务返回整页给网关"]
+  P -->|失效| Q{"已有请求在回源"}
+  Q -->|有| S
+  Q -->|没有| E["内容服务查内容库 最多20条笔记"]
   E --> F["封面赞藏评各查一次"]
   F --> G["Feign 一次 briefs 问用户服务"]
   G --> H["用户服务查用户库 昵称和头像"]
   H --> I["作者资料回到内容服务"]
-  I --> R["释放读许可"]
-  R --> L["写入 outbox_event 一条"]
-  L --> J["内容服务返回整页给网关"]
+  I --> L["写入 Redis 缓存"]
+  L --> S
   J --> K["网关响应浏览器或k6"]
-  L -.-> M["稍后写入 post_cover_show"]
+  S -.-> M["定时批量写入 outbox 再写入 post_cover_show"]
   M --> N[("MySQL 内容库")]
 ```
 
@@ -410,6 +412,7 @@ flowchart TD
   content -->|"Feign 一次 briefs"| user["用户 User 8082"]
   gw -.-> nacos["Nacos 只提供地址"]
   content -.-> nacos
+  content --> redis[("Redis 首页短缓存")]
   content --> dbC[("MySQL 内容库")]
   user --> dbU[("MySQL 用户库")]
 ```
@@ -422,6 +425,7 @@ sequenceDiagram
   participant GW as 网关8080
   participant NC as Nacos
   participant CT as 内容服务8083
+  participant RD as Redis
   participant CDB as 内容库
   participant US as 用户服务8082
   participant UDB as 用户库
@@ -430,21 +434,25 @@ sequenceDiagram
   GW->>NC: 内容服务在哪
   NC-->>GW: 端口8083
   GW->>CT: 转发这一次请求
-  CT->>CDB: 查最多20条笔记
-  CDB-->>CT: 笔记和authorId
-  CT->>CDB: 封面赞藏评各一次
-  CDB-->>CT: 计数和封面
-  CT->>NC: 用户服务在哪
-  NC-->>CT: 端口8082
-  CT->>US: Feign GET /internal/users/briefs
-  US->>UDB: 按 ids 查昵称和头像
-  UDB-->>US: 作者资料
-  US-->>CT: 一次返回
-  CT->>CDB: 写入 outbox_event 一条
-  CDB-->>CT: 已落盘
+  CT->>RD: 读首页缓存
+  alt 命中或别人正在回源
+    RD-->>CT: 同一页 JSON
+  else 本请求回源
+    CT->>CDB: 查最多20条笔记
+    CDB-->>CT: 笔记和authorId
+    CT->>CDB: 封面赞藏评各一次
+    CDB-->>CT: 计数和封面
+    CT->>NC: 用户服务在哪
+    NC-->>CT: 端口8082
+    CT->>US: Feign GET /internal/users/briefs
+    US->>UDB: 按 ids 查昵称和头像
+    UDB-->>US: 作者资料
+    US-->>CT: 一次返回
+    CT->>RD: 写入约1秒缓存
+  end
   CT-->>GW: 拼好的发现流
   GW-->>FE: HTTP 200
-  CT--)CDB: 补写入 post_cover_show
+  CT--)CDB: 曝光入队后批量写 outbox 再写 post_cover_show
 ```
 
 ## 图例与约定

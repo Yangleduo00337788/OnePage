@@ -12,8 +12,9 @@ public class CoverShowRelay {
     this.coverShowRecorder = coverShowRecorder;
   }
 
-  @Scheduled(fixedDelay = 1000L, initialDelay = 5000L)
+  @Scheduled(fixedDelay = 200L, initialDelay = 1000L)
   public void flush() {
+    coverShowRecorder.flushBuffer();
     coverShowRecorder.drainPending();
   }
 }

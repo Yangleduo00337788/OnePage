@@ -17,3 +17,5 @@
 | local | 012_post_ai_review.sql | post.ai_review / ai_review_reason：公开笔记文字机审 |
 | local | 013_post_ai_review_score.sql | post.ai_review_score：机审风险分 0–100 |
 | local | 014_media_ai_review.sql | media_asset 机审字段；post.ai_review_labels |
+| local | 015_feed_explore_idx.sql | 发现流 `idx_feed_explore` |
+| local | 016_topic_post_count.sql | `topic.post_count`；目录不再 LIKE 扫正文 |

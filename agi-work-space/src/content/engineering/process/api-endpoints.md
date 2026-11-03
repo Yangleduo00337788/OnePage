@@ -281,7 +281,7 @@ Feed 只出 `status=published`、`published_at <= now`：发现流 `visibility=p
 
 ### GET `/api/v1/feeds/following` | `/feeds/explore`
 
-Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。GET 公开。关注流只出已关注作者的公开或好友可见帖（`published_at` 已到）；未登录由社区前端弹登录，接口仍可返回空页。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部公开帖；分类 Tab 只出对应 `post.category`。
+Query：`cursor`, `limit`，explore 另可 `category`（旅行/美食等）→ `CursorPage<PostBrief>`。GET 公开。关注流只出已关注作者的公开或好友可见帖（`published_at` 已到）；未登录由社区前端弹登录，接口仍可返回空页。cursor 形如 `{publishedAtMillis}_{postId}`。未带 category 的推荐流含全部公开帖；分类 Tab 只出对应 `post.category`。公开首页约 1 秒 Redis 缓存，同一键只回源一次；缓存命中仍记曝光。不因过载返回 429。
 
 ### DELETE `/api/v1/posts/{postId}`
 
@@ -810,5 +810,5 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 | FORBIDDEN | 403 | 无权限 |
 | NOT_FOUND | 404 | |
 | VALIDATION_ERROR | 400 | 字段校验 |
-| RATE_LIMITED | 429 | 短信；发现流/详情读许可满了（服务繁忙） |
+| RATE_LIMITED | 429 | 短信；网关令牌桶 |
 | CONFLICT | 409 | 重复关注等 |

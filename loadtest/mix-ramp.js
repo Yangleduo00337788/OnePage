@@ -4,8 +4,7 @@ import { check } from 'k6';
 
 // 混合。30 秒爬到 1000，保持 3 分钟，再 30 秒降到 0。全程约 4 分钟。
 // 大约八成刷发现流和详情，一成登录或搜索（各半），一成里再分评论、发一篇仅自己可见的文字、私信。
-// 发现流和详情同时最多 16 个，拿不到许可是 429「服务繁忙」，算过载不是接口坏了。
-// 不推流，不进运营后台。60 秒阈值只为让汇总按接口分开。
+// 发现流首页约 1 秒缓存，检查要 200。不推流，不进运营后台。60 秒阈值只为让汇总按接口分开。
 export const options = {
   scenarios: {
     mix: {
@@ -19,6 +18,7 @@ export const options = {
       gracefulRampDown: '30s',
     },
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)', 'count'],
   thresholds: {
     http_req_failed: ['rate<0.01'],
     checks: ['rate>0.99'],
@@ -153,24 +153,15 @@ export default function (data) {
 }
 
 function browse(data) {
-  const feed = http.get(
-    `${base}/api/v1/feeds/explore?limit=20`,
-    authed(data.session, 'explore', [429]),
-  );
-  if (!check(feed, { 'explore 200 or 429': (r) => r.status === 200 || r.status === 429 })) {
-    return;
-  }
-  if (feed.status !== 200) {
+  const feed = http.get(`${base}/api/v1/feeds/explore?limit=20`, authed(data.session, 'explore'));
+  if (!check(feed, { 'explore 200': (r) => r.status === 200 })) {
     return;
   }
   const items = feed.json('items') || [];
   const picked = items.length ? items[Math.floor(Math.random() * items.length)] : null;
   const postId = picked && picked.postId ? picked.postId : data.postIds[0];
-  const detail = http.get(
-    `${base}/api/v1/posts/${postId}`,
-    authed(data.session, 'detail', [429]),
-  );
-  check(detail, { 'detail 200 or 429': (r) => r.status === 200 || r.status === 429 });
+  const detail = http.get(`${base}/api/v1/posts/${postId}`, authed(data.session, 'detail'));
+  check(detail, { 'detail 200': (r) => r.status === 200 });
 }
 
 function login(data) {

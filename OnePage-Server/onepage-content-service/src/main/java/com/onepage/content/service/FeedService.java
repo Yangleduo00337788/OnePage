@@ -30,7 +30,7 @@ public class FeedService {
   private final PostMapper postMapper;
   private final PostService postService;
   private final CoverShowRecorder coverShowRecorder;
-  private final ContentReadGate contentReadGate;
+  private final ExplorePageCache explorePageCache;
   private final UserClient userClient;
   private final String internalToken;
 
@@ -38,13 +38,13 @@ public class FeedService {
       PostMapper postMapper,
       PostService postService,
       CoverShowRecorder coverShowRecorder,
-      ContentReadGate contentReadGate,
+      ExplorePageCache explorePageCache,
       UserClient userClient,
       @Value("${onepage.internal-token}") String internalToken) {
     this.postMapper = postMapper;
     this.postService = postService;
     this.coverShowRecorder = coverShowRecorder;
-    this.contentReadGate = contentReadGate;
+    this.explorePageCache = explorePageCache;
     this.userClient = userClient;
     this.internalToken = internalToken;
   }
@@ -72,9 +72,36 @@ public class FeedService {
 
   private FeedDtos.CursorPage page(
       Long viewerId, String cursor, Integer limit, String category, List<Long> authorIds) {
-    LoadedPage loaded = contentReadGate.call(() -> loadPage(viewerId, cursor, limit, category, authorIds));
-    coverShowRecorder.enqueue(loaded.shows());
+    boolean cacheable = authorIds == null && !StringUtils.hasText(cursor);
+    if (cacheable) {
+      FeedDtos.CursorPage page = explorePageCache.loadShared(
+          category, limit, () -> loadPage(viewerId, cursor, limit, category, authorIds).page());
+      coverShowRecorder.offer(showsFrom(viewerId, page));
+      return page;
+    }
+    LoadedPage loaded = loadPage(viewerId, cursor, limit, category, authorIds);
+    coverShowRecorder.offer(loaded.shows());
     return loaded.page();
+  }
+
+  private static List<PostCoverShowMapper.ShowRow> showsFrom(Long viewerId, FeedDtos.CursorPage page) {
+    List<PostCoverShowMapper.ShowRow> shows = new ArrayList<>();
+    if (page == null || page.items() == null) {
+      return shows;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    for (FeedDtos.PostBrief item : page.items()) {
+      if (item == null || !StringUtils.hasText(item.postId())) {
+        continue;
+      }
+      try {
+        shows.add(new PostCoverShowMapper.ShowRow(
+            IdGenerator.nextId(), viewerId, Long.parseLong(item.postId()), now));
+      } catch (NumberFormatException ignored) {
+        // 缓存脏数据不挡首页
+      }
+    }
+    return shows;
   }
 
   private LoadedPage loadPage(
@@ -116,7 +143,7 @@ public class FeedService {
     return new LoadedPage(new FeedDtos.CursorPage(items, next, hasMore), shows);
   }
 
-  /** 卡片在读许可里组装。曝光列表拿到许可外面再落 Outbox，插入期间不再占着名额。 */
+  /** 卡片返回前把曝光丢进内存队列，定时批量写 Outbox。缓存命中也记账。 */
   private record LoadedPage(FeedDtos.CursorPage page, List<PostCoverShowMapper.ShowRow> shows) {}
 
   private void applyCursor(LambdaQueryWrapper<Post> query, String cursor) {

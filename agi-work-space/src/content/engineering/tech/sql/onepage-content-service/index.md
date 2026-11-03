@@ -21,3 +21,5 @@ order: 3
 - [012_post_ai_review.sql](/engineering/tech/sql/onepage-content-service/012_post_ai_review) — 公开笔记文字机审字段（已有库另执行）
 - [013_post_ai_review_score.sql](/engineering/tech/sql/onepage-content-service/013_post_ai_review_score) — 机审风险分（已有库另执行）
 - [014_media_ai_review.sql](/engineering/tech/sql/onepage-content-service/014_media_ai_review) — 媒体机审字段与帖汇总标签（已有库另执行）
+- [015_feed_explore_idx.sql](/engineering/tech/sql/onepage-content-service/015_feed_explore_idx) — 发现流联合索引（已有库另执行）
+- [016_topic_post_count.sql](/engineering/tech/sql/onepage-content-service/016_topic_post_count) — 话题热度列，目录不再 LIKE（已有库另执行）

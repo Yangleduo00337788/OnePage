@@ -90,6 +90,7 @@ public class PostService {
   private final ImClient imClient;
   private final CommunityPolicyCache policyCache;
   private final PostReviewService postReviewService;
+  private final ExplorePageCache explorePageCache;
   private final String mediaPublicBase;
   private final String frontendUrl;
   private final String internalToken;
@@ -114,6 +115,7 @@ public class PostService {
       ImClient imClient,
       CommunityPolicyCache policyCache,
       @Lazy PostReviewService postReviewService,
+      ExplorePageCache explorePageCache,
       @Value("${onepage.media-public-base}") String mediaPublicBase,
       @Value("${onepage.frontend-url}") String frontendUrl,
       @Value("${onepage.internal-token}") String internalToken) {
@@ -136,6 +138,7 @@ public class PostService {
     this.imClient = imClient;
     this.policyCache = policyCache;
     this.postReviewService = postReviewService;
+    this.explorePageCache = explorePageCache;
     this.mediaPublicBase = trimSlash(mediaPublicBase);
     this.frontendUrl = trimSlash(frontendUrl);
     this.internalToken = internalToken;
@@ -183,8 +186,10 @@ public class PostService {
           "authorId", String.valueOf(userId),
           "postType", type));
     }
-    catalogService.rememberHashtags(post.getBody());
+    catalogService.rememberHashtags(
+        post.getBody(), vis == 0 && STATUS_PUBLISHED.equals(post.getStatus()));
     queueAiReview(post);
+    evictExploreCache();
     return new FeedDtos.CreateResult(String.valueOf(postId), publishedAt.toString(), post.getStatus());
   }
 
@@ -245,8 +250,10 @@ public class PostService {
     writeOutbox("post", String.valueOf(postId), "post.updated", Map.of(
         "postId", String.valueOf(postId),
         "authorId", String.valueOf(userId)));
-    catalogService.rememberHashtags(post.getBody());
+    catalogService.rememberHashtags(
+        post.getBody(), vis == 0 && STATUS_PUBLISHED.equals(post.getStatus()));
     queueAiReview(post);
+    evictExploreCache();
     return detail(userId, postId);
   }
 
@@ -254,23 +261,46 @@ public class PostService {
     Post post = requireVisible(postId, viewerId);
     List<PostMedia> links = postMediaMapper.selectList(
         Wrappers.<PostMedia>lambdaQuery().eq(PostMedia::getPostId, postId).orderByAsc(PostMedia::getSortOrder));
-    List<FeedDtos.MediaItem> media = new ArrayList<>();
-    for (PostMedia link : links) {
-      MediaAsset asset = mediaAssetMapper.selectById(link.getMediaId());
-      if (asset == null || asset.getBlockedAt() != null) {
-        continue;
+    List<Long> mediaIds = new ArrayList<>();
+    if (links != null) {
+      for (PostMedia link : links) {
+        if (link != null && link.getMediaId() != null) {
+          mediaIds.add(link.getMediaId());
+        }
       }
-      media.add(new FeedDtos.MediaItem(
-          String.valueOf(asset.getId()),
-          publicUrl(asset.getObjectKey()),
-          asset.getMimeType(),
-          link.getRole()));
     }
-    long likes = likeMapper.selectCount(Wrappers.<PostLike>lambdaQuery().eq(PostLike::getPostId, postId));
-    long favs = favoriteMapper.selectCount(Wrappers.<PostFavorite>lambdaQuery().eq(PostFavorite::getPostId, postId));
-    long comments = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
-        .eq(Comment::getPostId, postId)
-        .eq(Comment::getStatus, 0));
+    Map<Long, MediaAsset> assets = new HashMap<>();
+    if (!mediaIds.isEmpty()) {
+      List<MediaAsset> found = mediaAssetMapper.selectBatchIds(mediaIds);
+      if (found != null) {
+        for (MediaAsset asset : found) {
+          if (asset != null && asset.getId() != null) {
+            assets.put(asset.getId(), asset);
+          }
+        }
+      }
+    }
+    List<FeedDtos.MediaItem> media = new ArrayList<>();
+    if (links != null) {
+      for (PostMedia link : links) {
+        if (link == null || link.getMediaId() == null) {
+          continue;
+        }
+        MediaAsset asset = assets.get(link.getMediaId());
+        if (asset == null || asset.getBlockedAt() != null) {
+          continue;
+        }
+        media.add(new FeedDtos.MediaItem(
+            String.valueOf(asset.getId()),
+            publicUrl(asset.getObjectKey()),
+            asset.getMimeType(),
+            link.getRole()));
+      }
+    }
+    List<Long> ids = List.of(postId);
+    long likes = toCountMap(likeMapper.countByPostIds(ids)).getOrDefault(postId, 0L);
+    long favs = toCountMap(favoriteMapper.countByPostIds(ids)).getOrDefault(postId, 0L);
+    long comments = toCountMap(commentMapper.countVisibleByPostIds(ids)).getOrDefault(postId, 0L);
     boolean liked = viewerId != null && likeMapper.selectCount(Wrappers.<PostLike>lambdaQuery()
         .eq(PostLike::getPostId, postId).eq(PostLike::getUserId, viewerId)) > 0;
     boolean favorited = viewerId != null && favoriteMapper.selectCount(Wrappers.<PostFavorite>lambdaQuery()
@@ -278,7 +308,9 @@ public class PostService {
     String cover = media.isEmpty() ? "" : media.getFirst().url();
     return new FeedDtos.PostDetail(
         String.valueOf(post.getId()),
-        authorLookup.brief(post.getAuthorId()),
+        authorLookup.briefs(
+            post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()))
+            .getOrDefault(post.getAuthorId(), authorLookup.brief(post.getAuthorId())),
         post.getTitle() == null ? "" : post.getTitle(),
         post.getBody(),
         cover,
@@ -315,6 +347,7 @@ public class PostService {
     post.setUpdatedAt(now);
     postMapper.updateById(post);
     writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
+    evictExploreCache();
   }
 
   /** 运营工单展示标题；已删也返回。找不到的 id 跳过。 */
@@ -405,6 +438,7 @@ public class PostService {
     post.setUpdatedAt(now);
     postMapper.updateById(post);
     writeOutbox("post", String.valueOf(postId), "post.deleted", Map.of("postId", String.valueOf(postId)));
+    evictExploreCache();
   }
 
   /** 运营恢复：已在线则当作成功。 */
@@ -426,6 +460,7 @@ public class PostService {
         .set(Post::getUpdatedAt, now);
     postMapper.update(null, update);
     writeOutbox("post", String.valueOf(postId), "post.restored", Map.of("postId", String.valueOf(postId)));
+    evictExploreCache();
   }
 
   /** 运营通过待审或未通过笔记，写入 Feed。 */
@@ -455,6 +490,7 @@ public class PostService {
         "postId", String.valueOf(postId),
         "authorId", post.getAuthorId() == null ? "" : String.valueOf(post.getAuthorId()),
         "postType", post.getPostType() == null ? "" : post.getPostType()));
+    evictExploreCache();
   }
 
   /** 运营驳回待审。必须写回复，最长 200；事务提交后通知作者。 */
@@ -489,7 +525,7 @@ public class PostService {
           null,
           note);
     }
-    searchIndexer.sync(postId);
+    AfterCommit.run(() -> searchIndexer.sync(postId));
   }
 
   /** 已上架笔记被举报后打回待审，不进 Feed，等人审。已下架或非公开在线则不动。 */
@@ -512,7 +548,7 @@ public class PostService {
             .set(Post::getAiReview, "flag")
             .set(Post::getAiReviewReason, "用户举报召回")
             .set(Post::getUpdatedAt, now));
-    searchIndexer.sync(postId);
+    AfterCommit.run(() -> searchIndexer.sync(postId));
   }
 
   /** 运营笔记列表。taken=live 已通过在线，pending 待审，rejected 未通过，down 已下架。 */
@@ -700,9 +736,14 @@ public class PostService {
     }
     post.setUpdatedAt(LocalDateTime.now());
     postMapper.updateById(post);
-    searchIndexer.sync(postId);
+    AfterCommit.run(() -> searchIndexer.sync(postId));
     queueAiReview(post);
+    evictExploreCache();
     return toBrief(post, postViewMapper.countByPostId(post.getId()));
+  }
+
+  private void evictExploreCache() {
+    AfterCommit.run(explorePageCache::evict);
   }
 
   public void recordView(long userId, long postId) {

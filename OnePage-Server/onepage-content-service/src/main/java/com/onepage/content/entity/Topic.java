@@ -14,6 +14,7 @@ public class Topic {
   private Integer official;
   private Integer sortOrder;
   private Integer enabled;
+  private Long postCount;
   private LocalDateTime createdAt;
 
   public Long getId() { return id; }
@@ -26,6 +27,8 @@ public class Topic {
   public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
   public Integer getEnabled() { return enabled; }
   public void setEnabled(Integer enabled) { this.enabled = enabled; }
+  public Long getPostCount() { return postCount; }
+  public void setPostCount(Long postCount) { this.postCount = postCount; }
   public LocalDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

@@ -167,6 +167,8 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | updated_at | DATETIME(3) | |
 | deleted_at | DATETIME(3) 可空 | |
 
+索引：`idx_author_published`、`idx_published`、`idx_category_published`；已有库另加 `idx_feed_explore (visibility, status, deleted_at, published_at, id)`，见 [015_feed_explore_idx.sql](/engineering/tech/sql/onepage-content-service/015_feed_explore_idx)。
+
 ### post_category
 
 | 字段 | 类型 | 说明 |
@@ -192,6 +194,8 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 
 ### topic
 
+脚本 [016_topic_post_count.sql](/engineering/tech/sql/onepage-content-service/016_topic_post_count)。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | BIGINT PK | |
@@ -199,6 +203,7 @@ P1 浏览列表实际读 content 库 `post_view`，本表未建。规划字段�
 | official | TINYINT | 1 官方 |
 | sort_order | INT | |
 | enabled | TINYINT | |
+| post_count | BIGINT | 公开已发布正文含 `#名` 的大约条数；目录读这一列 |
 | created_at | DATETIME(3) | |
 
 ### platform_notice
@@ -500,6 +505,7 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 | --- | --- |
 | `onepage:ai:settings` | AI 运营配置 JSON（模型、密钥、温度/maxTokens/流式、三段 prompt、RAG 条数/正文截断、耶耶文案、开关）；未写入或 reset 后用环境变量与内置 prompt |
 | `live:presence:{sessionId}` | 直播在场 ZSET，member=`u:{userId}` 或 `g:{presenceId}`，score=心跳毫秒；25s 无心跳剔除 |
+| `onepage:feed:explore:v1:{category}:{size}` | 公开发现流首页 JSON，TTL 约 1 秒；发帖/改可见/删除/运营上下架后删前缀（DEC-092） |
 
 ## Elasticsearch 索引（非 MySQL）
 
@@ -514,6 +520,8 @@ UNIQUE `(user_id, aggregate_key)`：同人同事件只留一行，再投递清 `
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-03 | `post.idx_feed_explore`；`topic.post_count`（DEC-094） |
+| 2026-11-03 | 发现流 Redis `onepage:feed:explore:v1`（DEC-092） |
 | 2026-10-20 | `community_policy` 违禁词与上传上限 |
 | 2026-10-19 | `user_profile.official` 一页官方认证号 |
 | 2026-10-19 | 修正 `platform_notice`、`user_unfollow_log` 中文 COMMENT |

@@ -3,7 +3,6 @@ package com.onepage.content.web;
 import com.onepage.common.web.CurrentUser;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.service.CommentService;
-import com.onepage.content.service.ContentReadGate;
 import com.onepage.content.service.PostService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -27,15 +26,10 @@ import java.util.List;
 public class PostController {
   private final PostService postService;
   private final CommentService commentService;
-  private final ContentReadGate contentReadGate;
 
-  public PostController(
-      PostService postService,
-      CommentService commentService,
-      ContentReadGate contentReadGate) {
+  public PostController(PostService postService, CommentService commentService) {
     this.postService = postService;
     this.commentService = commentService;
-    this.contentReadGate = contentReadGate;
   }
 
   @PostMapping
@@ -78,7 +72,7 @@ public class PostController {
 
   @GetMapping("/{postId}")
   public FeedDtos.PostDetail detail(HttpServletRequest request, @PathVariable("postId") long postId) {
-    return contentReadGate.call(() -> postService.detail(CurrentUser.tryUserId(request), postId));
+    return postService.detail(CurrentUser.tryUserId(request), postId);
   }
 
   @DeleteMapping("/{postId}")

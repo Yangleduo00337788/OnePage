@@ -27,6 +27,8 @@ order: 5
 | [012_post_ai_review](/engineering/tech/sql/onepage-content-service/012_post_ai_review) | `onepage-content-service/db/sql/012_post_ai_review.sql` |
 | [013_post_ai_review_score](/engineering/tech/sql/onepage-content-service/013_post_ai_review_score) | `onepage-content-service/db/sql/013_post_ai_review_score.sql` |
 | [014_media_ai_review](/engineering/tech/sql/onepage-content-service/014_media_ai_review) | `onepage-content-service/db/sql/014_media_ai_review.sql` |
+| [015_feed_explore_idx](/engineering/tech/sql/onepage-content-service/015_feed_explore_idx) | `onepage-content-service/db/sql/015_feed_explore_idx.sql` |
+| [016_topic_post_count](/engineering/tech/sql/onepage-content-service/016_topic_post_count) | `onepage-content-service/db/sql/016_topic_post_count.sql` |
 | [onepage-notification-service / 001_init](/engineering/tech/sql/onepage-notification-service/001_init) | `onepage-notification-service/db/sql/001_init.sql` |
 | [onepage-message-service / 001_init](/engineering/tech/sql/onepage-message-service/001_init) | `onepage-message-service/db/sql/001_init.sql` |
 | [002_ops_hide](/engineering/tech/sql/onepage-message-service/002_ops_hide) | `onepage-message-service/db/sql/002_ops_hide.sql` |

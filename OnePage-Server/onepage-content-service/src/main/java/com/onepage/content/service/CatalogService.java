@@ -3,6 +3,7 @@ package com.onepage.content.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.onepage.common.api.BusinessException;
 import com.onepage.common.id.IdGenerator;
+import com.onepage.common.tx.AfterCommit;
 import com.onepage.content.dto.FeedDtos;
 import com.onepage.content.entity.Campaign;
 import com.onepage.content.entity.Comment;
@@ -406,6 +407,11 @@ public class CatalogService {
 
   @Transactional
   public void rememberHashtags(String body) {
+    rememberHashtags(body, false);
+  }
+
+  @Transactional
+  public void rememberHashtags(String body, boolean countPublicPost) {
     if (!StringUtils.hasText(body)) {
       return;
     }
@@ -424,18 +430,28 @@ public class CatalogService {
         } catch (BusinessException ex) {
           continue;
         }
-        if (byTopicName(name) != null) {
+        Topic existing = byTopicName(name);
+        if (existing == null) {
+          Topic row = new Topic();
+          row.setId(IdGenerator.nextId());
+          row.setName(name);
+          row.setOfficial(0);
+          row.setSortOrder(0);
+          row.setEnabled(1);
+          row.setPostCount(countPublicPost ? 1L : 0L);
+          row.setCreatedAt(LocalDateTime.now());
+          topicMapper.insert(row);
+          Long topicId = row.getId();
+          AfterCommit.run(() -> searchIndexer.syncTopic(topicId));
           continue;
         }
-        Topic row = new Topic();
-        row.setId(IdGenerator.nextId());
-        row.setName(name);
-        row.setOfficial(0);
-        row.setSortOrder(0);
-        row.setEnabled(1);
-        row.setCreatedAt(LocalDateTime.now());
-        topicMapper.insert(row);
-        searchIndexer.syncTopic(row.getId());
+        if (countPublicPost && existing.getId() != null) {
+          topicMapper.update(
+              null,
+              Wrappers.<Topic>lambdaUpdate()
+                  .eq(Topic::getId, existing.getId())
+                  .setSql("post_count = post_count + 1"));
+        }
       }
     } catch (RuntimeException ex) {
       log.warn("remember hashtags skipped");
@@ -579,23 +595,18 @@ public class CatalogService {
   }
 
   private List<FeedDtos.OpsTopic> toTopics(List<Topic> rows, boolean enabledOnly) {
-    Map<Long, Long> counts = topicCounts();
     List<FeedDtos.OpsTopic> out = new ArrayList<>();
     for (Topic row : rows) {
       if (enabledOnly && !enabled(row.getEnabled())) {
         continue;
       }
-      out.add(toTopic(row, counts.getOrDefault(row.getId(), 0L)));
+      out.add(toTopic(row, n(row.getPostCount())));
     }
     return out;
   }
 
   private FeedDtos.OpsTopic toTopic(Topic row) {
-    long count = 0L;
-    if (row.getId() != null) {
-      count = topicCounts().getOrDefault(row.getId(), 0L);
-    }
-    return toTopic(row, count);
+    return toTopic(row, n(row.getPostCount()));
   }
 
   private static FeedDtos.OpsTopic toTopic(Topic row, long postCount) {
@@ -606,23 +617,6 @@ public class CatalogService {
         n(row.getSortOrder()),
         enabled(row.getEnabled()),
         postCount);
-  }
-
-  private Map<Long, Long> topicCounts() {
-    Map<Long, Long> map = new HashMap<>();
-    try {
-      List<TopicMapper.CountRow> rows = topicMapper.countPostsByTopic();
-      if (rows != null) {
-        for (TopicMapper.CountRow row : rows) {
-          if (row != null) {
-            map.put(row.topicId(), row.cnt());
-          }
-        }
-      }
-    } catch (RuntimeException ex) {
-      log.warn("topic post counts unavailable");
-    }
-    return map;
   }
 
   private static List<FeedDtos.OpsNotice> toNotices(List<PlatformNotice> rows, boolean enabledOnly) {

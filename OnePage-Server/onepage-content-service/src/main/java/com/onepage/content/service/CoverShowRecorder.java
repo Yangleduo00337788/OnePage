@@ -13,13 +13,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PreDestroy;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
  * 发现流曝光先写入 outbox_event，再写入 post_cover_show。不接 RocketMQ。
+ * HTTP 只入内存队列，定时批量落 Outbox，缓存命中也记账。
  */
 @Service
 public class CoverShowRecorder {
@@ -28,8 +33,11 @@ public class CoverShowRecorder {
   private static final int STATUS_PENDING = 0;
   private static final int STATUS_SENT = 1;
   private static final int STATUS_FAILED = 2;
-  private static final int DRAIN_LIMIT = 40;
+  private static final int DRAIN_LIMIT = 8;
+  private static final int FLUSH_BATCH = 500;
+  private static final int FLUSH_MAX_BATCHES = 10;
   private static final Logger log = LoggerFactory.getLogger(CoverShowRecorder.class);
+  private final ConcurrentLinkedQueue<ShowRow> pendingShows = new ConcurrentLinkedQueue<>();
 
   private final OutboxEventMapper outboxEventMapper;
   private final PostCoverShowMapper coverShowMapper;
@@ -47,11 +55,44 @@ public class CoverShowRecorder {
     this.coverShowExecutor = coverShowExecutor;
   }
 
-  public void enqueue(List<ShowRow> shows) {
+  public void offer(List<ShowRow> shows) {
     if (shows == null || shows.isEmpty()) {
       return;
     }
-    List<ShowRow> snapshot = List.copyOf(shows);
+    pendingShows.addAll(shows);
+  }
+
+  public void flushBuffer() {
+    for (int i = 0; i < FLUSH_MAX_BATCHES; i++) {
+      List<ShowRow> batch = new ArrayList<>(FLUSH_BATCH);
+      ShowRow row;
+      while (batch.size() < FLUSH_BATCH && (row = pendingShows.poll()) != null) {
+        batch.add(row);
+      }
+      if (batch.isEmpty()) {
+        return;
+      }
+      try {
+        persist(batch);
+      } catch (RuntimeException ex) {
+        pendingShows.addAll(batch);
+        log.warn("cover show 批量落盘失败，已放回队列 size={}", batch.size(), ex);
+        return;
+      }
+    }
+  }
+
+  @PreDestroy
+  public void flushOnShutdown() {
+    flushBuffer();
+  }
+
+  public void enqueue(List<ShowRow> shows) {
+    offer(shows);
+    flushBuffer();
+  }
+
+  private void persist(List<ShowRow> snapshot) {
     OutboxEvent event = new OutboxEvent();
     long eventId = IdGenerator.nextId();
     event.setId(eventId);
