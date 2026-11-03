@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 
 /**
  * 限制同时跑发现流和笔记详情的个数，把连接池留给评论和发帖。
+ * 名额满了立刻「服务繁忙」，不要占着连接排队。
  */
 @Component
 public class ContentReadGate {
@@ -20,10 +21,7 @@ public class ContentReadGate {
   }
 
   public <T> T call(Supplier<T> action) {
-    try {
-      slots.acquire();
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
+    if (!slots.tryAcquire()) {
       throw BusinessException.rateLimited("服务繁忙，请稍后重试");
     }
     try {

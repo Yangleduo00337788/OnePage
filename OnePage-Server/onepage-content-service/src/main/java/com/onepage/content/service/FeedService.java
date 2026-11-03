@@ -72,10 +72,12 @@ public class FeedService {
 
   private FeedDtos.CursorPage page(
       Long viewerId, String cursor, Integer limit, String category, List<Long> authorIds) {
-    return contentReadGate.call(() -> loadPage(viewerId, cursor, limit, category, authorIds));
+    LoadedPage loaded = contentReadGate.call(() -> loadPage(viewerId, cursor, limit, category, authorIds));
+    coverShowRecorder.enqueue(loaded.shows());
+    return loaded.page();
   }
 
-  private FeedDtos.CursorPage loadPage(
+  private LoadedPage loadPage(
       Long viewerId, String cursor, Integer limit, String category, List<Long> authorIds) {
     int size = limit == null ? 20 : Math.min(Math.max(limit, 1), 50);
     LambdaQueryWrapper<Post> query = Wrappers.<Post>lambdaQuery()
@@ -106,14 +108,16 @@ public class FeedService {
     for (Post post : rows) {
       shows.add(new PostCoverShowMapper.ShowRow(IdGenerator.nextId(), viewerId, post.getId(), now));
     }
-    coverShowRecorder.enqueue(shows);
     String next = null;
     if (hasMore && !rows.isEmpty()) {
       Post last = rows.getLast();
       next = PostService.epochMilli(last.getPublishedAt()) + "_" + last.getId();
     }
-    return new FeedDtos.CursorPage(items, next, hasMore);
+    return new LoadedPage(new FeedDtos.CursorPage(items, next, hasMore), shows);
   }
+
+  /** 卡片在读许可里组装。曝光列表拿到许可外面再落 Outbox，插入期间不再占着名额。 */
+  private record LoadedPage(FeedDtos.CursorPage page, List<PostCoverShowMapper.ShowRow> shows) {}
 
   private void applyCursor(LambdaQueryWrapper<Post> query, String cursor) {
     if (!StringUtils.hasText(cursor)) {

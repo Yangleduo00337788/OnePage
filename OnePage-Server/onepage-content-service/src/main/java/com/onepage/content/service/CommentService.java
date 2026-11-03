@@ -16,7 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
@@ -41,6 +43,7 @@ public class CommentService {
   private final InteractionNotifier notifier;
   private final UserClient userClient;
   private final CommunityPolicyCache policyCache;
+  private final TransactionTemplate transactionTemplate;
   private final String internalToken;
 
   public CommentService(
@@ -51,6 +54,7 @@ public class CommentService {
       InteractionNotifier notifier,
       UserClient userClient,
       CommunityPolicyCache policyCache,
+      PlatformTransactionManager transactionManager,
       @Value("${onepage.internal-token}") String internalToken) {
     this.postService = postService;
     this.commentMapper = commentMapper;
@@ -59,6 +63,7 @@ public class CommentService {
     this.notifier = notifier;
     this.userClient = userClient;
     this.policyCache = policyCache;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.internalToken = internalToken;
   }
 
@@ -95,14 +100,23 @@ public class CommentService {
     return new FeedDtos.CommentPage(items, total);
   }
 
-  @Transactional
   public FeedDtos.CommentView create(
       long userId, long postId, String content, String parentId, List<String> mentionPageIds) {
-    Post post = postService.requireVisible(postId, userId);
     if (!StringUtils.hasText(content) || content.trim().length() > 2000) {
       throw BusinessException.validation("评论内容不合法");
     }
     policyCache.assertClean(content);
+    Comment row = transactionTemplate.execute(status -> insertComment(
+        userId, postId, content, parentId, mentionPageIds));
+    if (row == null) {
+      throw new IllegalStateException("评论未写入");
+    }
+    return createdView(userId, row);
+  }
+
+  private Comment insertComment(
+      long userId, long postId, String content, String parentId, List<String> mentionPageIds) {
+    Post post = postService.requireVisible(postId, userId);
     LocalDateTime now = LocalDateTime.now();
     long id = IdGenerator.nextId();
     Comment row = new Comment();
@@ -155,7 +169,7 @@ public class CommentService {
       }
     }
     emitMentions(userId, post.getId(), id, preview, mentionPageIds, already);
-    return toView(userId, row);
+    return row;
   }
 
   private void emitMentions(
@@ -347,6 +361,19 @@ public class CommentService {
         authorLookup.brief(row.getUserId()),
         row.getContent() == null ? "" : row.getContent(),
         row.getStatus() == null || row.getStatus() != 0,
+        PostService.iso(row.getCreatedAt()));
+  }
+
+  private FeedDtos.CommentView createdView(long userId, Comment row) {
+    return new FeedDtos.CommentView(
+        String.valueOf(row.getId()),
+        authorLookup.brief(userId),
+        row.getContent(),
+        row.getParentId() == null ? null : String.valueOf(row.getParentId()),
+        String.valueOf(row.getRootId()),
+        n(row.getLikeCount()),
+        false,
+        0L,
         PostService.iso(row.getCreatedAt()));
   }
 
