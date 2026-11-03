@@ -810,5 +810,5 @@ Body：`groupId` `question` `answer` `sortOrder`。写入 `creator_faq`。内网
 | FORBIDDEN | 403 | 无权限 |
 | NOT_FOUND | 404 | |
 | VALIDATION_ERROR | 400 | 字段校验 |
-| RATE_LIMITED | 429 | 短信等 |
+| RATE_LIMITED | 429 | 短信；发现流/详情读许可满了（服务繁忙） |
 | CONFLICT | 409 | 重复关注等 |

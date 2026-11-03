@@ -16,3 +16,4 @@ order: 2
 | [50 并发互动](/quality/loadtest/reports/r-react) | 50 | 点赞、收藏、评论各 219 | 0 |
 | [50 并发私信](/quality/loadtest/reports/r-im) | 50 | 建会话和发消息各 375 | 0 |
 | [50 并发直播](/quality/loadtest/reports/r-live) | 50 | 列表、进房、聊天各 692 | 0 |
+| [混合 1000](/quality/loadtest/reports/r-mix) | 1000 | 总请求约 1642；评论 64、发笔记 47 | 0.00% |
