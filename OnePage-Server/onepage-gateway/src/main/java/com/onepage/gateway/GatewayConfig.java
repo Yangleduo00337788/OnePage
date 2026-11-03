@@ -60,7 +60,10 @@ public class GatewayConfig {
   public RedisRateLimiter redisRateLimiter(
       @Value("${onepage.rate-replenish}") int replenish,
       @Value("${onepage.rate-burst}") int burst) {
-    return new RedisRateLimiter(replenish, burst);
+    RedisRateLimiter limiter = new RedisRateLimiter(replenish, burst);
+    // 令牌桶结果晚于下游写完时，再补 X-RateLimit-* 会碰到只读头并掐断连接。DEC-087
+    limiter.setIncludeHeaders(false);
+    return limiter;
   }
 
   /**

@@ -56,11 +56,6 @@ spring:
           args:
             retries: ${GW_RETRY_COUNT}
             methods: GET
-        - name: RequestRateLimiter
-          args:
-            redis-rate-limiter.replenishRate: ${GW_RATE_REPLENISH}
-            redis-rate-limiter.burstCapacity: ${GW_RATE_BURST}
-            key-resolver: "#{@clientIpKeyResolver}"
       routes:
         - id: auth
           uri: lb://onepage-auth-service

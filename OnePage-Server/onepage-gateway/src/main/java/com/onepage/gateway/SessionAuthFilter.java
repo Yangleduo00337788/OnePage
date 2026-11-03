@@ -2,11 +2,14 @@ package com.onepage.gateway;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,6 +20,8 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 登录态过滤器。{@code GlobalFilter}：对所有路由生效，不必在 YAML 里逐条挂。
@@ -31,9 +36,14 @@ import java.util.Map;
 @Component
 public class SessionAuthFilter implements GlobalFilter, Ordered {
 
+  /** 同一会话在这段时间内不再打 Redis。千并发复用一个 Cookie 时，每次读会话会把评论和发笔记打成未登录。 */
+  private static final long USER_CACHE_TTL_MILLIS = 15_000L;
+  private static final Logger log = LoggerFactory.getLogger(SessionAuthFilter.class);
+
   private final ObjectMapper objectMapper;
   private final String communityCookie;
   private final String opsCookie;
+  private final ConcurrentHashMap<String, CachedUser> usersBySession = new ConcurrentHashMap<>();
 
   public SessionAuthFilter(
       ObjectMapper objectMapper,
@@ -53,43 +63,109 @@ public class SessionAuthFilter implements GlobalFilter, Ordered {
     String path = exchange.getRequest().getURI().getPath();
     HttpMethod method = exchange.getRequest().getMethod();
     String cookieName = cookieName(exchange);
+    if (HttpMethod.POST.equals(method) && "/api/v1/auth/logout".equals(path)) {
+      forgetSession(exchange, cookieName);
+      // 登出只在网关 invalidate。若再转发到 auth 也 invalidate，两边抢同一份 Redis WebSession，请求会挂住。
+      return exchange.getSession()
+          .flatMap(session -> session.invalidate())
+          .then(json(exchange.getResponse(), HttpStatus.OK, Map.of("ok", true)))
+          .onErrorResume(ex -> unauthorized(exchange));
+    }
     if (HttpMethod.OPTIONS.equals(method) || isPublic(path, method)) {
       if (exchange.getRequest().getCookies().getFirst(cookieName) == null) {
         return chain.filter(exchange);
       }
-      return exchange.getSession().flatMap(session -> {
-        Object userId = session.getAttribute("userId");
-        if (userId == null || userId.toString().isBlank()) {
-          return chain.filter(exchange);
-        }
-        var mutated = exchange.getRequest().mutate()
-            .header("X-User-Id", userId.toString())
-            .build();
-        return chain.filter(exchange.mutate().request(mutated).build());
-      }).onErrorResume(ex -> chain.filter(exchange));
+      return resolveUserId(exchange, cookieName)
+          .onErrorResume(ex -> {
+            log.warn("公开接口读会话失败，按未登录继续: {}", ex.getClass().getSimpleName());
+            return Mono.empty();
+          })
+          .map(Optional::of)
+          .defaultIfEmpty(Optional.empty())
+          .flatMap(user -> {
+            if (user.isEmpty() || user.get().isBlank()) {
+              return chain.filter(exchange);
+            }
+            return continueWithUser(exchange, chain, user.get());
+          });
+    }
+    return resolveUserId(exchange, cookieName)
+        .onErrorResume(ex -> {
+          log.warn("受保护接口读会话失败: {}", ex.getClass().getSimpleName());
+          return Mono.empty();
+        })
+        .map(Optional::of)
+        .defaultIfEmpty(Optional.empty())
+        .flatMap(user -> {
+          if (user.isEmpty() || user.get().isBlank()) {
+            return unauthorized(exchange);
+          }
+          return continueWithUser(exchange, chain, user.get());
+        });
+  }
+
+  /**
+   * 缓存命中则不再读 Redis。过期或读失败时，仍用上一份用户，避免把已登录的写请求打成未登录。
+   * 空 Mono 表示这个 Cookie 还没有解析出用户。
+   */
+  private Mono<String> resolveUserId(ServerWebExchange exchange, String cookieName) {
+    String sessionId = sessionId(exchange, cookieName);
+    CachedUser cached = sessionId == null ? null : usersBySession.get(sessionId);
+    long now = System.currentTimeMillis();
+    if (cached != null && cached.expiresAtMillis > now) {
+      return Mono.just(cached.userId);
     }
     return exchange.getSession().flatMap(session -> {
-      Object userId = session.getAttribute("userId");
-      if (userId == null || userId.toString().isBlank()) {
-        return json(exchange.getResponse(), HttpStatus.UNAUTHORIZED, Map.of(
-            "code", "UNAUTHORIZED",
-            "message", "未登录",
-            "requestId", ""));
+      Object raw = session.getAttribute("userId");
+      if (raw == null || raw.toString().isBlank()) {
+        if (cached != null) {
+          return Mono.just(cached.userId);
+        }
+        return Mono.empty();
       }
-      if (HttpMethod.POST.equals(exchange.getRequest().getMethod())
-          && "/api/v1/auth/logout".equals(path)) {
-        // 登出只在网关 invalidate。若再转发到 auth 也 invalidate，两边抢同一份 Redis WebSession，请求会挂住。
-        return session.invalidate().then(json(exchange.getResponse(), HttpStatus.OK, Map.of("ok", true)));
+      String userId = raw.toString();
+      if (sessionId != null) {
+        usersBySession.put(sessionId, new CachedUser(userId, now + USER_CACHE_TTL_MILLIS));
       }
-      var mutated = exchange.getRequest().mutate()
-          .header("X-User-Id", userId.toString())
-          .build();
-      return chain.filter(exchange.mutate().request(mutated).build());
-    }).onErrorResume(ex -> json(exchange.getResponse(), HttpStatus.UNAUTHORIZED, Map.of(
+      return Mono.just(userId);
+    }).onErrorResume(ex -> {
+      if (cached != null) {
+        return Mono.just(cached.userId);
+      }
+      return Mono.error(ex);
+    });
+  }
+
+  private void forgetSession(ServerWebExchange exchange, String cookieName) {
+    String sessionId = sessionId(exchange, cookieName);
+    if (sessionId != null) {
+      usersBySession.remove(sessionId);
+    }
+  }
+
+  private static String sessionId(ServerWebExchange exchange, String cookieName) {
+    HttpCookie cookie = exchange.getRequest().getCookies().getFirst(cookieName);
+    if (cookie == null || cookie.getValue() == null || cookie.getValue().isBlank()) {
+      return null;
+    }
+    return cookie.getValue();
+  }
+
+  private Mono<Void> continueWithUser(ServerWebExchange exchange, GatewayFilterChain chain, String userId) {
+    var mutated = exchange.getRequest().mutate()
+        .header("X-User-Id", userId)
+        .build();
+    return chain.filter(exchange.mutate().request(mutated).build());
+  }
+
+  private Mono<Void> unauthorized(ServerWebExchange exchange) {
+    return json(exchange.getResponse(), HttpStatus.UNAUTHORIZED, Map.of(
         "code", "UNAUTHORIZED",
         "message", "未登录",
-        "requestId", "")));
+        "requestId", ""));
   }
+
+  private record CachedUser(String userId, long expiresAtMillis) {}
 
   private String cookieName(ServerWebExchange exchange) {
     String path = exchange.getRequest().getURI().getPath();
