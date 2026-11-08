@@ -1,15 +1,12 @@
-<div style="text-align: center">
+<p align="center">
+  <img src="OnePage-web/apps/shell/public/logo-light.png" alt="ONEPAGE（一页）" width="280" />
+</p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="OnePage-web/apps/shell/public/logo-dark.png" />
-  <img src="OnePage-web/apps/shell/public/logo-light.png" alt="ONEPAGE（一页）" width="280" style="display: block; margin: 0 auto" />
-</picture>
+<p align="center">
+  <font size="6"><b>ONEPAGE（一页）</b></font>
+</p>
 
-<h1 style="text-align: center">ONEPAGE（一页）</h1>
-
-<p style="text-align: center">记录生活每一页。<br />Every Day, A New Page</p>
-
-</div>
+<p align="center">记录生活每一页。<br />Every Day, A New Page</p>
 
 <p align="center">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-1c1c22?style=flat-square" />
